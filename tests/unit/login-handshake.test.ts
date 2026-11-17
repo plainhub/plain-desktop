@@ -145,7 +145,7 @@ it.each(['http:', 'https:'])(
 
 it('rejects a malformed or substituted hello without sending credentials', async () => {
   const promise = performLoginHandshake(params())
-  const rejection = expect(promise).rejects.toBe('signature_verification_failed')
+  const rejection = expect(promise).rejects.toBe('SIGNATURE_VERIFICATION_FAILED')
   await socket.open()
   await socket.message(
     JSON.stringify({ ...vector.response, signature: Buffer.alloc(64, 4).toString('base64') })
@@ -158,23 +158,23 @@ it('rejects a malformed or substituted hello without sending credentials', async
 it('does not replace a stored identity', async () => {
   await expect(
     performLoginHandshake({ ...params(), storedSignaturePublicKey: 'different-key' })
-  ).rejects.toBe('peer_identity_changed')
+  ).rejects.toBe('PEER_IDENTITY_CHANGED')
   expect(mock.socket).not.toHaveBeenCalled()
 })
 
 it('cancels a pending connection and clears both deadlines', async () => {
   const controller = new AbortController()
   const promise = performLoginHandshake({ ...params(), signal: controller.signal })
-  const rejection = expect(promise).rejects.toBe('canceled')
+  const rejection = expect(promise).rejects.toBe('CANCELED')
   controller.abort()
   await rejection
-  expect(socket.close).toHaveBeenCalledWith(3001, 'canceled')
+  expect(socket.close).toHaveBeenCalledWith(3001, 'CANCELED')
   expect(vi.getTimerCount()).toBe(0)
 })
 
 it('bounds the complete handshake after connection instead of timing only socket opening', async () => {
   const promise = performLoginHandshake(params())
-  const rejection = expect(promise).rejects.toBe('login_expired')
+  const rejection = expect(promise).rejects.toBe('LOGIN_EXPIRED')
   await socket.open()
   await vi.advanceTimersByTimeAsync(300000)
   await rejection
@@ -183,7 +183,7 @@ it('bounds the complete handshake after connection instead of timing only socket
 
 it('does not extend the login deadline after pending replies', async () => {
   const promise = performLoginHandshake(params())
-  const rejection = expect(promise).rejects.toBe('login_expired')
+  const rejection = expect(promise).rejects.toBe('LOGIN_EXPIRED')
   await socket.open()
   await socket.message(JSON.stringify(vector.response))
   await vi.advanceTimersByTimeAsync(299000)
@@ -206,7 +206,7 @@ it('does not send credentials when canceled during client metadata lookup', asyn
     ...params(),
     signal: controller.signal,
   })
-  const rejection = expect(promise).rejects.toBe('canceled')
+  const rejection = expect(promise).rejects.toBe('CANCELED')
   await socket.open()
   await socket.message(JSON.stringify(vector.response))
   controller.abort()
@@ -256,6 +256,6 @@ it('authenticates to A before delivering B login frames on the existing proxy UR
 
 it('keeps the A session handshake on the current API origin', async () => {
   await expect(openLoginSocket('wss://other.invalid/proxy/device-b/auth?cid=706c6169-76ca-875b-a559-d6fd7695ee9b'))
-    .rejects.toBe('proxy_auth_failed')
+    .rejects.toBe('PROXY_AUTH_FAILED')
   expect(mock.socket).not.toHaveBeenCalled()
 })

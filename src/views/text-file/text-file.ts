@@ -1,4 +1,4 @@
-import { ErrorCode } from '@/lib/api/error-code'
+import { HttpErrorCode } from '@/lib/api/http-error-code'
 import { FileAction } from '@/lib/api/file-action'
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -190,7 +190,7 @@ export function useTextFile() {
       if (lm) lastModified.value = lm
 
       await applyTextContent('content' in response ? response.content : await response.text(), true)
-    } catch { error.value = t(ErrorCode.NetworkError) } finally {
+    } catch { error.value = t(HttpErrorCode.NetworkError) } finally {
       await resources?.dispose()
       loading.value = false
     }

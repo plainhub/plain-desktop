@@ -1,3 +1,5 @@
+import { AuthErrorCode } from '@/lib/api/auth-error-code'
+import { HttpErrorCode } from '@/lib/api/http-error-code'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GqlError } from '@/lib/api/gql-error'
 import { bindGraphqlClient, gqlFetch } from '@/lib/api/gql-client'
@@ -65,7 +67,7 @@ describe('GraphQL request ownership', () => {
     const reply = deferred<any>()
     vi.mocked(nativeGraphql).mockReturnValueOnce(reply.promise)
     const first = gqlFetch('query { app { id } }')
-    const stale = expect(first).rejects.toThrow('request_context_changed')
+    const stale = expect(first).rejects.toThrow('REQUEST_CONTEXT_CHANGED')
     target.client = '706c6169-02de-8bc5-8fe4-50bb3e139c1b'
     vi.mocked(nativeGraphql).mockResolvedValueOnce({ data: { app: { id: 'b' } } })
     expect((await gqlFetch('query { app { id } }')).data).toEqual({ app: { id: 'b' } })
@@ -80,7 +82,7 @@ describe('GraphQL request ownership', () => {
     const reply = deferred<Awaited<ReturnType<typeof httpRequest>>>()
     vi.mocked(httpRequest).mockReturnValueOnce(reply.promise)
     const first = gqlFetch('query { app { id } }')
-    const stale = expect(first).rejects.toThrow('request_context_changed')
+    const stale = expect(first).rejects.toThrow('REQUEST_CONTEXT_CHANGED')
     target.token = 'session-b'
     target.header = '706c6169-91e1-8871-93a5-0b60cb96e6b8'
     vi.mocked(httpRequest).mockResolvedValueOnce(response({ app: { id: 'b' } }))
@@ -97,7 +99,7 @@ describe('GraphQL request ownership', () => {
     const reply = deferred<Awaited<ReturnType<typeof httpRequest>>>()
     vi.mocked(httpRequest).mockReturnValueOnce(reply.promise)
     const first = gqlFetch('query { app { id } }', undefined, { dedupe: false })
-    const failure = expect(first).rejects.toThrow('unauthorized')
+    const failure = expect(first).rejects.toThrow('UNAUTHORIZED')
     target.token = 'session-b'
     reply.resolve(response(null, 401))
     await failure
@@ -175,7 +177,7 @@ it('routes the selected Desktop peer over IPC without HTTP or credentials', asyn
   target.client = '706c6169-02de-8bc5-8fe4-50bb3e139c1b'
   vi.mocked(nativeGraphql).mockResolvedValueOnce({ data: { app: { clientId: '706c6169-02de-8bc5-8fe4-50bb3e139c1b' } } })
   await gqlFetch('query { app { clientId } }')
-  expect(nativeGraphql).toHaveBeenCalledExactlyOnceWith({ query: 'query { app { clientId } }', variables: undefined }, 30000, { kind: 'peer', peerId: '706c6169-02de-8bc5-8fe4-50bb3e139c1b' }, undefined)
+  expect(nativeGraphql).toHaveBeenCalledExactlyOnceWith({ query: 'query { app { clientId } }', variables: undefined }, 30000, { kind: 'PEER', peerId: '706c6169-02de-8bc5-8fe4-50bb3e139c1b' }, undefined)
   expect(httpRequest).not.toHaveBeenCalled()
   expect(getCurrentAuthToken).not.toHaveBeenCalled()
 })
@@ -187,7 +189,7 @@ it('keeps bound Desktop cleanup on its original peer after changing the selected
   target.client = '706c6169-02de-8bc5-8fe4-50bb3e139c1b'
   vi.mocked(nativeGraphql).mockResolvedValueOnce({ data: { stopDiscovery: true } })
   expect((await bound('mutation { stopDiscovery }')).data).toEqual({ stopDiscovery: true })
-  expect(nativeGraphql).toHaveBeenCalledExactlyOnceWith({ query: 'mutation { stopDiscovery }', variables: undefined }, 30000, { kind: 'peer', peerId: '706c6169-7efd-857c-91a3-7471150200cd' }, expect.any(Function))
+  expect(nativeGraphql).toHaveBeenCalledExactlyOnceWith({ query: 'mutation { stopDiscovery }', variables: undefined }, 30000, { kind: 'PEER', peerId: '706c6169-7efd-857c-91a3-7471150200cd' }, expect.any(Function))
   expect(httpRequest).not.toHaveBeenCalled()
 })
 
@@ -195,14 +197,14 @@ it('does not deduplicate or deliver responses across Desktop peer changes', asyn
   target.native = false
   const reply = deferred<any>()
   vi.mocked(nativeGraphql).mockReturnValueOnce(reply.promise)
-  const stale = expect(gqlFetch('query { app { id } }')).rejects.toMatchObject({ message: 'request_context_changed', canceled: true })
+  const stale = expect(gqlFetch('query { app { id } }')).rejects.toMatchObject({ message: 'REQUEST_CONTEXT_CHANGED', canceled: true })
   target.client = '706c6169-02de-8bc5-8fe4-50bb3e139c1b'
   vi.mocked(nativeGraphql).mockResolvedValueOnce({ data: { app: { id: 'b' } } })
   expect((await gqlFetch('query { app { id } }')).data).toEqual({ app: { id: 'b' } })
   reply.resolve({ data: { app: { id: 'a' } } })
   await stale
   expect(vi.mocked(nativeGraphql).mock.calls.map(([, , destination]) => destination)).toEqual([
-    { kind: 'peer', peerId: '706c6169-7efd-857c-91a3-7471150200cd' }, { kind: 'peer', peerId: '706c6169-02de-8bc5-8fe4-50bb3e139c1b' },
+    { kind: 'PEER', peerId: '706c6169-7efd-857c-91a3-7471150200cd' }, { kind: 'PEER', peerId: '706c6169-02de-8bc5-8fe4-50bb3e139c1b' },
   ])
   expect(httpRequest).not.toHaveBeenCalled()
 })
@@ -211,10 +213,10 @@ it('does not clear a replacement Desktop session after an old IPC unauthorized r
   target.native = false
   let reject!: (reason: Error) => void
   vi.mocked(nativeGraphql).mockReturnValueOnce(new Promise((_, fail) => { reject = fail }))
-  const failure = expect(gqlFetch('query { prefs }')).rejects.toMatchObject({ message: 'unauthorized', status: 401 })
+  const failure = expect(gqlFetch('query { prefs }')).rejects.toMatchObject({ message: 'UNAUTHORIZED', status: 401 })
   target.token = 'session-b'
   target.revision++
-  reject(new Error('unauthorized'))
+  reject(new Error('UNAUTHORIZED'))
   await failure
   expect(clearCurrentSession).not.toHaveBeenCalled()
   expect(window.location.reload).not.toHaveBeenCalled()
@@ -222,8 +224,8 @@ it('does not clear a replacement Desktop session after an old IPC unauthorized r
 
 it('preserves remote permission failures without clearing the selected session', async () => {
   target.native = false
-  vi.mocked(nativeGraphql).mockRejectedValueOnce(new Error('remote_access_disabled'))
-  await expect(gqlFetch('query { prefs }')).rejects.toMatchObject({ message: 'remote_access_disabled', status: 403 })
+  vi.mocked(nativeGraphql).mockRejectedValueOnce(new Error('REMOTE_ACCESS_DISABLED'))
+  await expect(gqlFetch('query { prefs }')).rejects.toMatchObject({ message: 'REMOTE_ACCESS_DISABLED', status: 403 })
   expect(clearCurrentSession).not.toHaveBeenCalled()
 })
 
@@ -232,8 +234,8 @@ it('waits for current Desktop remote-session cleanup before reloading', async ()
   target.native = false
   const cleared = deferred<void>()
   vi.mocked(clearCurrentSession).mockReturnValueOnce(cleared.promise)
-  vi.mocked(nativeGraphql).mockRejectedValueOnce(new Error('unauthorized'))
-  const failure = expect(gqlFetch('query { prefs }')).rejects.toThrow('unauthorized')
+  vi.mocked(nativeGraphql).mockRejectedValueOnce(new Error('UNAUTHORIZED'))
+  const failure = expect(gqlFetch('query { prefs }')).rejects.toThrow('UNAUTHORIZED')
   await vi.waitFor(() => expect(clearCurrentSession).toHaveBeenCalledTimes(1))
   expect(window.location.reload).not.toHaveBeenCalled()
   cleared.resolve()
@@ -253,7 +255,7 @@ it('routes Core preference writes to the selected local or remote target', async
   vi.mocked(nativeGraphql).mockResolvedValueOnce({ data: { result: true } })
   await core.set('locale', 'ja')
   expect(nativeGraphql).toHaveBeenCalledTimes(2)
-  expect(vi.mocked(nativeGraphql).mock.calls.map(([, , destination]) => destination)).toEqual([{ kind: 'local' }, { kind: 'peer', peerId: '706c6169-8ed4-8fb1-b534-79c532096b42' }])
+  expect(vi.mocked(nativeGraphql).mock.calls.map(([, , destination]) => destination)).toEqual([{ kind: 'LOCAL' }, { kind: 'PEER', peerId: '706c6169-8ed4-8fb1-b534-79c532096b42' }])
   expect(httpRequest).not.toHaveBeenCalled()
   expect(core.get('locale', '')).toBe('ja')
 })
@@ -318,7 +320,7 @@ it('rejects anonymous GraphQL without sending a request or reloading the page', 
   target.token = ''
   vi.mocked(httpRequest).mockResolvedValueOnce(response(null, 401))
 
-  await expect(gqlFetch('query { app { id } }')).rejects.toMatchObject({ message: 'unauthorized', status: 401 })
+  await expect(gqlFetch('query { app { id } }')).rejects.toMatchObject({ message: 'UNAUTHORIZED', status: 401 })
   expect(httpRequest).not.toHaveBeenCalled()
   expect(clearCurrentSession).not.toHaveBeenCalled()
   expect(window.location.reload).not.toHaveBeenCalled()
@@ -413,7 +415,7 @@ it('uses normal origin sign-in recovery when the origin also responds unauthoriz
   const { managedPeerFailure } = await import('@/lib/api/gql-client')
   const previousFailure = managedPeerFailure.value
   vi.mocked(httpRequest).mockResolvedValue(response(null, 401))
-  await expect(gqlFetch('{ app { deviceName } }')).rejects.toThrow('unauthorized')
+  await expect(gqlFetch('{ app { deviceName } }')).rejects.toThrow('UNAUTHORIZED')
   await vi.waitFor(() => expect(window.location.reload).toHaveBeenCalledOnce())
   expect(clearCurrentSession).toHaveBeenCalledOnce()
   expect(httpRequest).toHaveBeenCalledTimes(2)
@@ -428,7 +430,7 @@ it('does not show the pairing dialog when the selected peer changes during the o
   const probe = deferred<Awaited<ReturnType<typeof httpRequest>>>()
   vi.mocked(httpRequest).mockImplementation(url => String(url).includes('/proxy/')
     ? Promise.resolve(response(null, 401)) : probe.promise)
-  await expect(gqlFetch('{ app { deviceName } }')).rejects.toThrow('unauthorized')
+  await expect(gqlFetch('{ app { deviceName } }')).rejects.toThrow('UNAUTHORIZED')
   await vi.waitFor(() => expect(httpRequest).toHaveBeenCalledTimes(2))
   target.client = '70f5a619-04de-8bc5-8fe4-50bb3e139c1b'
   probe.resolve(response({ app: { deviceName: 'Smartbox' }, peers: [] }))
@@ -464,19 +466,17 @@ it('leaves selected-peer 500s and origin 502s to ordinary handling', async () =>
 })
 
 it('preserves structured mutation error codes independently of diagnostic text', async () => {
-  const { ErrorCode } = await import('@/lib/api/error-code')
   const mutation = initMutation({ document: 'mutation { logout }' }, false)
   const failed = vi.fn()
   mutation.onError(failed)
-  vi.mocked(nativeGraphql).mockResolvedValueOnce({ errors: [{ message: 'approval diagnostic', extensions: { code: 'rejected' } }] })
+  vi.mocked(nativeGraphql).mockResolvedValueOnce({ errors: [{ message: 'approval diagnostic', extensions: { code: 'REJECTED' } }] })
   await mutation.mutate()
-  expect(failed).toHaveBeenCalledWith(expect.objectContaining({ code: ErrorCode.Rejected, message: 'approval diagnostic' }))
+  expect(failed).toHaveBeenCalledWith(expect.objectContaining({ code: AuthErrorCode.Rejected, message: 'approval diagnostic' }))
 })
 
 it('keeps network diagnostic text from becoming a business failure', async () => {
-  const { ErrorCode } = await import('@/lib/api/error-code')
   const { encryptedGqlPost } = await import('@/lib/api/gql-client')
-  vi.mocked(httpRequest).mockRejectedValueOnce(new Error('invalid_password'))
+  vi.mocked(httpRequest).mockRejectedValueOnce(new Error('INVALID_PASSWORD'))
   await expect(encryptedGqlPost('https://fixture.test/graphql', 'session-a', '{ __typename }'))
-    .rejects.toMatchObject({ code: ErrorCode.NetworkError, message: 'invalid_password' })
+    .rejects.toMatchObject({ code: HttpErrorCode.NetworkError, message: 'INVALID_PASSWORD' })
 })

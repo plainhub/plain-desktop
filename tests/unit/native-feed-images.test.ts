@@ -100,7 +100,7 @@ it('preserves external URLs and cleans successful opens when a sibling fails', a
 
 it('does not close another consumer of the same thumbnail when feeds unmounts', async () => {
   const other = createNativeResourceOwner()
-  await other.url('shared', undefined, '&size=sm')
+  await other.url('shared', undefined, '&size=SM')
   setImages('shared'); mount(); await flush()
   expect(fixture.invoke.mock.calls.filter(([command]) => command === 'native_resource_open')).toHaveLength(1)
   unmount?.(); unmount = undefined; await flush()
@@ -115,7 +115,7 @@ it('reacquires the current target when a refreshed list reuses the same referenc
   fixture.local = false
   setImages('same'); await flush()
   const opens = fixture.invoke.mock.calls.filter(([command]) => command === 'native_resource_open')
-  expect(opens.map(([, args]) => args.target)).toEqual([{ kind: 'local' }, { kind: 'peer', peerId: '706c6169-89f1-81c6-8bc7-6b67c2ffa178' }])
+  expect(opens.map(([, args]) => args.target)).toEqual([{ kind: 'LOCAL' }, { kind: 'PEER', peerId: '706c6169-89f1-81c6-8bc7-6b67c2ffa178' }])
   expect(live.size).toBe(1)
   expect(fixture.invoke.mock.calls.filter(([command]) => command === 'native_resource_close')).toHaveLength(1)
 })
@@ -126,7 +126,7 @@ it('keeps stored fid artwork references intact when opening thumbnails', async (
   setImages(reference, reference); mount(); await flush()
   const opens = fixture.invoke.mock.calls.filter(([command]) => command === 'native_resource_open')
   expect(opens).toHaveLength(1)
-  expect(opens[0][1]).toMatchObject({ path: reference, target: { kind: 'local' } })
+  expect(opens[0][1]).toMatchObject({ path: reference, target: { kind: 'LOCAL' } })
   expect(live.size).toBe(1)
   unmount?.(); unmount = undefined; await flush()
   expect(live.size).toBe(0)

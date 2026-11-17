@@ -1,10 +1,10 @@
-import { ErrorCode } from '@/lib/api/error-code'
+import { NativeErrorCode } from '@/lib/api/native-error-code'
 import { invoke, onNativeReload } from '@/lib/api/native-invoke'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { getRemoteClientId } from '@/lib/device/client-id'
 import { nativeViewScope, type NativeTarget } from './native-client'
 
-export type NativeSocketKind = 'screen' | 'imageEditor'
+export type NativeSocketKind = 'SCREEN' | 'IMAGE_EDITOR'
 type SocketEvent = 'video' | 'audio' | 'imageEditorReady' | 'imageEditorUpdate'
 const EVENTS: Record<number, SocketEvent> = { 1: 'video', 2: 'audio', 3: 'imageEditorReady', 4: 'imageEditorUpdate' }
 export interface NativeSocketConnection { send(payload: Uint8Array): boolean; close(): void }
@@ -14,7 +14,7 @@ const MAX_CONTROL_BYTES = 65536 - 48
 const MAX_QUEUED_WRITES = 8
 
 export function openNativeSocket(kind: NativeSocketKind, callbacks: SocketCallbacks): NativeSocketConnection {
-  const target: NativeTarget = isLocalMode() ? { kind: 'local' } : { kind: 'peer', peerId: getRemoteClientId() }
+  const target: NativeTarget = isLocalMode() ? { kind: 'LOCAL' } : { kind: 'PEER', peerId: getRemoteClientId() }
   let active = true
   let ready = false
   let handle: string | undefined
@@ -23,7 +23,7 @@ export function openNativeSocket(kind: NativeSocketKind, callbacks: SocketCallba
   let queued = 0
   const connection: NativeSocketConnection = {
     send(payload) {
-      if (!active || !ready || kind !== 'screen') return false
+      if (!active || !ready || kind !== 'SCREEN') return false
       if (!payload.length || payload.length > MAX_CONTROL_BYTES || queued >= MAX_QUEUED_WRITES) {
         fail(new Error('Native socket command backpressure'))
         return false
@@ -51,7 +51,7 @@ export function openNativeSocket(kind: NativeSocketKind, callbacks: SocketCallba
     callbacks.dropped(error)
   }
   void (async () => {
-    if (target.kind === 'peer' && !target.peerId) throw new Error(ErrorCode.NativePeerIdMissing)
+    if (target.kind === 'PEER' && !target.peerId) throw new Error(NativeErrorCode.NativePeerIdMissing)
     scope = await nativeViewScope()
     if (!active) return
     handle = await invoke<string>('native_socket_open', { scope, target, kind })
@@ -66,7 +66,7 @@ export function openNativeSocket(kind: NativeSocketKind, callbacks: SocketCallba
         ready = true
         callbacks.opened?.()
       } else {
-        if (!(kind === 'screen' ? frame[0] === 1 || frame[0] === 2 : frame[0] === 3 && frame.length === 1 || frame[0] === 4)) throw new Error('Invalid native socket event')
+        if (!(kind === 'SCREEN' ? frame[0] === 1 || frame[0] === 2 : frame[0] === 3 && frame.length === 1 || frame[0] === 4)) throw new Error('Invalid native socket event')
         callbacks.message(EVENTS[frame[0]!]!, frame.subarray(1))
       }
     }

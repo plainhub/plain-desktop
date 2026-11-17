@@ -149,7 +149,7 @@ export function useExportSms(props: {
       setTimeout(() => URL.revokeObjectURL(blobUrl), 2000)
       popModal()
     } catch (err: any) {
-      if ((err as Error)?.name !== 'AbortError') toast(err?.message ?? t('failed'), 'error')
+      if ((err as Error)?.name !== 'AbortError') toast(err?.message ?? t('FAILED'), 'error')
     } finally {
       abortController = null
       exporting.value = false

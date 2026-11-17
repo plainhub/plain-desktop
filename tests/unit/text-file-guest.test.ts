@@ -69,7 +69,7 @@ it.each([{ guest: true, cached: false }, { guest: false, cached: false }, { gues
     await vi.waitFor(() => expect(text.loading.value).toBe(false))
     expect(text.content.value).toBe('Shared text 中文\n')
     expect(text.canEdit.value).toBe(!guest)
-    expect(fetch).toHaveBeenCalledExactlyOnceWith(guest ? '/fs?id=scoped-file&action=preview' : '/fs?id=' + encodeURIComponent(id) + '&action=preview')
+    expect(fetch).toHaveBeenCalledExactlyOnceWith(guest ? '/fs?id=scoped-file&action=PREVIEW' : '/fs?id=' + encodeURIComponent(id) + '&action=PREVIEW')
     expect(io.fetch).toHaveBeenCalledTimes(guest ? 0 : 1)
     vi.mocked(runMutation).mockReset().mockResolvedValue(true)
     io.route.name = 'text-edit'
@@ -99,13 +99,13 @@ it.each([false, true])('renders document Markdown and downloads original bytes (
     expect(text.error.value).toBe('')
     expect(text.renderedMarkdown.value).toBe('<safe># Document preview')
     expect(text.canEdit.value).toBe(false)
-    const base = guest ? '/fs?id=scoped-file&action=preview' : '/fs?id=' + encodeURIComponent(id) + '&action=preview'
+    const base = guest ? '/fs?id=scoped-file&action=PREVIEW' : '/fs?id=' + encodeURIComponent(id) + '&action=PREVIEW'
     expect(fetch).toHaveBeenLastCalledWith(base)
     expect(fetch).toHaveBeenCalledTimes(1)
     const { download } = await import('@/lib/api/file')
     vi.mocked(download).mockClear()
     text.downloadFile()
-    expect(download).toHaveBeenCalledWith(guest ? '/fs?id=scoped-file&action=download' : '/fs?id=' + encodeURIComponent(id) + '&action=download', 'report.docx')
+    expect(download).toHaveBeenCalledWith(guest ? '/fs?id=scoped-file&action=DOWNLOAD' : '/fs?id=' + encodeURIComponent(id) + '&action=DOWNLOAD', 'report.docx')
   } finally { scope.stop() }
 })
 
@@ -126,7 +126,7 @@ it.each([false, true])('loads original CSV when editing and returns to table pre
   const url = vi.fn().mockResolvedValue('plain-resource://file/sample')
   const dispose = vi.fn().mockResolvedValue(undefined)
   vi.mocked(createNativeResourceOwner).mockReturnValue({ url, dispose, retain: vi.fn() })
-  const fetch = vi.fn(async (url: string) => url.endsWith('&action=preview')
+  const fetch = vi.fn(async (url: string) => url.endsWith('&action=PREVIEW')
     ? new Response(table, { headers: previewHeaders })
     : new Response(csv, { headers: { ...headers, 'content-type': 'text/csv' } }))
   vi.stubGlobal('fetch', fetch)
@@ -144,7 +144,7 @@ it.each([false, true])('loads original CSV when editing and returns to table pre
       expect(url).toHaveBeenCalledExactlyOnceWith('/owned/report.csv')
       expect(dispose).toHaveBeenCalledOnce()
     } else {
-      expect(fetch).toHaveBeenLastCalledWith('/fs?id=' + encodeURIComponent(id) + '&action=download')
+      expect(fetch).toHaveBeenLastCalledWith('/fs?id=' + encodeURIComponent(id) + '&action=DOWNLOAD')
     }
     io.route.name = 'text-file'
     await vi.waitFor(() => expect(text.renderedMarkdown.value).toBe('<safe>' + table))
@@ -156,7 +156,7 @@ it('previews a direct file link without requesting authenticated metadata', asyn
   io.token = ''
   const id = resourceId(new Uint8Array(32), { mode: 'c', id: 'owner-session' }, { type: 'FILE', id: '/owned/note.txt' })
   io.route = reactive({ name: 'text-file', query: { id } })
-  io.fetch.mockReset().mockRejectedValue(new Error('unauthorized'))
+  io.fetch.mockReset().mockRejectedValue(new Error('UNAUTHORIZED'))
   const fetch = vi.fn().mockResolvedValue(new Response('Direct preview', {
     headers: { 'content-disposition': 'inline; filename="note.txt"' },
   }))
@@ -167,7 +167,7 @@ it('previews a direct file link without requesting authenticated metadata', asyn
     const text = scope.run(() => useTextFile())!
     await vi.waitFor(() => expect(text.loading.value).toBe(false))
     expect(io.fetch).not.toHaveBeenCalled()
-    expect(fetch).toHaveBeenCalledExactlyOnceWith('/fs?id=' + encodeURIComponent(id) + '&action=preview')
+    expect(fetch).toHaveBeenCalledExactlyOnceWith('/fs?id=' + encodeURIComponent(id) + '&action=PREVIEW')
     expect(text.content.value).toBe('Direct preview')
     expect(text.canEdit.value).toBe(false)
   } finally { scope.stop() }

@@ -1,4 +1,4 @@
-import { ErrorCode } from '@/lib/api/error-code'
+import { HttpErrorCode } from '@/lib/api/http-error-code'
 import { computed, ref, reactive, watch, onMounted, onBeforeUnmount, type Ref } from 'vue'
 import { on, off, isArray } from '@/components/lightbox/utils/index'
 import { useImage, useMouse, useTouch } from '@/components/lightbox/utils/hooks'
@@ -217,7 +217,7 @@ export function getImageDisplayUrl(source: ISource, quality: 'fast' | 'original'
     return source.src
   }
   const useOriginal = !isHeic(source.name) && (isSvg(source.name) || source.viewOriginImage || quality === 'original')
-  return useOriginal ? source.src : source.src + '&size=lg'
+  return useOriginal ? source.src : source.src + '&size=LG'
 }
 
 export function useLightboxNavigation(
@@ -593,7 +593,7 @@ export function useLightboxEvents(
       if (!active()) return
       status.loading = false
       status.loadError = true
-      emitter.emit('toast', error instanceof Error ? error.message : ErrorCode.NetworkError)
+      emitter.emit('toast', error instanceof Error ? error.message : HttpErrorCode.NetworkError)
     }
   }
 

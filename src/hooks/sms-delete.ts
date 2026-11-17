@@ -25,7 +25,7 @@ export const useSmsDelete = () => {
   onDeleted(() => {
     const query = pending.shift()
     if (query === undefined) return
-    emitter.emit('media_items_actioned', { type: 'SMS', action: 'delete', query })
+    emitter.emit('media_items_actioned', { type: 'SMS', action: 'DELETE', query })
   })
 
   return {

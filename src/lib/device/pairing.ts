@@ -1,6 +1,5 @@
+import { PairingErrorCode, parsePairingErrorCode } from '@/lib/api/pairing-error-code'
 import { GqlError } from '@/lib/api/gql-error'
-import { ErrorCode, parseErrorCode } from '@/lib/api/error-code'
-import { loginErrorReason } from '@/lib/api/login-error'
 import { computed, reactive, ref } from 'vue'
 import { nativeGraphql } from '@/lib/api/native-client'
 import type { bindGraphqlClient, GqlResult } from '@/lib/api/gql-client'
@@ -9,7 +8,7 @@ import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 export interface PairingView {
   deviceId: string
   phase: 'CONNECTING' | 'PAIRING' | 'PASSWORD_REQUIRED' | 'TRUST_REQUIRED' | 'SUCCEEDED' | 'FAILED' | 'CANCELED'
-  error: ErrorCode | null
+  error: PairingErrorCode | null
   verificationCode?: string | null
   identityChanged?: boolean
 }
@@ -50,9 +49,9 @@ export function createPairing(subscriptions = graphqlSubscriptions, request?: Re
     }),
     subscriptions.subscribe('pairingCompleted', result => update(result.deviceId, { phase: 'SUCCEEDED' })),
     subscriptions.subscribe('pairingFailed', result => {
-      const error = parseErrorCode(result.error) ?? ErrorCode.InternalError
+      const error = parsePairingErrorCode(result.error) ?? PairingErrorCode.InternalError
       update(result.deviceId, {
-        phase: error === ErrorCode.PasswordRequired || error === ErrorCode.InvalidPassword ? 'PASSWORD_REQUIRED' : 'FAILED', error,
+        phase: error === PairingErrorCode.PasswordRequired || error === PairingErrorCode.InvalidPassword ? 'PASSWORD_REQUIRED' : 'FAILED', error,
       })
     }),
     subscriptions.subscribe('pairingCanceled', result => update(result.deviceId, { phase: 'CANCELED' })),
@@ -72,7 +71,7 @@ export function createPairing(subscriptions = graphqlSubscriptions, request?: Re
       await execute('mutation($input: PairPeerInput!) { pairPeer(input: $input) }', { input: value })
       if (disposed) await cancel(value.peerId)
     } catch (error) {
-      update(value.peerId, { phase: 'FAILED', error: loginErrorReason(error, ErrorCode.InternalError) })
+      update(value.peerId, { phase: 'FAILED', error: parsePairingErrorCode(error instanceof GqlError ? error.code : error) ?? PairingErrorCode.InternalError })
       throw error
     }
   }

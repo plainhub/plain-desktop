@@ -90,9 +90,9 @@ it('exchanges only binary OPAQUE frames and encrypted metadata, without password
 })
 
 it.each(['wrong password', 'substituted KE2'])('rejects %s without sending KE3 or metadata', async () => {
-  state.finish.mockRejectedValue('invalid_password')
+  state.finish.mockRejectedValue('INVALID_PASSWORD')
   const { promise } = await begin()
-  const rejected = expect(promise).rejects.toBe('invalid_password')
+  const rejected = expect(promise).rejects.toBe('INVALID_PASSWORD')
   await socket.message(ke2)
   await rejected
   expect(socket.send).toHaveBeenCalledTimes(1)
@@ -102,14 +102,14 @@ it.each(['wrong password', 'substituted KE2'])('rejects %s without sending KE3 o
 it('requires the authenticated OPAQUE key to match init before sending metadata', async () => {
   result.serverPublicKey = new Uint8Array(32).fill(5)
   const { promise } = await begin()
-  const rejected = expect(promise).rejects.toBe('peer_identity_changed')
+  const rejected = expect(promise).rejects.toBe('PEER_IDENTITY_CHANGED')
   await socket.message(ke2)
   await rejected
   expect(socket.send).toHaveBeenCalledTimes(1)
 })
 
 it('rejects changed stored OPAQUE pins before starting a connection', async () => {
-  await expect(performLoginHandshake({ ...params(), storedOpaquePublicKey: b64(new Uint8Array(32).fill(4)) })).rejects.toBe('peer_identity_changed')
+  await expect(performLoginHandshake({ ...params(), storedOpaquePublicKey: b64(new Uint8Array(32).fill(4)) })).rejects.toBe('PEER_IDENTITY_CHANGED')
   expect(mock.start).not.toHaveBeenCalled()
   expect(mock.socket).not.toHaveBeenCalled()
 })
@@ -117,7 +117,7 @@ it('rejects changed stored OPAQUE pins before starting a connection', async () =
 it('frees pending WASM state on cancellation', async () => {
   const controller = new AbortController()
   const { promise } = await begin({ signal: controller.signal })
-  const rejected = expect(promise).rejects.toBe('canceled')
+  const rejected = expect(promise).rejects.toBe('CANCELED')
   controller.abort()
   await rejected
   expect(state.free).toHaveBeenCalledOnce()
@@ -130,7 +130,7 @@ it('does not send metadata when canceled during metadata lookup', async () => {
   mock.agent.mockReturnValue(new Promise(done => { resolve = done }))
   const controller = new AbortController()
   const { promise } = await begin({ signal: controller.signal })
-  const rejected = expect(promise).rejects.toBe('canceled')
+  const rejected = expect(promise).rejects.toBe('CANCELED')
   await socket.message(ke2)
   controller.abort()
   await rejected
@@ -141,8 +141,8 @@ it('does not send metadata when canceled during metadata lookup', async () => {
 
 it('rejects configuration changes instead of falling back to device confirmation', async () => {
   const { promise } = await begin()
-  const rejected = expect(promise).rejects.toBe('invalid_login_request')
-  socket.onclose?.({ reason: 'invalid_login_request' })
+  const rejected = expect(promise).rejects.toBe('INVALID_LOGIN_REQUEST')
+  socket.onclose?.({ reason: 'INVALID_LOGIN_REQUEST' })
   await rejected
   expect(mock.ecdh).not.toHaveBeenCalled()
   expect(state.free).toHaveBeenCalledOnce()
@@ -150,7 +150,7 @@ it('rejects configuration changes instead of falling back to device confirmation
 
 it('requires the result to be encrypted and bound to this login', async () => {
   const { promise } = await begin()
-  const rejected = expect(promise).rejects.toBe('invalid_auth_response')
+  const rejected = expect(promise).rejects.toBe('INVALID_AUTH_RESPONSE')
   await socket.message(ke2)
   await socket.message(utf8.encode(JSON.stringify({ status: 'COMPLETED', deviceId: '706c6169-070b-8226-915b-f78c137ec2f0' })))
   await rejected

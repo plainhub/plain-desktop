@@ -1,4 +1,4 @@
-import { ErrorCode, parseErrorCode } from './error-code'
+import { SubscriptionErrorCode, parseSubscriptionErrorCode } from '@/lib/api/subscription-error-code'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { openSubscriptionConnection, type SubscriptionCallbacks, type SubscriptionConnection } from './subscription-connection'
 import type { SubscriptionOperation } from './subscription-operations'
@@ -123,7 +123,7 @@ export class SubscriptionClient {
     } else if (message.type === 'error') {
       if (!Array.isArray(message.payload)) throw new Error('Invalid subscription error')
       console.error('GraphQL subscription failed', operation.field, message.payload)
-      if (message.payload.some(error => parseErrorCode(error.extensions?.code) === ErrorCode.ResyncRequired)) {
+      if (message.payload.some(error => parseSubscriptionErrorCode(error.extensions?.code) === SubscriptionErrorCode.ResyncRequired)) {
         this.ids.delete(message.id)
         this.pending.delete(message.id)
         this.attaching = true

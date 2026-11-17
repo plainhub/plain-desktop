@@ -2,7 +2,7 @@ import { ref } from 'vue'
 import { invoke } from '@/lib/api/native-invoke'
 import { isWindowsPlatform } from '@/lib/platform'
 
-export type MdnsFirewallState = 'idle' | 'ok' | 'blocked' | 'fixing' | 'fixed' | 'failed'
+export type MdnsFirewallState = 'idle' | 'ok' | 'blocked' | 'fixing' | 'fixed' | 'FAILED'
 
 export interface MdnsFirewallStatus {
   supported: boolean
@@ -44,7 +44,7 @@ export async function fixMdnsFirewall(): Promise<void> {
   try {
     await invoke('fix_mdns_firewall')
   } catch {
-    state.value = 'failed'
+    state.value = 'FAILED'
     return
   }
   for (let i = 0; i < 10; i++) {
@@ -55,7 +55,7 @@ export async function fixMdnsFirewall(): Promise<void> {
       return
     }
   }
-  state.value = 'failed'
+  state.value = 'FAILED'
 }
 
 export function useMdnsFirewall() {

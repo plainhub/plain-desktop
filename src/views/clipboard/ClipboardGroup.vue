@@ -30,7 +30,7 @@
       :loading="group.loading"
       :online="group.online"
       :peer-id="group.peerId"
-      :placeholder-key="group.clipboardSync === false ? 'no_permission' : ''"
+      :placeholder-key="group.clipboardSync === false ? 'NO_PERMISSION' : ''"
       feature="CLIPBOARD"
     />
     <v-pagination

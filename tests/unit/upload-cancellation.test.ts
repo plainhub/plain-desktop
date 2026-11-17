@@ -28,7 +28,7 @@ it('aborts each removed request once and schedules cleanup once for a shared fil
   queue.removeUploadsByBatch('batch')
   expect(abortA).toHaveBeenCalledTimes(1)
   expect(abortB).toHaveBeenCalledTimes(1)
-  expect(a.status).toBe('canceled'); expect(b.status).toBe('canceled')
+  expect(a.status).toBe('CANCELED'); expect(b.status).toBe('CANCELED')
   expect(io.discard).toHaveBeenCalledTimes(1)
   expect(io.discard.mock.calls[0]![0].fileId).toBe(a.fileId)
   expect(io.discard.mock.calls[0]![1]()).toBe(false)
@@ -54,11 +54,11 @@ it.each([true, false])('reports a cleanup failure using the existing toast error
   const { GqlError } = await import('@/lib/api/gql-error')
   io.discard.mockRejectedValueOnce(graphql ? new GqlError('Permission denied') : new Error('connection lost'))
   const a = item('removed'); queue.addUploadTask(a, false); queue.removeUpload(a.id)
-  await vi.waitFor(() => expect(io.emit).toHaveBeenCalledWith('toast', graphql ? 'Permission denied' : 'network_error'))
+  await vi.waitFor(() => expect(io.emit).toHaveBeenCalledWith('toast', graphql ? 'Permission denied' : 'NETWORK_ERROR'))
 })
 it.each([true, false])('discards an evicted failed transaction but preserves retryable tasks: %s', async transactional => {
   io.upload.mockResolvedValueOnce({ error: 'Permission denied' })
-  const a = item('failed')
+  const a = item('FAILED')
   if (transactional) await expect(queue.addUploadTaskAndWait(a, false)).rejects.toThrow('Permission denied')
   else { queue.addUploadTask(a, false); await vi.waitFor(() => expect(a.status).toBe('error')) }
   expect(io.discard).toHaveBeenCalledTimes(transactional ? 1 : 0)

@@ -1,9 +1,9 @@
 export default {
-  "event_reason.mount_failed": "挂载失败",
-  "event_reason.format_disk_failed": "格式化失败",
-  "event_reason.peer_identity_changed": "客户端身份已变化",
-  "event_reason.password_setup_required": "尚未配置登录密码",
-  "event_reason.internal_error": "服务器内部错误",
+  "event_reason.MOUNT_FAILED": "挂载失败",
+  "event_reason.FORMAT_DISK_FAILED": "格式化失败",
+  "event_reason.PEER_IDENTITY_CHANGED": "客户端身份已变化",
+  "event_reason.PASSWORD_SETUP_REQUIRED": "尚未配置登录密码",
+  "event_reason.INTERNAL_ERROR": "服务器内部错误",
 
   "events": "事件",
   "event_client": "客户端",
@@ -17,11 +17,11 @@ export default {
   "event_type.UNMOUNT": "磁盘已卸载",
   "event_type.FORMAT_DISK": "磁盘已格式化",
   "event_type.FORMAT_DISK_FAILED": "磁盘格式化失败",
-  "event_reason.invalid_password": "密码错误",
-  "event_reason.invalid_login_request": "登录请求无效",
-  "event_reason.remote_access_disabled": "远程访问已关闭",
-  "event_reason.login_expired": "登录请求已过期",
-  "event_reason.too_many_login_attempts": "登录尝试过多",
-  "event_reason.rejected": "登录请求已拒绝",
-  "event_reason.canceled": "登录请求已取消"
+  "event_reason.INVALID_PASSWORD": "密码错误",
+  "event_reason.INVALID_LOGIN_REQUEST": "登录请求无效",
+  "event_reason.REMOTE_ACCESS_DISABLED": "远程访问已关闭",
+  "event_reason.LOGIN_EXPIRED": "登录请求已过期",
+  "event_reason.TOO_MANY_LOGIN_ATTEMPTS": "登录尝试过多",
+  "event_reason.REJECTED": "登录请求已拒绝",
+  "event_reason.CANCELED": "登录请求已取消"
 }

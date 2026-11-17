@@ -176,7 +176,7 @@ async function deleteDocItem(item: IDoc): Promise<boolean> {
   if (!filter.trash) return deleteDocFile(item)
   const query = `ids:${item.id}`
   if (!await deleteTrashedDoc({ type: dataType, query })) return false
-  emitter.emit('media_items_actioned', { type: dataType, action: 'delete', id: item.id, query })
+  emitter.emit('media_items_actioned', { type: dataType, action: 'DELETE', id: item.id, query })
   return true
 }
 

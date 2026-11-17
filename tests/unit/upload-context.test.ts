@@ -64,7 +64,7 @@ it('keeps canceled cleanup on its original target after a pending chunk query', 
   expect(io.gql).toHaveBeenCalledOnce()
   query.resolve({ data: { uploadedChunks: [] } })
   await Promise.all([running, cleanup])
-  expect(current.error).toBe('request_context_changed')
+  expect(current.error).toBe('REQUEST_CONTEXT_CHANGED')
   expect(io.gql.mock.calls).toEqual([['a', 'query-chunks', { fileId: 'same-file' }, 120000], ['a', 'delete-chunks', { fileId: 'same-file' }]])
   expect(io.invoke).not.toHaveBeenCalled()
 })
@@ -85,11 +85,11 @@ it.each(['scope', 'open', 'write', 'finish'])('rejects a changed target after pe
   gate.resolve()
   await running
   expect(current.status).toBe('error')
-  expect(current.error).toBe('request_context_changed')
+  expect(current.error).toBe('REQUEST_CONTEXT_CHANGED')
   expect(io.gql).toHaveBeenCalledOnce()
   expect(io.scope).toHaveBeenCalledOnce()
   const calls = io.invoke.mock.calls
-  for (const [, args] of calls.filter(([command]) => command === 'native_upload_chunk_open')) expect(args.target).toEqual({ kind: 'peer', peerId: '706c6169-0001-8000-8000-000000000003' })
+  for (const [, args] of calls.filter(([command]) => command === 'native_upload_chunk_open')) expect(args.target).toEqual({ kind: 'PEER', peerId: '706c6169-0001-8000-8000-000000000003' })
   expect(calls.filter(([command]) => command === 'native_upload_chunk_finish')).toHaveLength(phase === 'finish' ? 1 : 0)
   expect(calls.filter(([command]) => command === 'native_upload_chunk_abort')).toEqual(phase === 'open' || phase === 'write' ? [['native_upload_chunk_abort', { scope: 'original-document', handle: 'original-handle' }]] : [])
   if (phase === 'scope') expect(io.invoke).not.toHaveBeenCalled()
@@ -101,7 +101,7 @@ it('does not rebind a paused or retried upload to the newly selected device', as
   current.status = 'paused'
   target.key = 'b'
   current.status = 'uploading'
-  await expect(upload(current, false)).rejects.toThrow('request_context_changed')
+  await expect(upload(current, false)).rejects.toThrow('REQUEST_CONTEXT_CHANGED')
   expect(getUploadContext(current)).toBe(context)
   expect(io.gql).not.toHaveBeenCalled()
   expect(io.invoke).not.toHaveBeenCalled()
@@ -148,7 +148,7 @@ it.each(['event', 'poll', 'poll-pending'])('rejects a merge result from a change
   target.key = 'b'
   if (phase === 'event') io.subscribe.mock.calls[0][1]({ fileId: 'same-file', ok: true, value: '/wrong-device', mergedSize: CHUNK + 17 })
   else await vi.advanceTimersByTimeAsync(1000)
-  expect(await result).toEqual({ error: 'request_context_changed' })
+  expect(await result).toEqual({ error: 'REQUEST_CONTEXT_CHANGED' })
   poll.resolve({ data: { mergeStatus: { status: 'DONE', value: '/wrong-device' } } })
   await vi.runAllTimersAsync()
   expect(io.stop).toHaveBeenCalledOnce()
@@ -182,7 +182,7 @@ it('preserves the original upload URL and client header and rejects stale direct
   target.key = 'b'
   xhr.readyState = 4
   xhr.onreadystatechange()
-  expect(await running).toEqual({ error: 'request_context_changed' })
+  expect(await running).toEqual({ error: 'REQUEST_CONTEXT_CHANGED' })
   expect(current.status).toBe('error')
   expect(opened).toHaveLength(1)
 })
@@ -227,7 +227,7 @@ it('stops chunk retries when the selected target changes during backoff', async 
   target.key = 'b'; target.native = false
   await vi.runAllTimersAsync()
   await running
-  expect(current.error).toBe('request_context_changed')
+  expect(current.error).toBe('REQUEST_CONTEXT_CHANGED')
   expect(io.invoke).toHaveBeenCalledOnce()
   expect(io.gql).toHaveBeenCalledOnce()
 })
@@ -238,6 +238,6 @@ it('rejects stale pending merge mutation results without subscribing to the new 
   const result = requestMerge(item(), mergeArgs)
   target.key = 'b'
   pending.resolve({ data: { mergeChunks: { status: 'STARTED' } } })
-  expect(await result).toEqual({ error: 'request_context_changed' })
+  expect(await result).toEqual({ error: 'REQUEST_CONTEXT_CHANGED' })
   expect(io.subscribe).not.toHaveBeenCalled()
 })

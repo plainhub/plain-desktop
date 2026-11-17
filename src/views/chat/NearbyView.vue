@@ -96,7 +96,7 @@
 </template>
 
 <script setup lang="ts">
-import { ErrorCode } from '@/lib/api/error-code'
+import { HttpErrorCode } from '@/lib/api/http-error-code'
 
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { popModal, pushModal } from '@/components/modal'
@@ -161,7 +161,7 @@ async function loadPeers() {
 }
 function reportFailure(reason: unknown) {
   console.error('Nearby devices request failed', reason)
-  error.value = ErrorCode.NetworkError
+  error.value = HttpErrorCode.NetworkError
 }
 const stopPeers = subscriptions.subscribe('peersChanged', () => loadPeers().catch(reportFailure))
 const stopAttached = subscriptions.onAttached(() => {

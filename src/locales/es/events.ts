@@ -1,9 +1,9 @@
 export default {
-  "event_reason.mount_failed": "Mount failed",
-  "event_reason.format_disk_failed": "Format failed",
-  "event_reason.peer_identity_changed": "La identidad del cliente ha cambiado",
-  "event_reason.password_setup_required": "La contraseña de inicio de sesión no está configurada",
-  "event_reason.internal_error": "Error interno del servidor",
+  "event_reason.MOUNT_FAILED": "Mount failed",
+  "event_reason.FORMAT_DISK_FAILED": "Format failed",
+  "event_reason.PEER_IDENTITY_CHANGED": "La identidad del cliente ha cambiado",
+  "event_reason.PASSWORD_SETUP_REQUIRED": "La contraseña de inicio de sesión no está configurada",
+  "event_reason.INTERNAL_ERROR": "Error interno del servidor",
 
   "events": "Events",
   "event_client": "Client",
@@ -17,11 +17,11 @@ export default {
   "event_type.UNMOUNT": "Disk unmounted",
   "event_type.FORMAT_DISK": "Disk formatted",
   "event_type.FORMAT_DISK_FAILED": "Disk format failed",
-  "event_reason.invalid_password": "Incorrect password",
-  "event_reason.invalid_login_request": "Invalid sign-in request",
-  "event_reason.remote_access_disabled": "Remote access is disabled",
-  "event_reason.login_expired": "Sign-in request expired",
-  "event_reason.too_many_login_attempts": "Too many sign-in attempts",
-  "event_reason.rejected": "Sign-in request rejected",
-  "event_reason.canceled": "Sign-in request canceled"
+  "event_reason.INVALID_PASSWORD": "Incorrect password",
+  "event_reason.INVALID_LOGIN_REQUEST": "Invalid sign-in request",
+  "event_reason.REMOTE_ACCESS_DISABLED": "Remote access is disabled",
+  "event_reason.LOGIN_EXPIRED": "Sign-in request expired",
+  "event_reason.TOO_MANY_LOGIN_ATTEMPTS": "Too many sign-in attempts",
+  "event_reason.REJECTED": "Sign-in request rejected",
+  "event_reason.CANCELED": "Sign-in request canceled"
 }

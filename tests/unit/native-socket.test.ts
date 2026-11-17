@@ -38,7 +38,7 @@ it('uses only paired identity and scoped binary IPC for ordered native screen an
   const socket = new ScreenMirrorSocket(events)
   socket.connect(); socket.connect()
   await flush()
-  expect(mock.invoke).toHaveBeenCalledWith('native_socket_open', { kind: 'screen', scope: 'view-generation', target: { kind: 'peer', peerId: '706c6169-8600-8f3f-b1f9-4778da12b25e' } })
+  expect(mock.invoke).toHaveBeenCalledWith('native_socket_open', { kind: 'SCREEN', scope: 'view-generation', target: { kind: 'PEER', peerId: '706c6169-8600-8f3f-b1f9-4778da12b25e' } })
   expect(mock.invoke.mock.calls.filter(([command]) => command === 'native_socket_open')).toHaveLength(1)
   expect(socket.sendBytes(new Uint8Array([1]))).toBe(false)
   frame(0); await flush()
@@ -65,7 +65,7 @@ it('waits for native editor readiness, retries a dropped session and stops on di
   const ready = vi.fn(), update = vi.fn()
   const socket = new ImageEditorSocket(ready, update)
   socket.connect(); await flush()
-  expect(mock.invoke).toHaveBeenCalledWith('native_socket_open', { kind: 'imageEditor', scope: 'view-generation', target: { kind: 'local' } })
+  expect(mock.invoke).toHaveBeenCalledWith('native_socket_open', { kind: 'IMAGE_EDITOR', scope: 'view-generation', target: { kind: 'LOCAL' } })
   frame(0); await flush()
   expect(ready).not.toHaveBeenCalled()
   frame(3); await flush()
@@ -85,7 +85,7 @@ it('closes an abandoned open without publishing readiness or starting a read', a
   const opening = deferred<string>()
   mock.invoke.mockImplementation(() => opening.promise)
   const events = callbacks()
-  const socket = openNativeSocket('screen', events)
+  const socket = openNativeSocket('SCREEN', events)
   await flush(); socket.close(); opening.resolve('late-handle'); await flush()
   expect(mock.invoke.mock.calls.map(([command]) => command)).toEqual(['native_socket_open', 'native_socket_close'])
   expect(events.opened).not.toHaveBeenCalled()
@@ -97,7 +97,7 @@ it('serializes control sends and fails closed instead of accumulating an unbound
   const invoke = mock.invoke.getMockImplementation()!
   mock.invoke.mockImplementation((command, ...args) => command === 'native_socket_send' ? sending.promise : invoke(command, ...args))
   const events = callbacks()
-  const socket = openNativeSocket('screen', events)
+  const socket = openNativeSocket('SCREEN', events)
   await flush(); frame(0); await flush()
   for (let i = 0; i < 8; i++) expect(socket.send(new Uint8Array([i]))).toBe(true)
   await flush()
@@ -110,7 +110,7 @@ it('serializes control sends and fails closed instead of accumulating an unbound
 
 it('rejects wrong kinds, duplicate readiness, malformed binary and oversized frames', async () => {
   for (const bytes of [new Uint8Array([3]).buffer, new Uint8Array([0]).buffer, new ArrayBuffer(0), new ArrayBuffer(16 * 1024 * 1024 + 1), [1, 2]]) {
-    const events = callbacks(), socket = openNativeSocket('screen', events)
+    const events = callbacks(), socket = openNativeSocket('SCREEN', events)
     await flush(); frame(0); await flush()
     reads.shift()!.resolve(bytes as ArrayBuffer); await flush()
     expect(events.message).not.toHaveBeenCalled()

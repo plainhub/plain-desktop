@@ -51,9 +51,9 @@ it.each([
       const html = await renderToString(app)
       const url = new URL(html.match(/<img[^>]+src="([^"]+)"/)![1]!.replaceAll('&amp;', '&'))
       expect(url.pathname).toBe('/fs')
-      expect(url.searchParams.get('size')).toBe('sm')
+      expect(url.searchParams.get('size')).toBe('SM')
       expect(url.searchParams.get('v')).toBe(item.updatedAt)
-      expect(url.searchParams.get('action')).toBe('preview')
+      expect(url.searchParams.get('action')).toBe('PREVIEW')
       expect(resource(url)).toEqual({ type, id: item.id })
       expect(resource(new URL(getFileUrl(item.fileId)))).toEqual({ type: 'MEDIA', id: item.id })
     }

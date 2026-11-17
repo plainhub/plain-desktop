@@ -6,7 +6,7 @@ export function eventDetails(entry: EventRecord, translate: (key: string) => str
     case 'LoginEventData':
       return ''
     case 'LoginFailedEventData':
-      return translate(`event_reason.${data.reason.toLowerCase()}`)
+      return translate(`event_reason.${data.reason}`)
     case 'SessionEventData':
       return data.session.clientName || data.session.clientId
     case 'DeviceNameEventData':
@@ -20,8 +20,8 @@ export function eventDetails(entry: EventRecord, translate: (key: string) => str
   }
 }
 
-type EventFailure = Extract<EventRecord['data'], { __typename: 'VolumeFailedEventData' }>['failure']
+type EventFailure = Extract<EventRecord['data'], { __typename: 'VolumeFailedEventData' | 'DiskFormatFailedEventData' }>['failure']
 
 function failure(value: EventFailure | undefined, translate: (key: string) => string): string {
-  return value ? [translate(`event_reason.${value.reason.toLowerCase()}`), value.detail].filter(Boolean).join(': ') : ''
+  return value ? [translate(`event_reason.${value.reason}`), value.detail].filter(Boolean).join(': ') : ''
 }

@@ -1,4 +1,5 @@
-import { ErrorCode } from '@/lib/api/error-code'
+import { AccessErrorCode } from '@/lib/api/access-error-code'
+import { PeerConnectionErrorCode } from '@/lib/api/peer-connection-error-code'
 import { FileAction, fileQuery } from './file-action'
 import { resourceId } from './resource-link'
 import { getApiBaseUrl, getProxyUrl } from './api'
@@ -104,9 +105,9 @@ export async function guestFetch<T = any>(
       signal: controller.signal,
     })
     if (response.status === 401) {
-      throw new Error(ErrorCode.Unauthorized)
+      throw new Error(AccessErrorCode.Unauthorized)
     } else if (response.status === 403) {
-      throw new Error(ErrorCode.Forbidden)
+      throw new Error(AccessErrorCode.Forbidden)
     } else if (!response.ok) {
       throw new Error('bad_request')
     }
@@ -121,7 +122,7 @@ export async function guestFetch<T = any>(
     if (window.__PLAIN_LOG__) {
       console.warn(`[gql] ✗ sharedInfo ${e.message || e.name}`)
     }
-    if (e.name === 'AbortError') throw new Error(ErrorCode.ConnectionTimeout, { cause: e })
+    if (e.name === 'AbortError') throw new Error(PeerConnectionErrorCode.ConnectionTimeout, { cause: e })
     throw e
   } finally {
     clearTimeout(timer)
@@ -143,7 +144,7 @@ function sharedFileQuery(urlToken: string, sharedId: string, relativePath: strin
 
 /**
  * Build a `/fs` URL for a shared file. `query` may add thumbnail params
- * (`&size=sm`) or force download (`&action=download`).
+ * (`&size=SM`) or force download (`&action=DOWNLOAD`).
  */
 export function getSharedFileUrl(
   urlToken: string,

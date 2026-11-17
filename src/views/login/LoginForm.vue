@@ -10,7 +10,7 @@
   </section>
   <section v-else-if="identityChanged" class="identity-notice" role="alert">
     <div class="identity-icon"><i-material-symbols:error-outline-rounded /></div>
-    <h2>{{ $t('login.peer_identity_changed') }}</h2>
+    <h2>{{ $t('login.PEER_IDENTITY_CHANGED') }}</h2>
     <p>{{ $t('login.identity_changed_hint') }}</p>
     <v-filled-button type="button" @click="confirmIdentityChange">{{ $t('login.confirm_identity_change') }}</v-filled-button>
   </section>
@@ -94,7 +94,7 @@ const {
   managedOrigin: props.managedOrigin,
 })
 
-const identityChanged = computed(() => !nativeApp && !props.managedDeviceId && showError.value && error.value === 'login.peer_identity_changed')
+const identityChanged = computed(() => !nativeApp && !props.managedDeviceId && showError.value && error.value === 'login.PEER_IDENTITY_CHANGED')
 
 async function init(result: InitResult, options: InitOptions = {}) {
   const authenticated = applyInitResult(result)

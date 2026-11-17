@@ -1,5 +1,5 @@
+import { PeerConnectionErrorCode } from '@/lib/api/peer-connection-error-code'
 import { GqlError } from '@/lib/api/gql-error'
-import { ErrorCode } from '@/lib/api/error-code'
 import { nativeGraphql } from '@/lib/api/native-client'
 import { invoke } from '@/lib/api/native-invoke'
 import { httpRequest } from '@/lib/api/http'
@@ -61,7 +61,7 @@ export async function restartLocalServer(kind: 'http' | 'https', port: number): 
   let lastFailure: unknown
   while (true) {
     const remaining = deadline - Date.now()
-    if (remaining <= 0) throw Object.assign(new Error(ErrorCode.ConnectionTimeout), { cause: lastFailure })
+    if (remaining <= 0) throw Object.assign(new Error(PeerConnectionErrorCode.ConnectionTimeout), { cause: lastFailure })
     try {
       const response = await httpRequest(`http://127.0.0.1:${receipt.httpPort}/health`, {
         signal: AbortSignal.timeout(Math.min(2000, remaining)),

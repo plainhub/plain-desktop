@@ -88,7 +88,7 @@ it('shows restart failures without navigating or changing local host ports', asy
   expect(await value.savePort('http', 8180)).toBe(false)
   expect(mock.assign).not.toHaveBeenCalled()
   expect(mock.localPorts).not.toHaveBeenCalled()
-  expect(mock.toast).toHaveBeenCalledWith('failed', 'error')
+  expect(mock.toast).toHaveBeenCalledWith('FAILED', 'error')
 })
 
 it('does not report an accepted but unfinished restart as saved', async () => {

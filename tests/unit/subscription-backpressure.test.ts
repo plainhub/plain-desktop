@@ -44,7 +44,7 @@ it('resynchronizes only the lagged operation and preserves the socket and other 
   const [first, second] = mock.send.mock.calls.map(([message]) => message)
   mock.callbacks.message({ id: first.id, type: 'next', payload: { extensions: { subscriptionReady: true } } })
   mock.callbacks.message({ id: second.id, type: 'next', payload: { extensions: { subscriptionReady: true } } })
-  mock.callbacks.message({ id: second.id, type: 'error', payload: [{ message: 'resync_required', extensions: { code: 'resync_required' } }] })
+  mock.callbacks.message({ id: second.id, type: 'error', payload: [{ message: 'RESYNC_REQUIRED', extensions: { code: 'RESYNC_REQUIRED' } }] })
   expect(mock.close).not.toHaveBeenCalled()
   const replacement = mock.send.mock.calls.at(-1)![0]
   expect(replacement.type).toBe('subscribe')

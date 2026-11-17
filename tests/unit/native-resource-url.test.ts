@@ -26,7 +26,7 @@ it('binds resource open and close to the same document scope', async () => {
   expect(await nativeResourceUrl('/fixture')).toBe(resource.url)
   expect(await nativeResourceUrl('/fixture')).toBe(resource.url)
   expect(fixture.invoke).toHaveBeenCalledTimes(1)
-  expect(fixture.invoke).toHaveBeenCalledWith('native_resource_open', { path: '/fixture', scope: 'document', thumbnail: undefined, target: { kind: 'local' } })
+  expect(fixture.invoke).toHaveBeenCalledWith('native_resource_open', { path: '/fixture', scope: 'document', thumbnail: undefined, target: { kind: 'LOCAL' } })
   await closeNativeResource()
   expect(fixture.invoke).toHaveBeenLastCalledWith('native_resource_close', { id: 'handle', scope: 'document' })
 })
@@ -62,7 +62,7 @@ it('does not register a local handle after the selected target changes', async (
   const { createNativeResourceOwner } = await import('../../src/hooks/native-resource-url')
   const { url: nativeResourceUrl } = createNativeResourceOwner()
   const opened = nativeResourceUrl('/fixture')
-  const rejected = expect(opened).rejects.toThrow('request_context_changed')
+  const rejected = expect(opened).rejects.toThrow('REQUEST_CONTEXT_CHANGED')
   await vi.waitFor(() => expect(finish).toBeDefined())
   fixture.local = false
   finish(resource)
@@ -102,12 +102,12 @@ it('keeps thumbnail sizes and resource versions separate and closes every varian
     ? { ...resource, id: `handle-${++index}`, url: `plain-resource://file/${index}` } : true)
   const { createNativeResourceOwner } = await import('../../src/hooks/native-resource-url')
   const { url: nativeResourceUrl, dispose: closeNativeResource } = createNativeResourceOwner()
-  const small = await nativeResourceUrl('/fixture', undefined, '&size=sm&v=first')
-  expect(await nativeResourceUrl('/fixture', undefined, '&v=first&size=sm')).toBe(small)
-  const large = await nativeResourceUrl('/fixture', undefined, '&size=lg&v=first')
-  const updated = await nativeResourceUrl('/fixture', undefined, '&size=sm&v=second')
+  const small = await nativeResourceUrl('/fixture', undefined, '&size=SM&v=first')
+  expect(await nativeResourceUrl('/fixture', undefined, '&v=first&size=SM')).toBe(small)
+  const large = await nativeResourceUrl('/fixture', undefined, '&size=LG&v=first')
+  const updated = await nativeResourceUrl('/fixture', undefined, '&size=SM&v=second')
   expect(new Set([small, large, updated]).size).toBe(3)
-  expect(fixture.invoke.mock.calls.filter(([command]) => command === 'native_resource_open').map(([, args]) => args.thumbnail)).toEqual(['sm', 'lg', 'sm'])
+  expect(fixture.invoke.mock.calls.filter(([command]) => command === 'native_resource_open').map(([, args]) => args.thumbnail)).toEqual(['SM', 'LG', 'SM'])
   await closeNativeResource()
   expect(fixture.invoke.mock.calls.filter(([command]) => command === 'native_resource_close')).toHaveLength(3)
 })
@@ -125,14 +125,14 @@ it('checks the actual opened size before exposing an unknown or stale-size resou
 it('uses thumbnail output metadata rather than skipping a large original file', async () => {
   const { createNativeResourceOwner, MAX_NATIVE_RESPONSE_BYTES } = await import('../../src/hooks/native-resource-url')
   const { url: nativeResourceUrl } = createNativeResourceOwner()
-  expect(await nativeResourceUrl('/fixture', MAX_NATIVE_RESPONSE_BYTES + 1, '&size=sm')).toBe(resource.url)
-  expect(fixture.invoke).toHaveBeenCalledExactlyOnceWith('native_resource_open', { path: '/fixture', scope: 'document', thumbnail: 'sm', target: { kind: 'local' } })
+  expect(await nativeResourceUrl('/fixture', MAX_NATIVE_RESPONSE_BYTES + 1, '&size=SM')).toBe(resource.url)
+  expect(fixture.invoke).toHaveBeenCalledExactlyOnceWith('native_resource_open', { path: '/fixture', scope: 'document', thumbnail: 'SM', target: { kind: 'LOCAL' } })
 })
 
 it('rejects unknown native transformations before invoking or silently serving the original', async () => {
   const { createNativeResourceOwner } = await import('../../src/hooks/native-resource-url')
   const { url: nativeResourceUrl } = createNativeResourceOwner()
-  for (const query of ['&size=xl', '&action=transcode', '&unknown=true']) {
+  for (const query of ['&size=xl', '&action=TRANSCODE', '&unknown=true']) {
     await expect(nativeResourceUrl('/fixture', undefined, query)).rejects.toThrow()
   }
   expect(fixture.invoke).not.toHaveBeenCalled()
@@ -194,8 +194,8 @@ it('opens eligible peer images through typed IPC without returning peer URLs or 
   const { createNativeResourceOwner, nativeResourceReference } = await import('../../src/hooks/native-resource-url')
   const { url: nativeResourceUrl } = createNativeResourceOwner()
   expect(await nativeResourceUrl('/peer/image.png')).toBe(resource.url)
-  expect(fixture.invoke).toHaveBeenCalledExactlyOnceWith('native_resource_open', { path: '/peer/image.png', scope: 'document', thumbnail: undefined, target: { kind: 'peer', peerId: '706c6169-8ed4-8fb1-b534-79c532096b42' } })
-  expect(nativeResourceReference(resource.url)).toEqual({ path: '/peer/image.png', target: { kind: 'peer', peerId: '706c6169-8ed4-8fb1-b534-79c532096b42' } })
+  expect(fixture.invoke).toHaveBeenCalledExactlyOnceWith('native_resource_open', { path: '/peer/image.png', scope: 'document', thumbnail: undefined, target: { kind: 'PEER', peerId: '706c6169-8ed4-8fb1-b534-79c532096b42' } })
+  expect(nativeResourceReference(resource.url)).toEqual({ path: '/peer/image.png', target: { kind: 'PEER', peerId: '706c6169-8ed4-8fb1-b534-79c532096b42' } })
 })
 
 it('does not reuse a peer handle after its authorization revision changes', async () => {
@@ -285,7 +285,7 @@ it('does not close other target, revision or thumbnail variants for the same pat
   const { createNativeResourceOwner, nativeResourceReference } = await import('@/hooks/native-resource-url')
   const first = createNativeResourceOwner(), second = createNativeResourceOwner()
   await first.url('/shared')
-  const thumb = await second.url('/shared', undefined, '&size=sm')
+  const thumb = await second.url('/shared', undefined, '&size=SM')
   fixture.local = false
   const remote = await second.url('/shared')
   fixture.revision++

@@ -153,7 +153,7 @@ onUnmounted(() => {
 
 const showLoading = computed(() => service.showLoading.value || service.state.value === 'connecting')
 const mirroring = computed(() => service.state.value === 'streaming')
-const failed = computed(() => service.state.value === 'failed')
+const failed = computed(() => service.state.value === 'FAILED')
 const idle = computed(() => service.state.value === 'idle')
 const qualityMode = computed<'HD' | 'SMOOTH'>(() => service.qualityMode.value as 'HD' | 'SMOOTH')
 

@@ -1,4 +1,4 @@
-import { ErrorCode } from '@/lib/api/error-code'
+import { HttpErrorCode } from '@/lib/api/http-error-code'
 import type { SmsSendResult } from '@/lib/api/subscription-results'
 import { nextTick, onMounted, onUnmounted, ref, computed, reactive, watch } from 'vue'
 import { popModal } from '@/components/modal'
@@ -130,7 +130,7 @@ export function useSendSms(initialNumber: string, initialBody: string) {
         sendDeadline.cancel()
         pendingSmsRequestId = null
         loading.value = false
-        toast(t(outcome.error || ErrorCode.NetworkError), 'error')
+        toast(t(outcome.error || HttpErrorCode.NetworkError), 'error')
         return
       }
       if (pendingSmsRequestId === requestId) sendDeadline.start(requestId)

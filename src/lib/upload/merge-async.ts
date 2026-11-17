@@ -1,4 +1,5 @@
-import { ErrorCode } from '@/lib/api/error-code'
+import { HttpErrorCode } from '@/lib/api/http-error-code'
+import { PeerConnectionErrorCode } from '@/lib/api/peer-connection-error-code'
 import type { SubscriptionResults } from '@/lib/api/subscription-results'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 
@@ -54,7 +55,7 @@ export async function requestMerge(upload: IUploadItem, args: Record<string, unk
     if (outcome !== 'pending') return outcome
     return await waitForMergeResult(upload, args.fileId as string)
   } catch (e: any) {
-    return { error: e.message || ErrorCode.ConnectionTimeout }
+    return { error: e.message || PeerConnectionErrorCode.ConnectionTimeout }
   }
 }
 
@@ -80,7 +81,7 @@ function waitForMergeResult(upload: IUploadItem, fileId: string): Promise<IMerge
 
     const stale = () => {
       if (isUploadContextCurrent(upload)) return false
-      finish({ error: ErrorCode.RequestContextChanged })
+      finish({ error: HttpErrorCode.RequestContextChanged })
       return true
     }
 
@@ -97,7 +98,7 @@ function waitForMergeResult(upload: IUploadItem, fileId: string): Promise<IMerge
 
     pauseProbe = setInterval(() => {
       if (stale()) return
-      if (upload.status === 'paused' || upload.status === 'canceled') {
+      if (upload.status === 'paused' || upload.status === 'CANCELED') {
         finish({ error: 'Upload paused' })
       }
     }, 1000)
@@ -117,7 +118,7 @@ function waitForMergeResult(upload: IUploadItem, fileId: string): Promise<IMerge
         }
         if (settled || stale()) return
         if (--pollsLeft <= 0) {
-          return finish({ error: ErrorCode.ConnectionTimeout })
+          return finish({ error: PeerConnectionErrorCode.ConnectionTimeout })
         }
         armWatchdog()
       }, WATCHDOG_POLL_MS)

@@ -33,7 +33,7 @@ it('retains the abort cause when reporting a guest request timeout', async () =>
   const cause = new DOMException('Aborted', 'AbortError')
   request.mockRejectedValue(cause)
   await expect(guestFetch('share', new Uint8Array(32), '{ sharedInfo { name } }')).rejects.toMatchObject({
-    message: 'connection_timeout', cause,
+    message: 'CONNECTION_TIMEOUT', cause,
   })
   expect(vi.getTimerCount()).toBe(0)
 })
@@ -59,7 +59,7 @@ it('preserves the unauthorized state for a well-formed but rejected share key', 
   const share = useShareData(ref('owned-share'), ref(btoa('x'.repeat(32))))
   await share.load('')
   expect(share.state.value).toBe('error')
-  expect(share.errorCode.value).toBe('unauthorized')
+  expect(share.errorCode.value).toBe('UNAUTHORIZED')
   expect(share.entries.value).toEqual([])
   expect(request).toHaveBeenCalledTimes(1)
 })

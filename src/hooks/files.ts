@@ -116,13 +116,13 @@ export const useDownload = (urlTokenKey: Ref<Uint8Array | null>) => {
         ? getFileId(urlTokenKey.value, path)
         : getFileId(urlTokenKey.value, path)
       const url = getFileUrl(id, '', FileAction.Download)
-      const target: NativeTarget = isLocalMode() ? { kind: 'local' } : { kind: 'peer', peerId: getRemoteClientId() }
+      const target: NativeTarget = isLocalMode() ? { kind: 'LOCAL' } : { kind: 'PEER', peerId: getRemoteClientId() }
       download(url, name, false, { path, target })
     },
     async downloadFileAs(path: string) {
       const id = getFileId(urlTokenKey.value, path)
       const url = getFileUrl(id, '', FileAction.Download)
-      const target: NativeTarget = isLocalMode() ? { kind: 'local' } : { kind: 'peer', peerId: getRemoteClientId() }
+      const target: NativeTarget = isLocalMode() ? { kind: 'LOCAL' } : { kind: 'PEER', peerId: getRemoteClientId() }
       downloadAs(url, getFileName(path), { path, target })
     },
     async downloadDir(path: string, fileName?: string) {

@@ -39,7 +39,7 @@ it.each(['auth-change', 'selection-change'])('rechecks the original peer after t
   })
   const { discardUploadChunks } = await import('@/lib/upload/upload')
   const { getUploadContext } = await import('@/lib/upload/context')
-  const item: IUploadItem = { id: 'old-upload', fileId: 'file-id', file: new File(['data'], 'sample.bin'), fileName: 'sample.bin', dir: '/owned', status: 'canceled', uploadedSize: 0, error: '' }
+  const item: IUploadItem = { id: 'old-upload', fileId: 'file-id', file: new File(['data'], 'sample.bin'), fileName: 'sample.bin', dir: '/owned', status: 'CANCELED', uploadedSize: 0, error: '' }
   getUploadContext(item)
   const cleanup = discardUploadChunks(item, () => false)
   const outcome = cleanup.then(() => undefined, error => error)
@@ -49,13 +49,13 @@ it.each(['auth-change', 'selection-change'])('rechecks the original peer after t
   scope.resolve('original-document')
   const error = await outcome
   if (change === 'auth-change') {
-    expect(error).toMatchObject({ message: 'request_context_changed', canceled: true })
+    expect(error).toMatchObject({ message: 'REQUEST_CONTEXT_CHANGED', canceled: true })
     expect(io.invoke.mock.calls).toEqual([['native_view_scope']])
   } else {
     expect(error).toBeUndefined()
     expect(io.invoke.mock.calls).toEqual([
       ['native_view_scope'],
-      ['native_graphql', { target: { kind: 'peer', peerId: '706c6169-0e71-8687-905d-87d4a5229f24' }, body: { query: 'delete', variables: { fileId: 'file-id' }, extensions: { nativeScope: 'original-document', nativeDeadlineMs: expect.any(Number) } } }],
+      ['native_graphql', { target: { kind: 'PEER', peerId: '706c6169-0e71-8687-905d-87d4a5229f24' }, body: { query: 'delete', variables: { fileId: 'file-id' }, extensions: { nativeScope: 'original-document', nativeDeadlineMs: expect.any(Number) } } }],
     ])
   }
 })

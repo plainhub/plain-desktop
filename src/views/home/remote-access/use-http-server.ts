@@ -113,7 +113,7 @@ export function useHttpServer() {
       return true
     } catch (e) {
       console.error('save port failed', e)
-      toast(t('failed'), 'error')
+      toast(t('FAILED'), 'error')
       return false
     }
   }

@@ -9,7 +9,7 @@ pub use crate::capture::CaptureErrorCode;
 pub const MAX_PNG_RESULT_BYTES: usize = 160 * 1024 * 1024;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PixelFormat {
     Rgba8,
 }
@@ -133,7 +133,7 @@ impl CapturedFrame {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CaptureTriggerKind {
     Composer,
     Global,
@@ -200,7 +200,7 @@ impl CaptureRequest {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum NativeCapturePhase {
     Idle,
     WaitingForOverlay,

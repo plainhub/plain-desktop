@@ -40,7 +40,7 @@ describe('directory search stream', () => {
   })
   it('reports permission errors and premature completion without presenting complete results', () => {
     for (const message of [
-      { type: 'error', id: 'search', payload: [{ message: 'no_permission' }] },
+      { type: 'error', id: 'search', payload: [{ message: 'NO_PERMISSION' }] },
       { type: 'complete', id: 'search' },
     ]) {
       const failed = vi.fn()

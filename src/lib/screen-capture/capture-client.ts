@@ -1,4 +1,4 @@
-import { ErrorCode } from '@/lib/api/error-code'
+import { PeerConnectionErrorCode } from '@/lib/api/peer-connection-error-code'
 import {
   CAPTURE_RESULT_AVAILABLE_EVENT,
   CAPTURE_SESSION_STARTED_EVENT,
@@ -10,7 +10,7 @@ export const CAPTURE_SESSION_ENDED_EVENT = CAPTURE_TARGET_SESSION_ENDED_EVENT
 
 const MAX_RESULT_BYTES = 160 * 1024 * 1024
 const PNG_SIGNATURE = [137, 80, 78, 71, 13, 10, 26, 10] as const
-const NATIVE_PHASES = new Set(['waiting_for_overlay', 'hiding_origin', 'capturing', 'frame_available', 'awaiting_presentation', 'active', 'result_available', 'delivering', 'restoring'])
+const NATIVE_PHASES = new Set(['WAITING_FOR_OVERLAY', 'HIDING_ORIGIN', 'CAPTURING', 'FRAME_AVAILABLE', 'AWAITING_PRESENTATION', 'ACTIVE', 'RESULT_AVAILABLE', 'DELIVERING', 'RESTORING'])
 const ACK_RETRY_DELAYS_MS = [50, 200, 1000] as const
 
 export interface CaptureEvent<T> {
@@ -36,44 +36,44 @@ export interface CaptureResultAvailable {
   descriptor: CaptureResultDescriptor
 }
 
-export type CaptureSessionOutcome = 'canceled' | 'saved' | 'copied' | 'failed' | 'completed'
+export type CaptureSessionOutcome = 'CANCELED' | 'SAVED' | 'COPIED' | 'FAILED' | 'COMPLETED'
 export type CaptureNativeErrorCode =
-  | 'busy'
-  | 'permission_denied'
-  | 'no_monitor'
-  | 'monitor_selection_unavailable'
-  | 'invalid_monitor'
-  | 'capture_failed'
-  | 'invalid_frame'
-  | 'frame_too_large'
-  | 'overlay_failed'
-  | ErrorCode.InvalidSession
-  | 'invalid_phase'
-  | 'unauthorized_caller'
-  | 'target_unavailable'
-  | 'encode_failed'
-  | 'clipboard_failed'
-  | 'save_failed'
-  | 'timed_out'
+  | 'BUSY'
+  | 'PERMISSION_DENIED'
+  | 'NO_MONITOR'
+  | 'MONITOR_SELECTION_UNAVAILABLE'
+  | 'INVALID_MONITOR'
+  | 'CAPTURE_FAILED'
+  | 'INVALID_FRAME'
+  | 'FRAME_TOO_LARGE'
+  | 'OVERLAY_FAILED'
+  | PeerConnectionErrorCode.InvalidSession
+  | 'INVALID_PHASE'
+  | 'UNAUTHORIZED_CALLER'
+  | 'TARGET_UNAVAILABLE'
+  | 'ENCODE_FAILED'
+  | 'CLIPBOARD_FAILED'
+  | 'SAVE_FAILED'
+  | 'TIMED_OUT'
 
 const NATIVE_ERROR_CODES = new Set<CaptureNativeErrorCode>([
-  'busy',
-  'permission_denied',
-  'no_monitor',
-  'monitor_selection_unavailable',
-  'invalid_monitor',
-  'capture_failed',
-  'invalid_frame',
-  'frame_too_large',
-  'overlay_failed',
-  ErrorCode.InvalidSession,
-  'invalid_phase',
-  'unauthorized_caller',
-  'target_unavailable',
-  'encode_failed',
-  'clipboard_failed',
-  'save_failed',
-  'timed_out',
+  'BUSY',
+  'PERMISSION_DENIED',
+  'NO_MONITOR',
+  'MONITOR_SELECTION_UNAVAILABLE',
+  'INVALID_MONITOR',
+  'CAPTURE_FAILED',
+  'INVALID_FRAME',
+  'FRAME_TOO_LARGE',
+  'OVERLAY_FAILED',
+  PeerConnectionErrorCode.InvalidSession,
+  'INVALID_PHASE',
+  'UNAUTHORIZED_CALLER',
+  'TARGET_UNAVAILABLE',
+  'ENCODE_FAILED',
+  'CLIPBOARD_FAILED',
+  'SAVE_FAILED',
+  'TIMED_OUT',
 ])
 
 export interface CaptureSessionEnded {
@@ -110,11 +110,11 @@ export type CaptureClientErrorCode =
   | 'invalid_result'
   | 'invalid_start'
   | 'lease_release_failed'
-  | 'permission_denied'
+  | 'PERMISSION_DENIED'
   | 'target_registration_failed'
   | 'target_invalidation_failed'
   | 'target_unregistration_failed'
-  | 'target_unavailable'
+  | 'TARGET_UNAVAILABLE'
 
 export class CaptureClientError extends Error {
   readonly code: CaptureClientErrorCode
@@ -203,7 +203,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
-const NATIVE_PERMISSION_DENIED_CODE = 'permission_denied'
+const NATIVE_PERMISSION_DENIED_CODE = 'PERMISSION_DENIED'
 
 /** True when the native capture start rejected because the OS screen-capture permission is missing. */
 export function capturePermissionDenied(error: unknown, depth = 0): boolean {
@@ -281,13 +281,13 @@ function validateSessionEnded(value: unknown): CaptureSessionEnded {
   if (!isRecord(value)) throw new CaptureClientError('invalid_result', 'capture terminal event is invalid')
   requireIdentifier(value.sessionId, 'session id')
   requireIdentifier(value.targetToken, 'target token')
-  if (!['canceled', 'saved', 'copied', 'failed', 'completed'].includes(value.outcome as string)) {
+  if (!['CANCELED', 'SAVED', 'COPIED', 'FAILED', 'COMPLETED'].includes(value.outcome as string)) {
     throw new CaptureClientError('invalid_result', 'capture terminal outcome is invalid')
   }
   if (value.errorCode !== undefined && (typeof value.errorCode !== 'string' || !NATIVE_ERROR_CODES.has(value.errorCode as CaptureNativeErrorCode))) {
     throw new CaptureClientError('invalid_result', 'capture terminal error code is invalid')
   }
-  if (value.outcome !== 'failed' && value.errorCode !== undefined) {
+  if (value.outcome !== 'FAILED' && value.errorCode !== undefined) {
     throw new CaptureClientError('invalid_result', 'only a failed capture may include an error code')
   }
   return {
@@ -325,8 +325,8 @@ function asClientError(error: unknown, code: CaptureClientErrorCode, message: st
 
 function asStartClientError(error: unknown): CaptureClientError {
   if (error instanceof CaptureClientError) return error
-  if (isRecord(error) && error.code === 'permission_denied') {
-    return new CaptureClientError('permission_denied', 'screen capture permission is required', error)
+  if (isRecord(error) && error.code === 'PERMISSION_DENIED') {
+    return new CaptureClientError('PERMISSION_DENIED', 'screen capture permission is required', error)
   }
   return new CaptureClientError('invalid_start', 'could not start screen capture', error)
 }
@@ -347,7 +347,7 @@ class CaptureClientImpl implements CaptureClient {
   private disposed = false
 
   constructor(deps: CaptureClientDependencies) {
-    if (!deps.windowLabel.trim()) throw new CaptureClientError('target_unavailable', 'capture webview label is required')
+    if (!deps.windowLabel.trim()) throw new CaptureClientError('TARGET_UNAVAILABLE', 'capture webview label is required')
     this.deps = {
       ...deps,
       createTargetToken: deps.createTargetToken ?? defaultTargetToken,
@@ -364,7 +364,7 @@ class CaptureClientImpl implements CaptureClient {
       },
       activate: () => {
         this.requireLive()
-        if (registration.disposed) throw new CaptureClientError('target_unavailable', 'capture consumer was disposed')
+        if (registration.disposed) throw new CaptureClientError('TARGET_UNAVAILABLE', 'capture consumer was disposed')
         if (this.activeRegistration) this.deactivateRegistration(this.activeRegistration, false)
         const token = this.deps.createTargetToken()
         requireIdentifier(token, 'target token')
@@ -403,7 +403,7 @@ class CaptureClientImpl implements CaptureClient {
     }
     const registration = this.activeRegistration
     if (!registration?.token || registration.disposed) {
-      throw new CaptureClientError('target_unavailable', 'open a chat before starting a composer capture')
+      throw new CaptureClientError('TARGET_UNAVAILABLE', 'open a chat before starting a composer capture')
     }
     const frozen: FrozenTarget = {
       registration,
@@ -581,7 +581,7 @@ class CaptureClientImpl implements CaptureClient {
     }
     if (!this.session && this.startingTarget) {
       if (result.targetToken !== this.startingTarget.token) {
-        this.report(new CaptureClientError('target_unavailable', 'capture result belongs to another target'))
+        this.report(new CaptureClientError('TARGET_UNAVAILABLE', 'capture result belongs to another target'))
         return
       }
       this.queuedResults.push(result)
@@ -602,7 +602,7 @@ class CaptureClientImpl implements CaptureClient {
 
     const registration = this.activeRegistration
     if (!registration?.token || registration.disposed || registration.token !== started.targetToken) {
-      this.report(new CaptureClientError('target_unavailable', 'global capture belongs to an inactive target'))
+      this.report(new CaptureClientError('TARGET_UNAVAILABLE', 'global capture belongs to an inactive target'))
       void this.invalidateUnadoptedTarget(started)
       return
     }
@@ -652,7 +652,7 @@ class CaptureClientImpl implements CaptureClient {
     }
     if (!this.session && this.startingTarget) {
       if (terminal.targetToken !== this.startingTarget.token) {
-        this.report(new CaptureClientError('target_unavailable', 'capture terminal event belongs to another target'))
+        this.report(new CaptureClientError('TARGET_UNAVAILABLE', 'capture terminal event belongs to another target'))
         return
       }
       this.queuedTerminals.push(terminal)
@@ -671,13 +671,13 @@ class CaptureClientImpl implements CaptureClient {
       return
     }
     if (terminal.targetToken !== session.target.token) {
-      this.report(new CaptureClientError('target_unavailable', 'capture terminal event belongs to another target'))
+      this.report(new CaptureClientError('TARGET_UNAVAILABLE', 'capture terminal event belongs to another target'))
       return
     }
     this.session = null
     this.pendingAcknowledgment = null
-    if (terminal.outcome === 'failed' && terminal.errorCode === 'permission_denied') {
-      this.report(new CaptureClientError('permission_denied', 'screen capture permission is required', terminal))
+    if (terminal.outcome === 'FAILED' && terminal.errorCode === 'PERMISSION_DENIED') {
+      this.report(new CaptureClientError('PERMISSION_DENIED', 'screen capture permission is required', terminal))
     }
   }
 
@@ -696,7 +696,7 @@ class CaptureClientImpl implements CaptureClient {
       throw new CaptureClientError('invalid_result', 'capture result belongs to another session')
     }
     if (result.targetToken !== session.target.token) {
-      throw new CaptureClientError('target_unavailable', 'capture result belongs to another target')
+      throw new CaptureClientError('TARGET_UNAVAILABLE', 'capture result belongs to another target')
     }
     if (this.delivering) throw new CaptureClientError('delivery_busy', 'capture result delivery is already in progress')
 
@@ -713,7 +713,7 @@ class CaptureClientImpl implements CaptureClient {
       return
     }
     if (!this.frozenTargetIsActive(session.target)) {
-      throw new CaptureClientError('target_unavailable', 'the frozen capture target is no longer active')
+      throw new CaptureClientError('TARGET_UNAVAILABLE', 'the frozen capture target is no longer active')
     }
 
     this.delivering = true
@@ -732,7 +732,7 @@ class CaptureClientImpl implements CaptureClient {
       }
       const bytes = validatePngBytes(raw, result.descriptor)
       if (!this.frozenTargetIsActive(session.target)) {
-        throw new CaptureClientError('target_unavailable', 'the frozen capture target is no longer active')
+        throw new CaptureClientError('TARGET_UNAVAILABLE', 'the frozen capture target is no longer active')
       }
       const file = new File([bytes], result.descriptor.filename, { type: result.descriptor.mimeType })
       // Crossing into the async consumer is the delivery commit boundary. Its
@@ -824,7 +824,7 @@ let webviewCaptureClient: CaptureClient | null = null
 /** Install once in a webview bootstrap; subsequent callers share the same client. */
 export function getCaptureClient(deps?: CaptureClientDependencies): CaptureClient {
   if (!webviewCaptureClient) {
-    if (!deps) throw new CaptureClientError('target_unavailable', 'capture client has not been installed in this webview')
+    if (!deps) throw new CaptureClientError('TARGET_UNAVAILABLE', 'capture client has not been installed in this webview')
     webviewCaptureClient = createCaptureClient(deps)
   }
   return webviewCaptureClient

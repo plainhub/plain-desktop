@@ -8,7 +8,7 @@ use crate::commands::screen_capture::contract::CaptureError;
 use crate::commands::screen_capture::contract::CaptureErrorCode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SaveCaptureOutcome {
     Saved,
     Canceled,

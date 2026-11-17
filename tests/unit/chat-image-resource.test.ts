@@ -34,8 +34,8 @@ it('loads a remote thumbnail using only the encrypted peer file reference', asyn
   }))
   const url = new URL(html.match(/src="([^"]+)"/)![1]!.replaceAll('&amp;', '&'))
   expect(url.pathname).toBe('/proxy/peer-1/fs')
-  expect(url.searchParams.get('size')).toBe('sm')
-  expect(url.searchParams.get('action')).toBe('preview')
+  expect(url.searchParams.get('size')).toBe('SM')
+  expect(url.searchParams.get('action')).toBe('PREVIEW')
   expect(url.href).not.toContain('peer-resource-id')
   expect([...url.searchParams.keys()].sort()).toEqual(['action', 'id', 'size'])
   const token = url.searchParams.get('id')!

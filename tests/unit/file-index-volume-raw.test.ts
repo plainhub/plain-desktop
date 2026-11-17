@@ -48,7 +48,7 @@ it.each([
   [null, null, null, null, 'file_index.not_scanned'],
   ['2026-11-15T02:30:00Z', 'COMPLETED', 0, 0, 'file_index.scanned_files'],
   ['2026-11-15T02:30:00Z', 'CANCELED', 2, null, 'stopped'],
-  ['2026-11-15T02:30:00Z', 'FAILED', 3, 5, 'failed'],
+  ['2026-11-15T02:30:00Z', 'FAILED', 3, 5, 'FAILED'],
 ] as const)('renders the stored scan result with unknown and zero counts', (lastScanAt, lastScanStatus, lastScanCount, lastScanTotal, label) => {
   const volume: FileIndexVolume = { id: 'fixture-volume', path: '/fixture', isAvailable: true, indexMode: 'BLOCKLIST', includedDirs: [], excludedDirs: [], lastScanAt, lastScanStatus, lastScanCount, lastScanTotal }
   const view = renderView(FileIndexVolumeCard, { volume, title: 'Fixture volume', scanDisabled: false }, { VIconButton, VTextButton, VCircularProgress })

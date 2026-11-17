@@ -48,7 +48,7 @@ it.each([true, false].flatMap(local => ['video/mp4', 'Audio/MPEG; codecs=mp3', '
     const parsed = new URL(url)
     expect(parsed.protocol).toBe('http:')
     expect(parsed.pathname).toBe(local ? '/fs' : '/proxy/706c6169-89f1-81c6-8bc7-6b67c2ffa178/fs')
-    expect(parsed.searchParams.get('action')).toBe('preview')
+    expect(parsed.searchParams.get('action')).toBe('PREVIEW')
     expect(parsed.searchParams.get('id')).toBeTruthy()
     expect(url).not.toContain('/fixture/untyped.bin')
     expect(fixture.events).toEqual(['open', 'close', 'http'])
@@ -59,11 +59,11 @@ it.each([true, false].flatMap(local => ['video/mp4', 'Audio/MPEG; codecs=mp3', '
 
 it.each([true, false])('keeps passive image thumbnails native even for an audio/video filename, local=%s', async local => {
   fixture.local = local; fixture.mime = 'IMAGE/PNG; charset=binary'
-  const url = await resolveFileUrlByPath(owner, key, '/fixture/clip.mp4', 4, '&size=sm')
+  const url = await resolveFileUrlByPath(owner, key, '/fixture/clip.mp4', 4, '&size=SM')
   expect(url).toBe('plain-resource://file/media')
   expect(fixture.proxy).not.toHaveBeenCalled()
   expect(fixture.invoke).toHaveBeenCalledExactlyOnceWith('native_resource_open', {
-    path: '/fixture/clip.mp4', scope: 'document', thumbnail: 'sm', target: local ? { kind: 'local' } : { kind: 'peer', peerId: '706c6169-89f1-81c6-8bc7-6b67c2ffa178' },
+    path: '/fixture/clip.mp4', scope: 'document', thumbnail: 'SM', target: local ? { kind: 'LOCAL' } : { kind: 'PEER', peerId: '706c6169-89f1-81c6-8bc7-6b67c2ffa178' },
   })
 })
 
@@ -91,14 +91,14 @@ it.each([true, false])('passes the selected HTTP media URL and original target i
 it.each([true, false])('keeps explicit-target file export native while media preview uses HTTP, local=%s', async local => {
   fixture.local = local
   const src = await resolveFileUrlByPath(owner, key, '/fixture/clip.mp4', 4)
-  const target = local ? { kind: 'local' as const } : { kind: 'peer' as const, peerId: '706c6169-89f1-81c6-8bc7-6b67c2ffa178' }
+  const target = local ? { kind: 'LOCAL' as const } : { kind: 'PEER' as const, peerId: '706c6169-89f1-81c6-8bc7-6b67c2ffa178' }
   expect(await downloadToDir(src, 'clip.mp4', { path: '/fixture/clip.mp4', target })).toBe('/downloads/clip.mp4')
   expect(fixture.invoke).toHaveBeenLastCalledWith('native_resource_download', { path: '/fixture/clip.mp4', target, scope: 'document', directory: '/downloads', name: 'clip.mp4' })
   expect(fixture.graphql).not.toHaveBeenCalled()
 })
 
 it('does not convert a resource authorization failure into HTTP', async () => {
-  fixture.invoke.mockRejectedValueOnce(new Error('unauthorized'))
-  await expect(resolveFileUrlByPath(owner, key, '/fixture/clip.mp4', 4)).rejects.toThrow('unauthorized')
+  fixture.invoke.mockRejectedValueOnce(new Error('UNAUTHORIZED'))
+  await expect(resolveFileUrlByPath(owner, key, '/fixture/clip.mp4', 4)).rejects.toThrow('UNAUTHORIZED')
   expect(fixture.proxy).not.toHaveBeenCalled()
 })

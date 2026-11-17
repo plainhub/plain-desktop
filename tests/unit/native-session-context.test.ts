@@ -48,7 +48,7 @@ it.each(['token', 'publicKey', 'remove-readd'])('invalidates and separates same-
   const beforeRevision = getLoginPeerRevision('706c6169-89f1-81c6-8bc7-6b67c2ffa178')
   const pending = deferred<any>()
   io.native.mockImplementationOnce(() => pending.promise)
-  const stale = expect(gqlFetch('query { result }')).rejects.toMatchObject({ message: 'request_context_changed', canceled: true })
+  const stale = expect(gqlFetch('query { result }')).rejects.toMatchObject({ message: 'REQUEST_CONTEXT_CHANGED', canceled: true })
   if (change === 'remove-readd') {
     snapshot = []
     await preloadLoginPeers()
@@ -101,10 +101,10 @@ it('does not log out a replacement same-peer session for an old unauthorized res
   await preloadLoginPeers()
   const pending = deferred<any>()
   io.native.mockImplementationOnce(() => pending.promise)
-  const failure = expect(gqlFetch('query { result }')).rejects.toMatchObject({ message: 'unauthorized', status: 401 })
+  const failure = expect(gqlFetch('query { result }')).rejects.toMatchObject({ message: 'UNAUTHORIZED', status: 401 })
   snapshot = [{ ...original, token: 'replacement-secret' }]
   await preloadLoginPeers()
-  pending.reject(new Error('unauthorized'))
+  pending.reject(new Error('UNAUTHORIZED'))
   await failure
   expect(io.clear).not.toHaveBeenCalled()
   expect(window.location.reload).not.toHaveBeenCalled()
@@ -180,7 +180,7 @@ it('skips old-session cleanup even without another queue owner and retains clean
   const { discardUploadChunks } = await import('@/lib/upload/upload')
   const { getUploadContext } = await import('@/lib/upload/context')
   await preloadLoginPeers()
-  const makeItem = (id: string): import('@/stores/temp').IUploadItem => ({ id, fileId: id, file: new File(['bytes'], 'sample.bin'), fileName: 'sample.bin', dir: '/owned', status: 'canceled', uploadedSize: 0, error: '' })
+  const makeItem = (id: string): import('@/stores/temp').IUploadItem => ({ id, fileId: id, file: new File(['bytes'], 'sample.bin'), fileName: 'sample.bin', dir: '/owned', status: 'CANCELED', uploadedSize: 0, error: '' })
   const stale = makeItem('stale')
   getUploadContext(stale)
   snapshot = [{ ...original, token: 'replacement-secret' }]
@@ -192,7 +192,7 @@ it('skips old-session cleanup even without another queue owner and retains clean
   selection.peer = '706c6169-a347-82da-8a6e-c4f31097abcc'
   await discardUploadChunks(originalTarget, () => false)
   expect(io.native.mock.calls.filter(([body]) => body.query === 'delete')).toEqual([
-    [{ query: 'delete', variables: { fileId: 'original-target' } }, 30000, { kind: 'peer', peerId: '706c6169-89f1-81c6-8bc7-6b67c2ffa178' }, expect.any(Function)],
+    [{ query: 'delete', variables: { fileId: 'original-target' } }, 30000, { kind: 'PEER', peerId: '706c6169-89f1-81c6-8bc7-6b67c2ffa178' }, expect.any(Function)],
   ])
 })
 

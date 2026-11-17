@@ -18,7 +18,7 @@ export class ImageEditorSocket {
   private open() {
     if (this.stopped || this.socket || this.native) return
     if (__IS_TAURI__) {
-      const native = openNativeSocket('imageEditor', {
+      const native = openNativeSocket('IMAGE_EDITOR', {
         message: (kind, payload) => {
           if (this.native !== native) return
           if (kind === 'imageEditorReady') this.onReady()

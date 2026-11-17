@@ -1,24 +1,24 @@
-import { ErrorCode } from '@/lib/api/error-code'
+import { ShareAccessErrorCode } from '@/lib/api/share-access-error-code'
 import { computed, ref, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { guestFetch, sharedInfoGQL, sharedTokenToKey, type SharedFile, type SharedInfo } from '@/lib/api/guest'
 
 export type ShareErrorCode =
   | 'invalid_link'
-  | 'unauthorized'
-  | 'forbidden'
+  | 'UNAUTHORIZED'
+  | 'FORBIDDEN'
   | 'expired'
   | 'not_found'
-  | ErrorCode.PasswordRequired
+  | ShareAccessErrorCode.PasswordRequired
   | 'network'
   | 'error'
 
 function mapGraphqlError(message: string): ShareErrorCode {
   const m = message.toLowerCase()
-  if (m.includes('password')) return ErrorCode.PasswordRequired
+  if (m.includes('password')) return ShareAccessErrorCode.PasswordRequired
   if (m.includes('expired') || m.includes('inactive')) return 'expired'
   if (m.includes('not found')) return 'not_found'
-  if (m.includes('not allowed')) return 'forbidden'
+  if (m.includes('not allowed')) return 'FORBIDDEN'
   return 'error'
 }
 
@@ -63,7 +63,7 @@ export function useShareData(sharedId: Ref<string>, sharedToken: Ref<string>) {
       }
       info.value = result.data.sharedInfo
       if (info.value.requiresPassword) {
-        errorCode.value = ErrorCode.PasswordRequired
+        errorCode.value = ShareAccessErrorCode.PasswordRequired
         state.value = 'error'
         return
       }
@@ -71,8 +71,8 @@ export function useShareData(sharedId: Ref<string>, sharedToken: Ref<string>) {
       state.value = 'ready'
     } catch (e: any) {
       const msg = e?.message || ''
-      if (msg === 'unauthorized') errorCode.value = 'unauthorized'
-      else if (msg === 'forbidden') errorCode.value = 'forbidden'
+      if (msg === 'UNAUTHORIZED') errorCode.value = 'UNAUTHORIZED'
+      else if (msg === 'FORBIDDEN') errorCode.value = 'FORBIDDEN'
       else errorCode.value = 'network'
       state.value = 'error'
     }

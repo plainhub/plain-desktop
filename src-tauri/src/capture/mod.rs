@@ -202,7 +202,7 @@ pub trait Capture: Send + Sync {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CaptureErrorCode {
     Busy,
     PermissionDenied,

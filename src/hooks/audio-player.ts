@@ -1,4 +1,4 @@
-import { ErrorCode } from '@/lib/api/error-code'
+import { HttpErrorCode } from '@/lib/api/http-error-code'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch, type Ref } from 'vue'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
@@ -32,7 +32,7 @@ export function usePlayAudio(onApplied: (track: IAudioItem) => void, enqueue = f
       onApplied(track)
       if (enqueue) await store.refetch()
     })
-    pendingSelection = command.catch((error) => emitter.emit('toast', error instanceof Error ? error.message : ErrorCode.NetworkError))
+    pendingSelection = command.catch((error) => emitter.emit('toast', error instanceof Error ? error.message : HttpErrorCode.NetworkError))
     return command
   }
   return { play, loading }
@@ -214,7 +214,7 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
         audioPlayMode.value = mode!
       }
     })
-    pendingCommand = command.catch((error) => emitter.emit('toast', error instanceof Error ? error.message : ErrorCode.NetworkError))
+    pendingCommand = command.catch((error) => emitter.emit('toast', error instanceof Error ? error.message : HttpErrorCode.NetworkError))
     return command
   }
 
@@ -262,7 +262,7 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
       await history.restorePosition(element, { mediaId, type: 'AUDIO' }, () => !disposed && restoreInitialPosition &&
         audioPlayback.value.mediaId === mediaId && audioPlayback.value.path === path && playbackIntent === intent)
     } catch (error) {
-      emitter.emit('toast', error instanceof Error ? error.message : ErrorCode.NetworkError)
+      emitter.emit('toast', error instanceof Error ? error.message : HttpErrorCode.NetworkError)
     }
   }
   const onPlay = () => {

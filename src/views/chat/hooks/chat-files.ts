@@ -33,7 +33,7 @@ export function useChatFiles(props: { data: any; downloadInfo: any; peer: { id: 
       const isGif = typeof uri === 'string' && uri.endsWith('.gif')
       const fileId = remote ? '' : getChatFileId(urlTokenKey.value, uri)
       const src = peer && remote
-        ? getChatAttachmentUrl(urlTokenKey.value, peer.id, uri, isGif ? '' : '&size=lg')
+        ? getChatAttachmentUrl(urlTokenKey.value, peer.id, uri, isGif ? '' : '&size=LG')
         : getFileUrl(fileId)
       return {
         path: f.uri, src,
@@ -49,7 +49,7 @@ export function useChatFiles(props: { data: any; downloadInfo: any; peer: { id: 
     if (isImage(item.name) || isVideo(item.name)) {
       if (item.thumbnail) return item.thumbnail
       if (item.path.startsWith('fsid:')) return chatAttachmentThumbnail(item.src)
-      return item.src.startsWith('blob:') ? item.src : `${item.src}&size=sm`
+      return item.src.startsWith('blob:') ? item.src : `${item.src}&size=SM`
     }
     const ext = item.extension
     if (ext && !iconErrors.value.includes(item.name)) return `/ficons/${ext}.svg`

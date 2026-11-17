@@ -28,12 +28,12 @@ it('sends the peer and required mode and uses notifications instead of state que
 it('retries password login for the same peer and reports failure through local display state', async () => {
   const pairing = createPairing()
   await pairing.start({ peerId: 'peer', mode: 'MANAGE' })
-  mock.listeners.get('pairingFailed')!({ deviceId: 'peer', error: 'password_required' })
+  mock.listeners.get('pairingFailed')!({ deviceId: 'peer', error: 'PASSWORD_REQUIRED' })
   expect(pairing.state.value?.phase).toBe('PASSWORD_REQUIRED')
   await pairing.submit('fixture-password')
   expect(mock.native.mock.lastCall?.[0].variables).toEqual({ input: { peerId: 'peer', mode: 'MANAGE', password: 'fixture-password' } })
-  mock.listeners.get('pairingFailed')!({ deviceId: 'peer', error: 'rejected' })
-  expect(pairing.state.value?.error).toBe('rejected')
+  mock.listeners.get('pairingFailed')!({ deviceId: 'peer', error: 'REJECTED' })
+  expect(pairing.state.value?.error).toBe('REJECTED')
   pairing.dispose()
 })
 it('confirms using only the peer and decision', async () => {

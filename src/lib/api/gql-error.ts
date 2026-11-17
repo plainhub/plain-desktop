@@ -1,4 +1,4 @@
-import { ErrorCode, parseErrorCode } from './error-code'
+import { GraphqlErrorCode } from '@/lib/api/graphql-error-code'
 
 export interface GraphqlFailure {
   message: string
@@ -7,19 +7,23 @@ export interface GraphqlFailure {
 }
 
 export class GqlError extends Error {
-  readonly code: ErrorCode
+  readonly code: string
+
+  static fromCode(code: string, status?: number, canceled = false): GqlError {
+    return new GqlError(code, status, canceled, code)
+  }
 
   static fromGraphql(error: GraphqlFailure): GqlError {
-    return new GqlError(error.message, undefined, false, parseErrorCode(error.extensions?.code) ?? ErrorCode.InternalError)
+    return new GqlError(error.message, undefined, false, error.extensions?.code ?? GraphqlErrorCode.InternalError)
   }
   constructor(
     message: string,
     public status?: number,
     public canceled = false,
-    code?: ErrorCode,
+    code?: string,
   ) {
     super(message)
     this.name = 'GqlError'
-    this.code = code ?? parseErrorCode(message) ?? ErrorCode.InternalError
+    this.code = code ?? GraphqlErrorCode.InternalError
   }
 }

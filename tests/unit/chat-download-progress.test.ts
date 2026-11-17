@@ -29,11 +29,11 @@ describe('Rust download task progress projection into message overlays', () => {
 
   it('hides completed messages and retains canceled tasks for explicit retry and keeps unrelated messages separate', () => {
     const result = projectChatDownloadProgress([
-      item('COMPLETED', 'complete'), item('COMPLETED', 'complete'), item('CANCELED', 'canceled'),
+      item('COMPLETED', 'complete'), item('COMPLETED', 'complete'), item('CANCELED', 'CANCELED'),
       item('COMPLETED', 'mixed'), item('PENDING', 'mixed'), item('DOWNLOADING', 'other'),
     ])
     expect(result.finished).toEqual(['complete'])
-    expect(Object.keys(result.active)).toEqual(['canceled', 'mixed', 'other'])
+    expect(Object.keys(result.active)).toEqual(['CANCELED', 'mixed', 'other'])
     expect(projectChatDownloadProgress([])).toEqual({ active: {}, finished: [] })
   })
 

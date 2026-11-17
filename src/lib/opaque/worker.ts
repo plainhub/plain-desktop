@@ -1,4 +1,4 @@
-import { ErrorCode, parseErrorCode } from '@/lib/api/error-code'
+import { AuthErrorCode, parseAuthErrorCode } from '@/lib/api/auth-error-code'
 import init, { OpaqueLogin } from './pkg/plain_auth'
 import type { OpaqueCommand, OpaqueReply } from './client'
 
@@ -6,20 +6,20 @@ let login: OpaqueLogin | undefined
 self.onmessage = async (event: MessageEvent<OpaqueCommand>) => {
   const command = event.data
   try {
-    if (command.type === 'start') {
+    if (command.type === 'START') {
       try {
-        if (typeof globalThis.crypto?.getRandomValues !== 'function') throw ErrorCode.SecureLoginUnavailable
+        if (typeof globalThis.crypto?.getRandomValues !== 'function') throw AuthErrorCode.SecureLoginUnavailable
         await init()
         login = OpaqueLogin.start(command.password)
       } finally { command.password.fill(0) }
-      self.postMessage({ type: 'request', request: login.request() } satisfies OpaqueReply)
+      self.postMessage({ type: 'REQUEST', request: login.request() } satisfies OpaqueReply)
     } else {
-      if (!login) throw ErrorCode.InvalidAuthResponse
+      if (!login) throw AuthErrorCode.InvalidAuthResponse
       const active = login
       login = undefined // finish consumes the WASM state, including failures.
       const result = active.finish(command.response, command.clientId, command.signingKey)
       try {
-        const message = { type: 'result', result: {
+        const message = { type: 'RESULT', result: {
           ke3: result.ke3,
           apiKey: result.apiKey,
           requestAad: result.requestAad,
@@ -33,6 +33,6 @@ self.onmessage = async (event: MessageEvent<OpaqueCommand>) => {
   } catch (error) {
     login?.free()
     login = undefined
-    self.postMessage({ type: 'error', reason: parseErrorCode(error) ?? (command.type === 'finish' ? ErrorCode.InvalidPassword : ErrorCode.InvalidAuthResponse) } satisfies OpaqueReply)
+    self.postMessage({ type: 'ERROR', reason: parseAuthErrorCode(error) ?? (command.type === 'FINISH' ? AuthErrorCode.InvalidPassword : AuthErrorCode.InvalidAuthResponse) } satisfies OpaqueReply)
   }
 }

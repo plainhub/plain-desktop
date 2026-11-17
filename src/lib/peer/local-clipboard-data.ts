@@ -1,4 +1,4 @@
-import { ErrorCode } from '@/lib/api/error-code'
+import { ClipboardErrorCode } from '@/lib/api/clipboard-error-code'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { ref, watch } from 'vue'
 import { Channel, invoke } from '@/lib/api/native-invoke'
@@ -79,7 +79,7 @@ async function fetchPeerClipboard(peerId: string, silent = false) {
       { offset: (group.page - 1) * limit(), limit: limit(), query: '' },
     )
     if (res.errors?.length) {
-      if (res.errors[0].message === ErrorCode.ClipboardSyncDisabled) group.clipboardSync = false
+      if (res.errors[0].message === ClipboardErrorCode.ClipboardSyncDisabled) group.clipboardSync = false
     } else {
       group.clipboardSync = true
       group.items = res.data?.clipboardItems ?? []

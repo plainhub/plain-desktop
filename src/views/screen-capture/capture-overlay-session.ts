@@ -12,7 +12,7 @@ export interface CaptureTargetUnavailable {
 export interface CaptureOverlaySessionEnded {
   sessionId: string
   overlayGeneration: number
-  outcome: 'completed' | 'canceled' | 'saved' | 'copied' | 'failed'
+  outcome: 'COMPLETED' | 'CANCELED' | 'SAVED' | 'COPIED' | 'FAILED'
 }
 
 export interface CaptureDeliveryFailed {
@@ -160,7 +160,7 @@ export function createCaptureOverlaySession(deps: CaptureOverlaySessionDependenc
   function sessionEnded(payload: CaptureOverlaySessionEnded): void {
     if (disposed || payload.overlayGeneration !== deps.overlayGeneration) return
     if (active?.sessionId === payload.sessionId) {
-      if (payload.outcome === 'completed') active.pendingDelivery?.resolve()
+      if (payload.outcome === 'COMPLETED') active.pendingDelivery?.resolve()
       else active.pendingDelivery?.reject(new Error(`capture delivery ended with ${payload.outcome}`))
       clearActive()
     }

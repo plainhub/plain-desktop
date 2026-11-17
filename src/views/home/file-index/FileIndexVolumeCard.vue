@@ -16,7 +16,7 @@
     <footer>
       <div class="scan-summary" aria-live="polite">
         <p class="scan-info">
-          <template v-if="scanProgress?.state === 'FAILED'">{{ scanProgress.error || $t('failed') }}</template>
+          <template v-if="scanProgress?.state === 'FAILED'">{{ scanProgress.error || $t('FAILED') }}</template>
           <template v-else-if="scanProgress?.state === 'RUNNING'">
             {{ scanProgress.indexed > 0 ? $t('file_index.scanned_files', { count: scanProgress.indexed.toLocaleString() }) : $t('file_index.scanning') }}
           </template>
@@ -27,7 +27,7 @@
           <template v-else-if="volume.lastScanStatus === 'COMPLETED'">
             {{ volume.lastScanCount === null ? $t('completed') : $t('file_index.scanned_files', { count: volume.lastScanCount.toLocaleString() }) }}
           </template>
-          <template v-else-if="volume.lastScanStatus === 'FAILED'">{{ $t('failed') }}</template>
+          <template v-else-if="volume.lastScanStatus === 'FAILED'">{{ $t('FAILED') }}</template>
           <template v-else-if="volume.lastScanStatus === 'CANCELED'">{{ $t('stopped') }}</template>
           <template v-else>{{ $t('file_index.not_scanned') }}</template>
         </p>

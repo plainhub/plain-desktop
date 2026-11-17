@@ -21,7 +21,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   fixture.invoke.mockResolvedValue(undefined)
   fixture.remote.mockReturnValue('706c6169-0001-8000-8000-000000000003')
-  fixture.reference.mockReturnValue({ path: 'fid:owned-image', target: { kind: 'local' } })
+  fixture.reference.mockReturnValue({ path: 'fid:owned-image', target: { kind: 'LOCAL' } })
   vi.stubGlobal('__IS_TAURI__', true)
 })
 afterEach(() => vi.unstubAllGlobals())
@@ -39,7 +39,7 @@ it.each(['plain-resource://file/old-owner', 'http://plain-resource.file/old-owne
 it.each(['plain-resource://file/old-owner', 'https://plain-resource.file/old-owner'])('passes only the original reference to a local image-editor window for %s', async (url) => {
   const popup = vi.fn()
   vi.stubGlobal('window', { open: popup })
-  fixture.reference.mockReturnValue({ path: 'app://images/image name.png', target: { kind: 'local' } })
+  fixture.reference.mockReturnValue({ path: 'app://images/image name.png', target: { kind: 'LOCAL' } })
   await openImageEditor(source(url, 'app://images/image name.png'))
   const [command, args] = fixture.invoke.mock.calls[0]
   expect(command).toBe('open_window')
@@ -60,7 +60,7 @@ it('refuses an expired native cross-window handoff rather than guessing its targ
 })
 
 it('preserves the original peer target when a native resource opens another window', async () => {
-  fixture.reference.mockReturnValue({ path: '/peer/image.png', target: { kind: 'peer', peerId: '706c6169-f45a-86eb-9c88-7d09ffcfff20' } })
+  fixture.reference.mockReturnValue({ path: '/peer/image.png', target: { kind: 'PEER', peerId: '706c6169-f45a-86eb-9c88-7d09ffcfff20' } })
   await openMediaInWindow(source('plain-resource://file/handle'))
   expect(fixture.invoke.mock.calls[0][1].source).toMatchObject({ path: '/peer/image.png', src: '', __cid: '706c6169-f45a-86eb-9c88-7d09ffcfff20' })
   await openImageEditor(source('plain-resource://file/handle'))
@@ -72,7 +72,7 @@ it('preserves the original peer target when a native resource opens another wind
 it('preserves external and remote source URLs instead of treating their paths as local references', async () => {
   const popup = vi.fn()
   vi.stubGlobal('window', { open: popup })
-  const remote = source('https://device.invalid/fs?id=encrypted&size=lg', '/remote/image.png')
+  const remote = source('https://device.invalid/fs?id=encrypted&size=LG', '/remote/image.png')
   await openMediaInWindow(remote)
   expect(fixture.invoke).toHaveBeenCalledExactlyOnceWith('media_preview_activate', { source: { ...remote, __cid: '706c6169-0001-8000-8000-000000000003' } })
   await openImageEditor(remote)
@@ -100,9 +100,9 @@ it('retains HTTP codec probing and HEVC transcoding for remote resources', async
   vi.stubGlobal('fetch', fetch)
   vi.stubGlobal('document', { createElement: () => ({ canPlayType: () => '' }) })
   const { ensurePlayableVideoUrl } = await import('@/lib/video-codec')
-  const result = await ensurePlayableVideoUrl('https://device.invalid/fs?id=video&action=preview')
-  expect(fetch).toHaveBeenCalledExactlyOnceWith('https://device.invalid/fs?id=video&action=probe')
-  expect(result).toEqual({ url: 'https://device.invalid/fs?id=video&action=transcode', transcoded: true })
+  const result = await ensurePlayableVideoUrl('https://device.invalid/fs?id=video&action=PREVIEW')
+  expect(fetch).toHaveBeenCalledExactlyOnceWith('https://device.invalid/fs?id=video&action=PROBE')
+  expect(result).toEqual({ url: 'https://device.invalid/fs?id=video&action=TRANSCODE', transcoded: true })
 })
 
 

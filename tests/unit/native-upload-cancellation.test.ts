@@ -94,7 +94,7 @@ it.each(['write', 'finish'])('queue remove interrupts pending native %s without 
   await vi.waitFor(() => expect(io.gql).toHaveBeenCalledWith('delete', { fileId: 'removed' }))
   expect(calls('native_upload_chunk_abort')).toEqual([['native_upload_chunk_abort', { scope: 'original-document', handle: 'handle-0' }]])
   expect(io.merge).not.toHaveBeenCalled()
-  expect(current.status).toBe('canceled')
+  expect(current.status).toBe('CANCELED')
   expect(queue.getUploadQueueStatus().running).toBe(0)
 })
 

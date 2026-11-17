@@ -77,7 +77,7 @@ it('uses the real shared queue and native upload for sequential assets, then the
   expect(io.merge.mock.calls.map(([, args]) => [args.path, args.replace])).toEqual([
     ['/models/image.bin', true], ['/models/text.bin', true], ['/models/manifest.json', true],
   ])
-  expect(io.invoke.mock.calls.filter(([command]) => command === 'native_upload_chunk_open').map(([, args]) => args.target)).toEqual(Array(3).fill({ kind: 'peer', peerId: '706c6169-fdbb-865c-ab5a-2260e9b9f142' }))
+  expect(io.invoke.mock.calls.filter(([command]) => command === 'native_upload_chunk_open').map(([, args]) => args.target)).toEqual(Array(3).fill({ kind: 'PEER', peerId: '706c6169-fdbb-865c-ab5a-2260e9b9f142' }))
   expect(hook.uploadDone.value).toBe(true)
   expect(hook.uploadProgress.value).toBe(100)
   expect(hook.uploading.value).toBe(false)
@@ -114,7 +114,7 @@ it('keeps all assets bound to the starting target when the device changes betwee
   expect(io.invoke.mock.calls.filter(([command]) => command === 'native_upload_chunk_open')).toHaveLength(1)
   expect(io.merge).toHaveBeenCalledOnce()
   expect(hook.uploadDone.value).toBe(false)
-  expect(io.toast).toHaveBeenCalledWith(expect.stringContaining('request_context_changed'), 'error')
+  expect(io.toast).toHaveBeenCalledWith(expect.stringContaining('REQUEST_CONTEXT_CHANGED'), 'error')
   expect(io.gql.mock.calls.every(([key]) => key === '706c6169-fdbb-865c-ab5a-2260e9b9f142')).toBe(true)
 })
 
@@ -129,7 +129,7 @@ it('captures the target before asynchronous manifest validation', async () => {
   await running
   expect(io.invoke).not.toHaveBeenCalled()
   expect(io.gql).not.toHaveBeenCalled()
-  expect(io.toast).toHaveBeenCalledWith(expect.stringContaining('request_context_changed'), 'error')
+  expect(io.toast).toHaveBeenCalledWith(expect.stringContaining('REQUEST_CONTEXT_CHANGED'), 'error')
 })
 
 it('rejects invalid declarations without uploading', async () => {

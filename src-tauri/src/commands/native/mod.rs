@@ -9,7 +9,7 @@ pub mod views;
 #[derive(Debug, serde::Deserialize, PartialEq, Eq)]
 #[serde(
     tag = "kind",
-    rename_all = "camelCase",
+    rename_all = "SCREAMING_SNAKE_CASE",
     rename_all_fields = "camelCase",
     deny_unknown_fields
 )]

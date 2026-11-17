@@ -1,4 +1,5 @@
-import { ErrorCode } from '@/lib/api/error-code'
+import { AccessErrorCode } from '@/lib/api/access-error-code'
+import { HttpErrorCode } from '@/lib/api/http-error-code'
 import { graphqlSubscriptions } from './subscription-client'
 import { ref, watch, nextTick, getCurrentInstance, onActivated, onDeactivated, onUnmounted, type Ref } from 'vue'
 import { GqlError } from './gql-error'
@@ -37,10 +38,10 @@ import {
 
 function getErrorMessage(e: any): string {
   if (e instanceof GqlError) {
-    if (e.status === 403) return ErrorCode.RemoteAccessDisabled
+    if (e.status === 403) return AccessErrorCode.RemoteAccessDisabled
     return e.message
   }
-  return ErrorCode.NetworkError
+  return HttpErrorCode.NetworkError
 }
 
 function resolveVars(variables: any): Record<string, any> | undefined {

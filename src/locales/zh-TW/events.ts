@@ -1,9 +1,9 @@
 export default {
-  "event_reason.mount_failed": "掛載失敗",
-  "event_reason.format_disk_failed": "格式化失敗",
-  "event_reason.peer_identity_changed": "用戶端身分已變更",
-  "event_reason.password_setup_required": "尚未設定登入密碼",
-  "event_reason.internal_error": "伺服器內部錯誤",
+  "event_reason.MOUNT_FAILED": "掛載失敗",
+  "event_reason.FORMAT_DISK_FAILED": "格式化失敗",
+  "event_reason.PEER_IDENTITY_CHANGED": "用戶端身分已變更",
+  "event_reason.PASSWORD_SETUP_REQUIRED": "尚未設定登入密碼",
+  "event_reason.INTERNAL_ERROR": "伺服器內部錯誤",
 
   "events": "事件",
   "event_client": "用戶端",
@@ -17,11 +17,11 @@ export default {
   "event_type.UNMOUNT": "磁碟已卸载",
   "event_type.FORMAT_DISK": "磁碟已格式化",
   "event_type.FORMAT_DISK_FAILED": "磁碟格式化失敗",
-  "event_reason.invalid_password": "密碼错误",
-  "event_reason.invalid_login_request": "登入請求無效",
-  "event_reason.remote_access_disabled": "遠端存取已關閉",
-  "event_reason.login_expired": "登入請求已過期",
-  "event_reason.too_many_login_attempts": "登入嘗試過多",
-  "event_reason.rejected": "登入請求已拒绝",
-  "event_reason.canceled": "登入請求已取消"
+  "event_reason.INVALID_PASSWORD": "密碼错误",
+  "event_reason.INVALID_LOGIN_REQUEST": "登入請求無效",
+  "event_reason.REMOTE_ACCESS_DISABLED": "遠端存取已關閉",
+  "event_reason.LOGIN_EXPIRED": "登入請求已過期",
+  "event_reason.TOO_MANY_LOGIN_ATTEMPTS": "登入嘗試過多",
+  "event_reason.REJECTED": "登入請求已拒绝",
+  "event_reason.CANCELED": "登入請求已取消"
 }

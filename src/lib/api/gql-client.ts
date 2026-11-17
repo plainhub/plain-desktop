@@ -1,5 +1,8 @@
+import { AccessErrorCode } from '@/lib/api/access-error-code'
+import { HttpErrorCode } from '@/lib/api/http-error-code'
+import { NativeErrorCode } from '@/lib/api/native-error-code'
+import { PeerConnectionErrorCode } from '@/lib/api/peer-connection-error-code'
 import { GqlError, type GraphqlFailure } from './gql-error'
-import { ErrorCode, parseErrorCode } from '@/lib/api/error-code'
 import { shallowRef } from 'vue'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { getApiBaseUrl, getApiHeaders } from './api'
@@ -49,7 +52,7 @@ function graphqlContext(origin = false) {
   const peer = origin ? '' : getWebManagedPeerId()
   const base = native ? '' : getApiBaseUrl()
   const clientId = getActiveClientId()
-  const target: NativeTarget | undefined = native ? local ? { kind: 'local' } : { kind: 'peer', peerId: getRemoteClientId() } : undefined
+  const target: NativeTarget | undefined = native ? local ? { kind: 'LOCAL' } : { kind: 'PEER', peerId: getRemoteClientId() } : undefined
   return {
     native,
     clientId,
@@ -59,7 +62,7 @@ function graphqlContext(origin = false) {
     peer,
     origin,
     token: native ? '' : getCurrentAuthToken(),
-    authRevision: target?.kind === 'peer' ? getLoginPeerRevision(target.peerId) : 0,
+    authRevision: target?.kind === 'PEER' ? getLoginPeerRevision(target.peerId) : 0,
     headers: { ...getApiHeaders() },
   }
 }
@@ -82,7 +85,7 @@ export async function gqlFetch<T = any>(
   }
 
   const promise = doGqlFetch<T>(context, query, variables, options.timeout).then((result) => {
-    if (contextKey !== JSON.stringify(graphqlContext(options.origin))) throw new GqlError(ErrorCode.RequestContextChanged, undefined, true)
+    if (contextKey !== JSON.stringify(graphqlContext(options.origin))) throw GqlError.fromCode(HttpErrorCode.RequestContextChanged, undefined, true)
     return result
   })
   if (options.dedupe !== false) pendingRequests.set(dedupeKey, promise)
@@ -117,7 +120,7 @@ export async function encryptedGqlPost<T = any>(
   timeout: number = TIMEOUT,
   headers: Record<string, string> = getApiHeaders(),
 ): Promise<GqlResult<T>> {
-  if (!token) throw new GqlError(ErrorCode.Unauthorized, 401)
+  if (!token) throw GqlError.fromCode(AccessErrorCode.Unauthorized, 401)
   const key = tokenToKey(token)
   const json = graphqlRequestPayload(query, variables)
   const op = operationName(query)
@@ -150,11 +153,11 @@ export async function encryptedGqlPost<T = any>(
     })
 
     if (response.status === 401) {
-      throw new GqlError(ErrorCode.Unauthorized, 401)
+      throw GqlError.fromCode(AccessErrorCode.Unauthorized, 401)
     } else if (response.status === 403) {
-      throw new GqlError(ErrorCode.RemoteAccessDisabled, 403)
+      throw GqlError.fromCode(AccessErrorCode.RemoteAccessDisabled, 403)
     } else if (!response.ok) {
-      throw new GqlError(ErrorCode.NetworkError, response.status)
+      throw GqlError.fromCode(HttpErrorCode.NetworkError, response.status)
     }
 
     const arrayBuffer = await response.arrayBuffer()
@@ -174,15 +177,15 @@ export async function encryptedGqlPost<T = any>(
       console.warn(`[gql] ✗ ${op} @${host} ${e instanceof GqlError ? `${e.message} (${e.status ?? 'network'})` : e.name || e.message}`)
     }
     if (e instanceof GqlError) throw e
-    if (e.name === 'AbortError') throw new GqlError(ErrorCode.ConnectionTimeout)
-    throw new GqlError(e.message || ErrorCode.NetworkError, undefined, false, ErrorCode.NetworkError)
+    if (e.name === 'AbortError') throw GqlError.fromCode(PeerConnectionErrorCode.ConnectionTimeout)
+    throw new GqlError(e.message || HttpErrorCode.NetworkError, undefined, false, HttpErrorCode.NetworkError)
   } finally {
     clearTimeout(timer)
   }
 }
 
 // Core resolves the target's identity and credentials; the WebView supplies no URL or key.
-export async function nativeGqlFetch<T = any>(query: string, variables?: Record<string, any>, timeout: number = TIMEOUT, target: NativeTarget = { kind: 'local' }, beforeDispatch?: () => void): Promise<GqlResult<T>> {
+export async function nativeGqlFetch<T = any>(query: string, variables?: Record<string, any>, timeout: number = TIMEOUT, target: NativeTarget = { kind: 'LOCAL' }, beforeDispatch?: () => void): Promise<GqlResult<T>> {
   const op = operationName(query)
   if (window.__PLAIN_LOG__) {
     console.info(`[gql] → ${op} @native ${JSON.stringify({ query, variables })}`)
@@ -197,10 +200,10 @@ export async function nativeGqlFetch<T = any>(query: string, variables?: Record<
     return result
   } catch (e: any) {
     if (e instanceof GqlError) throw e
-    const message = e?.message || ErrorCode.NativeError
-    const code = parseErrorCode(message) ?? ErrorCode.NativeError
+    const message = e?.message || NativeErrorCode.NativeError
+    const code: string = message || NativeErrorCode.NativeError
     if (window.__PLAIN_LOG__) console.warn(`[gql] ✗ ${op} @native ${message}`)
-    throw new GqlError(message, code === ErrorCode.Unauthorized ? 401 : code === ErrorCode.RemoteAccessDisabled ? 403 : undefined, code === ErrorCode.RequestContextChanged, code)
+    throw new GqlError(message, code === AccessErrorCode.Unauthorized ? 401 : code === AccessErrorCode.RemoteAccessDisabled ? 403 : undefined, code === HttpErrorCode.RequestContextChanged, code)
   }
 }
 
@@ -240,7 +243,7 @@ async function doGqlFetch<T = any>(context: ReturnType<typeof graphqlContext>, q
     return await webGqlFetch<T>(context, query, variables, timeout, true)
   } catch (e) {
     if (e instanceof GqlError && e.status === 401 && !context.peer && (context.native || context.token) &&
-      context.target?.kind !== 'local' && JSON.stringify(context) === JSON.stringify(graphqlContext(context.origin))) {
+      context.target?.kind !== 'LOCAL' && JSON.stringify(context) === JSON.stringify(graphqlContext(context.origin))) {
       await clearCurrentSession()
       window.location.reload()
     }
@@ -251,8 +254,8 @@ async function doGqlFetch<T = any>(context: ReturnType<typeof graphqlContext>, q
 export function bindGraphqlClient(origin = false) {
   const context = graphqlContext(origin)
   const target = context.target
-  const beforeDispatch = target?.kind === 'peer' ? () => {
-    if (context.authRevision !== getLoginPeerRevision(target.peerId)) throw new GqlError(ErrorCode.RequestContextChanged, undefined, true)
+  const beforeDispatch = target?.kind === 'PEER' ? () => {
+    if (context.authRevision !== getLoginPeerRevision(target.peerId)) throw GqlError.fromCode(HttpErrorCode.RequestContextChanged, undefined, true)
   } : undefined
   return <T = any>(query: string, variables?: Record<string, any>, timeout = TIMEOUT): Promise<GqlResult<T>> =>
     context.native ? nativeGqlFetch<T>(query, variables, timeout, context.target, beforeDispatch) : webGqlFetch<T>(context, query, variables, timeout)
@@ -278,7 +281,7 @@ async function webGqlFetch<T>(context: ReturnType<typeof graphqlContext>, query:
         context.originUrl, context.token, '{ app { urlToken } }', undefined, timeout, context.headers,
       ).then(response => {
         const key = response.data?.app?.urlToken
-        if (!key) throw response.errors?.length ? GqlError.fromGraphql(response.errors[0]) : new GqlError(ErrorCode.Unauthorized)
+        if (!key) throw response.errors?.length ? GqlError.fromGraphql(response.errors[0]) : GqlError.fromCode(AccessErrorCode.Unauthorized)
         return key
       }).catch(error => {
         if (originResourceToken?.promise === promise) originResourceToken = undefined

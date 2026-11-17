@@ -84,7 +84,7 @@ it('bounds health retries and leaves no polling timer behind', async () => {
   vi.useFakeTimers()
   invoke.mockResolvedValue(completed)
   request.mockImplementation(async () => new Response('unavailable', { status: 503 }))
-  const result = expect(restartLocalServer('http', 8080)).rejects.toThrow('connection_timeout')
+  const result = expect(restartLocalServer('http', 8080)).rejects.toThrow('CONNECTION_TIMEOUT')
   await vi.advanceTimersByTimeAsync(30000)
   await result
   expect(vi.getTimerCount()).toBe(0)

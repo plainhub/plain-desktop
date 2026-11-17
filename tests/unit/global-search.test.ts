@@ -70,15 +70,15 @@ it('queries the authorized peer and seals preview URLs with that device’s sess
   expect(total).toBe(32)
   expect(transport.current).not.toHaveBeenCalled()
   expect(transport.remote).not.toHaveBeenCalled()
-  expect(transport.local).toHaveBeenNthCalledWith(1, appGQL, undefined, undefined, { kind: 'peer', peerId: peer.id })
+  expect(transport.local).toHaveBeenNthCalledWith(1, appGQL, undefined, undefined, { kind: 'PEER', peerId: peer.id })
   expect(transport.local).toHaveBeenNthCalledWith(2, docsGQL, {
     query: 'text:Trip:\\ notes trash:false', offset: 24, limit: 24, sortBy: 'UPDATED_AT_DESC',
-  }, undefined, { kind: 'peer', peerId: peer.id })
+  }, undefined, { kind: 'PEER', peerId: peer.id })
   const hit = hits[0]
   if (hit.domain !== 'docs') throw new Error('Expected a document')
   const url = new URL(client.url(hit))
   expect(url.origin).toBe('https://archive.example.test')
-  expect(url.searchParams.get('action')).toBe('preview')
+  expect(url.searchParams.get('action')).toBe('PREVIEW')
   const envelope = url.searchParams.get('id')!
   expect(envelope).toMatch(/^c\.706c6169-80ec-82ce-9052-221375ddf943\./)
   expect(filePathFromResourceId(key, envelope)).toBe(doc.path)
@@ -122,7 +122,7 @@ it('routes managed search through the current origin and reuses session-scoped t
   expect(client.thumbnailUrl(hit)).toBe(thumbnail)
   const download = new URL(client.url(hit, FileAction.Download))
   expect(download.pathname).toBe('/proxy/managed/fs')
-  expect(download.searchParams.get('action')).toBe('download')
+  expect(download.searchParams.get('action')).toBe('DOWNLOAD')
   const [mode, owner, encoded] = download.searchParams.get('id')!.split('.')
   const bytes = Uint8Array.from(atob(encoded.replace(/-/g, '+').replace(/_/g, '/')), (char) => char.charCodeAt(0))
   const aad = new TextEncoder().encode(`FS.${mode}.${owner}`)

@@ -1,8 +1,8 @@
 export enum FileAction {
-  Preview = 'preview',
-  Download = 'download',
-  Probe = 'probe',
-  Transcode = 'transcode',
+  Preview = 'PREVIEW',
+  Download = 'DOWNLOAD',
+  Probe = 'PROBE',
+  Transcode = 'TRANSCODE',
 }
 
 export function fileQuery(action: FileAction, query = ''): string {
@@ -23,6 +23,6 @@ export function withFileAction(url: string, action: FileAction, _chat = false): 
 export function chatAttachmentThumbnail(url: string): string {
   if (!url) return ''
   const parsed = new URL(url)
-  parsed.searchParams.set('size', 'sm')
+  parsed.searchParams.set('size', 'SM')
   return parsed.toString()
 }

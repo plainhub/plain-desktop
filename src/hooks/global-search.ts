@@ -12,7 +12,7 @@ type Page = { domain: SearchDomain; hits: SearchHit[]; total: number; loading: b
 export type SearchGroup = {
   device: SearchDevice
   client?: Client
-  status: 'loading' | 'ready' | 'offline' | 'denied' | 'failed'
+  status: 'loading' | 'ready' | 'offline' | 'denied' | 'FAILED'
   pages: Page[]
 }
 
@@ -100,7 +100,7 @@ export function useGlobalSearch(app: Ref<IApp>, localName: () => string) {
       if (error instanceof GqlError && (error.status === 401 || error.status === 403)) group.status = 'denied'
       else if (error instanceof GqlError && !error.status && group.device.target === 'peer' && group.device.peer.online === false) group.status = 'offline'
       else if (group.device.target === 'managed' && !group.device.online) group.status = 'offline'
-      else group.status = 'failed'
+      else group.status = 'FAILED'
     }
   }
 

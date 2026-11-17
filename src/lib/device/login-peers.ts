@@ -1,5 +1,5 @@
+import { AuthErrorCode } from '@/lib/api/auth-error-code'
 import { GqlError } from '@/lib/api/gql-error'
-import { ErrorCode } from '@/lib/api/error-code'
 import { invoke } from '@/lib/api/native-invoke'
 import { listen } from '@tauri-apps/api/event'
 import { reactive, ref } from 'vue'
@@ -94,21 +94,21 @@ export function getBrowserIdentity(): BrowserIdentity | undefined {
     const identity = JSON.parse(saved)
     if (typeof identity.deviceId === 'string' && identity.deviceId && typeof identity.publicKey === 'string' && identity.publicKey && (identity.opaquePublicKey === undefined || typeof identity.opaquePublicKey === 'string' && identity.opaquePublicKey)) return identity
   } catch {
-    throw ErrorCode.PeerIdentityChanged
+    throw AuthErrorCode.PeerIdentityChanged
   }
-  throw ErrorCode.PeerIdentityChanged
+  throw AuthErrorCode.PeerIdentityChanged
 }
 
 export function saveBrowserIdentity(deviceId: string, publicKey: string, opaquePublicKey?: string): void {
   const saved = getBrowserIdentity()
-  if (saved && (saved.deviceId !== deviceId || saved.publicKey !== publicKey)) throw ErrorCode.PeerIdentityChanged
-  if (saved?.opaquePublicKey && opaquePublicKey && saved.opaquePublicKey !== opaquePublicKey) throw ErrorCode.PeerIdentityChanged
+  if (saved && (saved.deviceId !== deviceId || saved.publicKey !== publicKey)) throw AuthErrorCode.PeerIdentityChanged
+  if (saved?.opaquePublicKey && opaquePublicKey && saved.opaquePublicKey !== opaquePublicKey) throw AuthErrorCode.PeerIdentityChanged
   localStorage.setItem('login_identity', JSON.stringify({ deviceId, publicKey, opaquePublicKey: opaquePublicKey || saved?.opaquePublicKey }))
 }
 
 export function replaceBrowserIdentity(previous: BrowserIdentity, next: BrowserIdentity): void {
   const saved = getBrowserIdentity()
-  if (!saved || saved.deviceId !== previous.deviceId || saved.publicKey !== previous.publicKey || saved.opaquePublicKey !== previous.opaquePublicKey) throw ErrorCode.PeerIdentityChanged
+  if (!saved || saved.deviceId !== previous.deviceId || saved.publicKey !== previous.publicKey || saved.opaquePublicKey !== previous.opaquePublicKey) throw AuthErrorCode.PeerIdentityChanged
   localStorage.setItem('login_identity', JSON.stringify(next))
 }
 

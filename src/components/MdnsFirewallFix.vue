@@ -5,7 +5,7 @@
     <p v-if="state === 'fixed'" class="status-body fw-result">
       {{ $t('device_discovery.firewall_fixed') }}
     </p>
-    <p v-else-if="state === 'failed'" class="status-body fw-result">
+    <p v-else-if="state === 'FAILED'" class="status-body fw-result">
       {{ $t('device_discovery.firewall_fix_failed') }}
     </p>
     <div v-if="state !== 'fixed'" class="status-actions">
@@ -20,7 +20,7 @@
         {{ $t('device_discovery.firewall_manual') }}
       </v-outlined-button>
     </div>
-    <div v-if="manualOpen || state === 'failed'" class="fw-manual">
+    <div v-if="manualOpen || state === 'FAILED'" class="fw-manual">
       <p class="status-body">{{ $t('device_discovery.firewall_manual_intro') }}</p>
       <pre class="fw-cmd">{{ manualCommands }}</pre>
       <button class="fw-copy" type="button" @click="copyCommands">

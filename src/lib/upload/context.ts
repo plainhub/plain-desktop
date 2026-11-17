@@ -1,4 +1,4 @@
-import { ErrorCode } from '@/lib/api/error-code'
+import { HttpErrorCode } from '@/lib/api/http-error-code'
 import type { IUploadItem } from '@/stores/temp'
 import { getApiBaseUrl, proxyUrlFor } from '@/lib/api/api'
 import { getDeviceRequestPath } from '@/lib/api/device-path'
@@ -33,8 +33,8 @@ export function getUploadContext(upload: IUploadItem): UploadContext {
   if (!context) {
     const base = { key: getGraphqlContextKey(), graphql: bindGraphqlClient() }
     if (__IS_TAURI__) {
-      const target: NativeTarget = isLocalMode() ? { kind: 'local' } : { kind: 'peer', peerId: getRemoteClientId() }
-      context = { ...base, native: true, target, authRevision: target.kind === 'peer' ? getLoginPeerRevision(target.peerId) : 0 }
+      const target: NativeTarget = isLocalMode() ? { kind: 'LOCAL' } : { kind: 'PEER', peerId: getRemoteClientId() }
+      context = { ...base, native: true, target, authRevision: target.kind === 'PEER' ? getLoginPeerRevision(target.peerId) : 0 }
     } else {
       const baseUrl = getApiBaseUrl()
       context = {
@@ -56,7 +56,7 @@ export function isUploadContextCurrent(upload: IUploadItem): boolean {
 }
 
 export function assertUploadContext(upload: IUploadItem): void {
-  if (!isUploadContextCurrent(upload)) throw new GqlError(ErrorCode.RequestContextChanged, undefined, true)
+  if (!isUploadContextCurrent(upload)) throw GqlError.fromCode(HttpErrorCode.RequestContextChanged, undefined, true)
 }
 
 export function getUploadNativeScope(upload: IUploadItem): Promise<string> {
@@ -71,7 +71,7 @@ export function uploadChunkOwner(upload: IUploadItem, fileId = upload.fileId): s
 
 export function isUploadAuthCurrent(upload: IUploadItem): boolean {
   const context = getUploadContext(upload)
-  return !context.native || context.target.kind === 'local' || context.authRevision === getLoginPeerRevision(context.target.peerId)
+  return !context.native || context.target.kind === 'LOCAL' || context.authRevision === getLoginPeerRevision(context.target.peerId)
 }
 
 const cancellations = new WeakMap<IUploadItem, Set<() => void>>()

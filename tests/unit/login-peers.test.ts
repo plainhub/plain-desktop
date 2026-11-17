@@ -122,7 +122,7 @@ it('retains the authenticated OPAQUE pin and requires explicit forgetting before
   browserStorage()
   saveBrowserIdentity('device', 'signature-key', 'opaque-key')
   expect(getBrowserIdentity()?.opaquePublicKey).toBe('opaque-key')
-  expect(() => saveBrowserIdentity('device', 'signature-key', 'replacement')).toThrow('peer_identity_changed')
+  expect(() => saveBrowserIdentity('device', 'signature-key', 'replacement')).toThrow('PEER_IDENTITY_CHANGED')
   saveBrowserIdentity('device', 'signature-key')
   expect(getBrowserIdentity()?.opaquePublicKey).toBe('opaque-key')
   forgetBrowserIdentity()
@@ -135,7 +135,7 @@ it('replaces only the saved identity the user reviewed', () => {
   const previous = { deviceId: 'device', publicKey: 'old-key' }
   const next = { deviceId: 'reinstalled-device', publicKey: 'new-key' }
   saveBrowserIdentity(previous.deviceId, previous.publicKey)
-  expect(() => replaceBrowserIdentity({ ...previous, publicKey: 'other-key' }, next)).toThrow('peer_identity_changed')
+  expect(() => replaceBrowserIdentity({ ...previous, publicKey: 'other-key' }, next)).toThrow('PEER_IDENTITY_CHANGED')
   expect(getBrowserIdentity()).toEqual(previous)
   replaceBrowserIdentity(previous, next)
   expect(getBrowserIdentity()).toEqual(next)

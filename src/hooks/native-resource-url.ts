@@ -1,4 +1,5 @@
-import { ErrorCode } from '@/lib/api/error-code'
+import { HttpErrorCode } from '@/lib/api/http-error-code'
+import { NativeErrorCode } from '@/lib/api/native-error-code'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { invoke } from '@/lib/api/native-invoke'
 import { nativeViewScope, type NativeTarget } from '@/lib/api/native-client'
@@ -42,8 +43,8 @@ export function nativeResourceReference(url: string): { path: string; target: Na
 }
 
 function resourceContext() {
-  const target: NativeTarget = isLocalMode() ? { kind: 'local' } : { kind: 'peer', peerId: getRemoteClientId() }
-  return { target, revision: target.kind === 'peer' ? getLoginPeerRevision(target.peerId) : 0 }
+  const target: NativeTarget = isLocalMode() ? { kind: 'LOCAL' } : { kind: 'PEER', peerId: getRemoteClientId() }
+  return { target, revision: target.kind === 'PEER' ? getLoginPeerRevision(target.peerId) : 0 }
 }
 
 export function isNativeResourceUrl(url: string): boolean {
@@ -105,11 +106,11 @@ export function createNativeResourceOwner(): NativeResourceOwner {
       if (!path || !__IS_TAURI__ || /^(https?:|blob:|content:|ph:|fsid:)/i.test(path)) return ''
       const parameters = new URLSearchParams(query.replace(/^[?&]/, ''))
       const thumbnail = parameters.get('size') ?? undefined
-      if (thumbnail !== undefined && thumbnail !== 'sm' && thumbnail !== 'lg') throw new Error('Invalid thumbnail size')
+      if (thumbnail !== undefined && thumbnail !== 'SM' && thumbnail !== 'LG') throw new Error('Invalid thumbnail size')
       if ([...parameters.keys()].some(key => key !== 'size' && key !== 'v')) throw new Error('Unsupported native resource parameter')
       if (!thumbnail && typeof size === 'number' && size > MAX_NATIVE_RESPONSE_BYTES) return ''
       const context = resourceContext()
-      if (context.target.kind === 'peer' && !context.target.peerId) throw new Error(ErrorCode.NativePeerIdMissing)
+      if (context.target.kind === 'PEER' && !context.target.peerId) throw new Error(NativeErrorCode.NativePeerIdMissing)
       const contextKey = JSON.stringify(context)
       const key = JSON.stringify([context, path, thumbnail, parameters.get('v')])
       let entry = handles.get(key)
@@ -121,7 +122,7 @@ export function createNativeResourceOwner(): NativeResourceOwner {
         opened.promise = (async () => {
           const checkCurrent = () => {
             if (!opened.owners.size || handles.get(key) !== opened) throw new Error('resource_closed')
-            if (JSON.stringify(resourceContext()) !== contextKey) throw new Error(ErrorCode.RequestContextChanged)
+            if (JSON.stringify(resourceContext()) !== contextKey) throw new Error(HttpErrorCode.RequestContextChanged)
           }
           try {
             opened.scope = await nativeViewScope()
@@ -131,7 +132,7 @@ export function createNativeResourceOwner(): NativeResourceOwner {
             const resource = opened.resource
             const mime = resource.mime.split(';')[0].trim().toLowerCase()
             const image = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/avif', 'image/x-icon'].includes(mime)
-            const inline = resource.inlineAllowed && (context.target.kind === 'local' ? !mime.startsWith('image/') || image : image)
+            const inline = resource.inlineAllowed && (context.target.kind === 'LOCAL' ? !mime.startsWith('image/') || image : image)
             // Native media schemes are not portable across WebViews; audio and video use Core HTTP.
             if (mime.startsWith('audio/') || mime.startsWith('video/') || !inline || resource.size > MAX_NATIVE_RESPONSE_BYTES) {
               await closeEntry(opened)
@@ -173,7 +174,7 @@ export async function nativeResourceImage(path: string, signal: AbortSignal): Pr
   const contextKey = JSON.stringify(context)
   const checkCurrent = () => {
     signal.throwIfAborted()
-    if (JSON.stringify(resourceContext()) !== contextKey) throw new Error(ErrorCode.RequestContextChanged)
+    if (JSON.stringify(resourceContext()) !== contextKey) throw new Error(HttpErrorCode.RequestContextChanged)
   }
   const scope = await nativeViewScope()
   checkCurrent()

@@ -12,7 +12,7 @@ import type { GqlError } from '@/lib/api/gql-error'
 import { openModal } from '@/components/modal'
 import AccessibilityGuideModal from '@/components/AccessibilityGuideModal.vue'
 
-export type MirrorState = 'idle' | 'requesting' | 'connecting' | 'streaming' | 'failed'
+export type MirrorState = 'idle' | 'requesting' | 'connecting' | 'streaming' | 'FAILED'
 
 export function useScreenMirrorService() {
   const { t } = useI18n()
@@ -46,13 +46,13 @@ export function useScreenMirrorService() {
       if (!active || context?.meta !== activation) return
       if (error) {
         toast(t(error), 'error')
-        if (state.value === 'streaming' || state.value === 'connecting') state.value = 'failed'
+        if (state.value === 'streaming' || state.value === 'connecting') state.value = 'FAILED'
         return
       }
       if (data?.screenMirrorQuality?.mode) qualityMode.value = data.screenMirrorQuality.mode
       accessibilityEnabled = data?.screenMirrorControlEnabled === true
       if (data?.isScreenMirroring) {
-        if (state.value === 'idle' || state.value === 'failed') { state.value = 'connecting'; retryCount = 0; connectFn() }
+        if (state.value === 'idle' || state.value === 'FAILED') { state.value = 'connecting'; retryCount = 0; connectFn() }
       } else {
         if (state.value === 'connecting' || state.value === 'streaming') cleanupFn()
         state.value = 'idle'
@@ -77,10 +77,10 @@ export function useScreenMirrorService() {
   onStartDone(() => {
     seconds.value = 30
     countdownTimer = setInterval(() => {
-      if (--seconds.value <= 0) { state.value = 'failed'; clearInterval(countdownTimer) }
+      if (--seconds.value <= 0) { state.value = 'FAILED'; clearInterval(countdownTimer) }
     }, 1000)
   })
-  onStartError((e: GqlError) => { toast(t(e.message), 'error'); state.value = 'failed' })
+  onStartError((e: GqlError) => { toast(t(e.message), 'error'); state.value = 'FAILED' })
   const stop = () => stopMirror()
   onStopDone(() => { fullReset(); cleanupFn() })
   onStopError((e: GqlError) => toast(t(e.message), 'error'))
@@ -133,7 +133,7 @@ export function useScreenMirrorService() {
     if ((state.value === 'streaming' || state.value === 'connecting') && retryCount < 3) {
       retryCount++; state.value = 'connecting'
       retryTimer = setTimeout(() => connectFn(), retryCount * 1500)
-    } else if (state.value !== 'idle') { state.value = 'failed'; retryCount = 0 }
+    } else if (state.value !== 'idle') { state.value = 'FAILED'; retryCount = 0 }
   }
   const onScreenMirrorOff = () => { cleanupFn(); fullReset() }
 

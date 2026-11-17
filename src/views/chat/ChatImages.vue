@@ -44,7 +44,7 @@ function getPreview(source: ISource) {
     return source.src
   }
 
-  return `${source.src}&size=sm`
+  return `${source.src}&size=SM`
 }
 
 const sources = computed(() => {
@@ -57,7 +57,7 @@ const sources = computed(() => {
     const remote = typeof uri === 'string' && uri.startsWith('fsid:')
     const isGif = typeof uri === 'string' && uri.endsWith('.gif')
     const src = peer && remote
-      ? getChatAttachmentUrl(tempStore.urlTokenKey, peer.id, uri, isGif ? '' : '&size=lg')
+      ? getChatAttachmentUrl(tempStore.urlTokenKey, peer.id, uri, isGif ? '' : '&size=LG')
       : getFileUrl(getChatFileId(tempStore.urlTokenKey, uri))
     items.push({
       path: file.uri,

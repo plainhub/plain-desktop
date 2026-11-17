@@ -106,7 +106,7 @@ async function refreshImages(entries: IFeedEntry[]) {
   for (const reference of wanted) {
     if (isExternalReference(reference)) continue
     const owner = createNativeResourceOwner()
-    resources.set(reference, { owner, url: resolveFileUrlByPath(owner, tempStore.urlTokenKey, reference, undefined, '&size=sm') })
+    resources.set(reference, { owner, url: resolveFileUrlByPath(owner, tempStore.urlTokenKey, reference, undefined, '&size=SM') })
   }
   for (const resource of previous) void resource.owner.dispose()
   const resolved: Record<string, string> = {}

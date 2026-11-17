@@ -9,6 +9,6 @@ export async function gqlFetchPeer<T = any>(
   variables?: Record<string, any>,
 ): Promise<GqlResult<T>> {
   return __IS_TAURI__
-    ? nativeGqlFetch<T>(query, variables, undefined, { kind: 'peer', peerId: peer.id })
+    ? nativeGqlFetch<T>(query, variables, undefined, { kind: 'PEER', peerId: peer.id })
     : encryptedGqlPost<T>(`${getPeerBaseUrl(peer)}/graphql`, peer.token, query, variables)
 }

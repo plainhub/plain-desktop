@@ -36,7 +36,7 @@ export interface CaptureFrameDescriptor {
   width: number
   height: number
   stride: number
-  pixelFormat: 'rgba8'
+  pixelFormat: 'RGBA8'
   byteLen: number
 }
 
@@ -94,7 +94,7 @@ export function frameBytesToImageData(descriptor: CaptureFrameDescriptor, buffer
   requirePositiveInteger(descriptor.height, 'height')
   requirePositiveInteger(descriptor.stride, 'stride')
   requirePositiveInteger(descriptor.byteLen, 'byte length')
-  if (descriptor.pixelFormat !== 'rgba8') throw new Error('unsupported capture pixel format')
+  if (descriptor.pixelFormat !== 'RGBA8') throw new Error('unsupported capture pixel format')
 
   const rowBytes = descriptor.width * 4
   if (!Number.isSafeInteger(rowBytes) || descriptor.stride < rowBytes) throw new Error('invalid capture stride')

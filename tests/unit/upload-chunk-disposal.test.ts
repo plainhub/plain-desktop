@@ -28,7 +28,7 @@ it('waits for the actual chunk operation before deleting and stops canceled prog
   const current = item()
   const running = upload(current, false)
   await vi.waitFor(() => expect(io.gql).toHaveBeenCalledWith('query-chunks', { fileId }, 120000))
-  current.status = 'canceled'
+  current.status = 'CANCELED'
   const cleanup = discardUploadChunks(item(), () => false)
   expect(io.gql).toHaveBeenCalledTimes(1)
   finish({ data: { uploadedChunks: [] } })
@@ -50,7 +50,7 @@ it('checks other owners after acquiring the existing file serial boundary', asyn
   expect(io.gql).toHaveBeenCalledOnce()
 })
 it('does not start requests for a canceled task waiting for its file turn', async () => {
-  await upload(item('canceled'), false)
+  await upload(item('CANCELED'), false)
   expect(io.gql).not.toHaveBeenCalled()
 })
 it.each(['graphql', 'network'])('rejects an actual %s cleanup error', async mode => {

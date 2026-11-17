@@ -1,5 +1,5 @@
+import { AuthErrorCode } from '@/lib/api/auth-error-code'
 import { loginErrorReason } from '@/lib/api/login-error'
-import { ErrorCode } from '@/lib/api/error-code'
 export interface OpaqueResult {
   ke3: Uint8Array
   apiKey: Uint8Array
@@ -8,20 +8,20 @@ export interface OpaqueResult {
   serverPublicKey: Uint8Array
 }
 export type OpaqueCommand =
-  | { type: 'start'; password: Uint8Array }
-  | { type: 'finish'; response: Uint8Array; clientId: string; signingKey: Uint8Array }
+  | { type: 'START'; password: Uint8Array }
+  | { type: 'FINISH'; response: Uint8Array; clientId: string; signingKey: Uint8Array }
 export type OpaqueReply =
-  | { type: 'request'; request: Uint8Array }
-  | { type: 'result'; result: OpaqueResult }
-  | { type: 'error'; reason: ErrorCode }
+  | { type: 'REQUEST'; request: Uint8Array }
+  | { type: 'RESULT'; result: OpaqueResult }
+  | { type: 'ERROR'; reason: AuthErrorCode }
 
 export async function startOpaqueLogin(password: string, signal?: AbortSignal) {
-  if (signal?.aborted) throw ErrorCode.Canceled
-  if (typeof globalThis.crypto?.getRandomValues !== 'function' || typeof Worker !== 'function') throw ErrorCode.SecureLoginUnavailable
+  if (signal?.aborted) throw AuthErrorCode.Canceled
+  if (typeof globalThis.crypto?.getRandomValues !== 'function' || typeof Worker !== 'function') throw AuthErrorCode.SecureLoginUnavailable
   const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
-  let failure: ErrorCode | undefined
-  let pending: { resolve: (value: OpaqueReply) => void; reject: (reason: ErrorCode) => void } | undefined
-  const close = (reason: ErrorCode) => {
+  let failure: AuthErrorCode | undefined
+  let pending: { resolve: (value: OpaqueReply) => void; reject: (reason: AuthErrorCode) => void } | undefined
+  const close = (reason: AuthErrorCode) => {
     if (failure) return
     failure = reason
     clearTimeout(deadline)
@@ -30,40 +30,40 @@ export async function startOpaqueLogin(password: string, signal?: AbortSignal) {
     pending = undefined
     worker.terminate()
   }
-  const abort = () => close(ErrorCode.Canceled)
-  const deadline = setTimeout(() => close(ErrorCode.LoginExpired), 300000)
+  const abort = () => close(AuthErrorCode.Canceled)
+  const deadline = setTimeout(() => close(AuthErrorCode.LoginExpired), 300000)
   worker.onmessage = (event: MessageEvent<OpaqueReply>) => {
-    if (event.data.type === 'error') { close(event.data.reason); return }
+    if (event.data.type === 'ERROR') { close(event.data.reason); return }
     pending?.resolve(event.data)
     pending = undefined
   }
-  worker.onerror = () => close(ErrorCode.InvalidAuthResponse)
+  worker.onerror = () => close(AuthErrorCode.InvalidAuthResponse)
   signal?.addEventListener('abort', abort, { once: true })
   const exchange = (command: OpaqueCommand): Promise<OpaqueReply> => new Promise((resolve, reject) => {
     if (failure) { reject(failure); return }
     pending = { resolve, reject }
     try { worker.postMessage(command) }
-    catch { close(ErrorCode.InvalidAuthResponse) }
+    catch { close(AuthErrorCode.InvalidAuthResponse) }
   })
   const bytes = new TextEncoder().encode(password)
   try {
-    const starting = exchange({ type: 'start', password: bytes })
+    const starting = exchange({ type: 'START', password: bytes })
     bytes.fill(0)
     const hello = await starting
-    if (hello.type !== 'request') throw ErrorCode.InvalidAuthResponse
+    if (hello.type !== 'REQUEST') throw AuthErrorCode.InvalidAuthResponse
     let finished = false
     return {
       request: () => hello.request,
       async finish(response: Uint8Array, clientId: string, signingKey: Uint8Array): Promise<OpaqueResult> {
-        if (finished) throw ErrorCode.InvalidAuthResponse
+        if (finished) throw AuthErrorCode.InvalidAuthResponse
         finished = true
         try {
-          const reply = await exchange({ type: 'finish', response, clientId, signingKey })
-          if (reply.type !== 'result') throw ErrorCode.InvalidAuthResponse
+          const reply = await exchange({ type: 'FINISH', response, clientId, signingKey })
+          if (reply.type !== 'RESULT') throw AuthErrorCode.InvalidAuthResponse
           return reply.result
-        } finally { close(ErrorCode.Canceled) }
+        } finally { close(AuthErrorCode.Canceled) }
       },
-      free: () => close(ErrorCode.Canceled),
+      free: () => close(AuthErrorCode.Canceled),
     }
   } catch (error) {
     close(loginErrorReason(error))

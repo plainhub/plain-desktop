@@ -21,7 +21,7 @@ pub enum CaptureCallerRole {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(tag = "kind", content = "error", rename_all = "snake_case")]
+#[serde(tag = "kind", content = "error", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TerminalOutcome {
     Completed,
     Canceled,
@@ -1126,38 +1126,38 @@ mod tests {
             .note_overlay_ready(OVERLAY, GENERATION)
             .expect("ready");
         coordinator
-            .start_from_window("main", composer_request("canceled"), GENERATION)
+            .start_from_window("main", composer_request("CANCELED"), GENERATION)
             .expect("start");
-        coordinator.begin_capture("canceled").expect("capture");
+        coordinator.begin_capture("CANCELED").expect("capture");
         coordinator
-            .store_frame("canceled", frame("canceled"))
+            .store_frame("CANCELED", frame("CANCELED"))
             .expect("sensitive frame");
         let cleanup = coordinator
-            .cancel_from_window(OVERLAY, "canceled")
+            .cancel_from_window(OVERLAY, "CANCELED")
             .expect("overlay cancel");
         assert_eq!(cleanup.outcome, TerminalOutcome::Canceled);
         assert_eq!(coordinator.phase(), NativeCapturePhase::Restoring);
         assert!(!coordinator.has_sensitive_buffers());
         coordinator
-            .finish_restoration("canceled")
+            .finish_restoration("CANCELED")
             .expect("finish cancel restoration");
 
-        advance_to_active(&mut coordinator, "failed");
-        let (descriptor, bytes) = png("failed", "result-failed");
+        advance_to_active(&mut coordinator, "FAILED");
+        let (descriptor, bytes) = png("FAILED", "result-failed");
         coordinator
-            .store_result(OVERLAY, "failed", GENERATION, descriptor, bytes)
+            .store_result(OVERLAY, "FAILED", GENERATION, descriptor, bytes)
             .expect("result");
         coordinator
             .lease_result(
                 "main",
                 TARGET_TOKEN,
-                "failed",
+                "FAILED",
                 "result-failed",
                 "lease-failed",
             )
             .expect("in-flight result");
         let failure = CaptureError::new(CaptureErrorCode::EncodeFailed, "renderer crashed");
-        let cleanup = coordinator.fail("failed", failure.clone()).expect("fail");
+        let cleanup = coordinator.fail("FAILED", failure.clone()).expect("fail");
         assert_eq!(cleanup.outcome, TerminalOutcome::Failed(failure));
         assert!(!coordinator.has_sensitive_buffers());
     }
@@ -1230,7 +1230,7 @@ mod tests {
         let json = plain_libs::serde_json::to_value(state).expect("serialize command state");
 
         assert_eq!(json["sessionId"], "session-a");
-        assert_eq!(json["phase"], "waiting_for_overlay");
+        assert_eq!(json["phase"], "WAITING_FOR_OVERLAY");
         assert_eq!(json["overlayGeneration"], GENERATION);
         assert!(json.get("bytes").is_none());
     }

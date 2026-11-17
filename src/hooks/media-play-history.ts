@@ -1,4 +1,4 @@
-import { ErrorCode } from '@/lib/api/error-code'
+import { HttpErrorCode } from '@/lib/api/http-error-code'
 import { initMutation, recordMediaPlayGQL, saveMediaPlayProgressGQL } from '@/lib/api/mutation'
 import { mediaPlayHistoryGQL } from '@/lib/api/query'
 import { getGraphqlContextKey, gqlFetch } from '@/lib/api/gql-client'
@@ -23,7 +23,7 @@ export function useMediaPlayHistory() {
       const variables = { mediaId, type, positionMs: Number.isFinite(element.currentTime) ? Math.max(0, Math.trunc(element.currentTime * 1000)) : 0 }
       pending = pending.then(async () => {
         if (context === getGraphqlContextKey()) await (record ? recordPlay : saveProgress)(variables)
-      }).catch(error => emitter.emit('toast', error instanceof Error ? error.message : ErrorCode.NetworkError))
+      }).catch(error => emitter.emit('toast', error instanceof Error ? error.message : HttpErrorCode.NetworkError))
     }
     const stopTimer = () => { if (timer !== undefined) clearInterval(timer); timer = undefined }
     const playing = () => {

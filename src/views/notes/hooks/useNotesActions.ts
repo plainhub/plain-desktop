@@ -55,7 +55,7 @@ export function useNotesActions(opts: UseNotesActionsOptions) {
       download(url, 'notes.zip')
       setTimeout(() => URL.revokeObjectURL(url), 2000)
     } catch (error) {
-      toast(error instanceof Error ? error.message : 'failed', 'error')
+      toast(error instanceof Error ? error.message : 'FAILED', 'error')
     }
   }
 

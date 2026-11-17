@@ -96,7 +96,7 @@ it('uploads a pasted Notes image through native chunks without a filesystem dest
 
   await upload(item, false)
 
-  expect(calls('native_upload_chunk_open')[0]?.[1]).toMatchObject({ target: { kind: 'local' }, fileId: item.fileId, index: 0, size: file.size })
+  expect(calls('native_upload_chunk_open')[0]?.[1]).toMatchObject({ target: { kind: 'LOCAL' }, fileId: item.fileId, index: 0, size: file.size })
   expect(calls('native_upload_chunk_write')[0]?.[1]).toEqual(fixtureBytes(file.size))
   expect(io.merge).toHaveBeenCalledExactlyOnceWith(item, { fileId: item.fileId, totalChunks: 1, fileName: 'image.png', totalSize: file.size })
   expect(item).toMatchObject({ status: 'done', fileHash: suffix })
@@ -132,7 +132,7 @@ it.each([0, 1])('reads only bounded windows and reconstructs exact bytes for chu
   expect(f.item.status).toBe('done')
 })
 
-it.each(['paused', 'canceled'])('does not read ahead of a pending write and aborts %s before finishing', async status => {
+it.each(['paused', 'CANCELED'])('does not read ahead of a pending write and aborts %s before finishing', async status => {
   const f = fixture(CHUNK + 17)
   const started = deferred<void>()
   const write = deferred<void>()
@@ -262,7 +262,7 @@ it('stops before finish when the final progress callback cancels the upload', as
   const f = fixture(CHUNK + 17)
   let now = 1000
   vi.spyOn(Date, 'now').mockImplementation(() => now += 500)
-  io.progress.mockImplementation(size => { if (size === CHUNK + 17) f.item.status = 'canceled' })
+  io.progress.mockImplementation(size => { if (size === CHUNK + 17) f.item.status = 'CANCELED' })
   await upload(f.item, false)
   expect(calls('native_upload_chunk_write')).toHaveLength(1)
   expect(calls('native_upload_chunk_finish')).toHaveLength(0)
@@ -307,7 +307,7 @@ it.each([true, false])('routes all Desktop sizes through native chunks (local=%s
     expect(f.item.status).toBe('done')
     const opens = calls('native_upload_chunk_open')
     expect(opens.map(([, args]) => args)).toEqual(Array.from({ length: Math.max(1, Math.ceil(size / CHUNK)) }, (_, index) => ({
-      scope: 'document', target: local ? { kind: 'local' } : { kind: 'peer', peerId: '706c6169-0e71-8687-905d-87d4a5229f24' }, fileId: f.item.fileId, index, size: Math.min(CHUNK, size - index * CHUNK),
+      scope: 'document', target: local ? { kind: 'LOCAL' } : { kind: 'PEER', peerId: '706c6169-0e71-8687-905d-87d4a5229f24' }, fileId: f.item.fileId, index, size: Math.min(CHUNK, size - index * CHUNK),
     })))
     expect(calls('native_upload_chunk_finish')).toHaveLength(opens.length)
     expect(io.merge).toHaveBeenCalledWith(f.item, { fileId: f.item.fileId, totalChunks: opens.length, path: '/owned/sample.bin', replace: true, totalSize: size })
@@ -334,7 +334,7 @@ it('retries an incorrect finish receipt with its captured peer target and scope'
   await vi.runAllTimersAsync()
   await running
   expect(calls('native_upload_chunk_open').map(([, args]) => [args.target, args.scope])).toEqual([
-    [{ kind: 'peer', peerId: '706c6169-0e71-8687-905d-87d4a5229f24' }, 'document'], [{ kind: 'peer', peerId: '706c6169-0e71-8687-905d-87d4a5229f24' }, 'document'],
+    [{ kind: 'PEER', peerId: '706c6169-0e71-8687-905d-87d4a5229f24' }, 'document'], [{ kind: 'PEER', peerId: '706c6169-0e71-8687-905d-87d4a5229f24' }, 'document'],
   ])
   expect(calls('native_upload_chunk_abort')).toHaveLength(1)
   expect(io.scope).toHaveBeenCalledOnce()

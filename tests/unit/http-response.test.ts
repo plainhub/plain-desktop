@@ -122,7 +122,7 @@ it.each([400, 429, 500])('preserves HTTP %s without decrypting or retrying rejec
   const read = vi.spyOn(response, 'arrayBuffer')
   vi.mocked(httpRequest).mockResolvedValue(response)
   await expect(encryptedGqlPost('https://fixture.test/graphql', Buffer.alloc(32, 7).toString('base64'), 'query { __typename }'))
-    .rejects.toMatchObject(new GqlError('network_error', status))
+    .rejects.toMatchObject(GqlError.fromCode('NETWORK_ERROR', status))
   expect(read).not.toHaveBeenCalled()
   expect(httpRequest).toHaveBeenCalledTimes(1)
 })

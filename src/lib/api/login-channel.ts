@@ -1,4 +1,4 @@
-import { ErrorCode } from '@/lib/api/error-code'
+import { AuthErrorCode } from '@/lib/api/auth-error-code'
 import { AadPurpose, LoginPurpose } from './aad-purpose.generated'
 import { SignaturePurpose } from './signature-purpose.generated'
 import { hkdf } from '@noble/hashes/hkdf.js'
@@ -24,7 +24,7 @@ interface ServerHello {
 
 function readBase64(value: string, length: number): Uint8Array {
   const bytes = base64ToArrayBuffer(value)
-  if (bytes.length !== length || bitArrayToBase64(bytes) !== value) throw ErrorCode.InvalidAuthResponse
+  if (bytes.length !== length || bitArrayToBase64(bytes) !== value) throw AuthErrorCode.InvalidAuthResponse
   return bytes
 }
 
@@ -37,17 +37,17 @@ export function startLoginKeyExchange(clientId: string) {
     hello,
     dispose,
     accept(response: ServerHello, signaturePublicKey: string, expectedDeviceId?: string) {
-      if (!pending) throw ErrorCode.InvalidAuthResponse
+      if (!pending) throw AuthErrorCode.InvalidAuthResponse
       try {
         if (typeof response.deviceId !== 'string' || !response.deviceId || response.deviceId.length > 256 ||
-          expectedDeviceId && response.deviceId !== expectedDeviceId) throw ErrorCode.PeerIdentityChanged
+          expectedDeviceId && response.deviceId !== expectedDeviceId) throw AuthErrorCode.PeerIdentityChanged
         const now = getSyncedTimestamp()
-        if (!Number.isSafeInteger(response.expiresAt) || response.expiresAt <= now) throw ErrorCode.LoginExpired
+        if (!Number.isSafeInteger(response.expiresAt) || response.expiresAt <= now) throw AuthErrorCode.LoginExpired
         const peerKey = readBase64(response.serverPublicKey, 65)
         readBase64(signaturePublicKey, 32)
         const body = { deviceId: response.deviceId, serverPublicKey: response.serverPublicKey, expiresAt: response.expiresAt }
         const signed = JSON.stringify([SignaturePurpose.AuthServerHello, response.deviceId, signaturePublicKey, clientId, hello, body])
-        if (!verifyEd25519Signature(signaturePublicKey, signed, response.signature)) throw ErrorCode.SignatureVerificationFailed
+        if (!verifyEd25519Signature(signaturePublicKey, signed, response.signature)) throw AuthErrorCode.SignatureVerificationFailed
         const encoder = new TextEncoder()
         const digest = sha256(encoder.encode(JSON.stringify([LoginPurpose.NoPassword, clientId, response.deviceId, hello, { ...body, signature: response.signature }])))
         const shared = readBase64(computeECDHSharedKey(session.secretKey, peerKey), 32)
@@ -56,7 +56,7 @@ export function startLoginKeyExchange(clientId: string) {
         const requestAad = new Uint8Array([...encoder.encode(AadPurpose.AuthRequest), ...digest])
         const responseAad = new Uint8Array([...encoder.encode(AadPurpose.AuthResponse), ...digest])
         const expiresAt = Math.min(response.expiresAt, now + 300000)
-        const requireUnexpired = () => { if (getSyncedTimestamp() >= expiresAt) throw ErrorCode.LoginExpired }
+        const requireUnexpired = () => { if (getSyncedTimestamp() >= expiresAt) throw AuthErrorCode.LoginExpired }
         return {
           deviceId: response.deviceId,
           token: bitArrayToBase64(key),

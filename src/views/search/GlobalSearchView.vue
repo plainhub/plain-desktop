@@ -11,9 +11,9 @@
         <v-circular-progress v-if="group.status === 'loading'" indeterminate class="sm" />
         <span v-else-if="group.status === 'offline'" class="subtle">{{ $t('offline') }}</span>
         <span v-else-if="group.status === 'denied'" class="subtle">{{ $t('global_search_no_access') }}</span>
-        <span v-else-if="group.status === 'failed'" class="subtle">{{ $t('global_search_failed') }}</span>
+        <span v-else-if="group.status === 'FAILED'" class="subtle">{{ $t('global_search_failed') }}</span>
         <span v-else-if="targets.length > 1 && group.pages.every((page) => !page.loading && !page.failed)" class="subtle">{{ searchGroupTotal(group).toLocaleString() }}</span>
-        <v-text-button v-if="group.status === 'failed' || group.status === 'offline'" @click="search.retry(group)">{{ $t('retry') }}</v-text-button>
+        <v-text-button v-if="group.status === 'FAILED' || group.status === 'offline'" @click="search.retry(group)">{{ $t('retry') }}</v-text-button>
       </div>
       <template v-if="group.status === 'ready'">
         <NoDataPlaceholder v-if="group.pages.every((page) => !page.loading && !page.failed && page.total === 0)" :loading="false" placeholder-key="search_no_results" />

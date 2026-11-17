@@ -95,7 +95,7 @@ export async function loadSearchClient(device: SearchDevice, sessionUrlToken = '
     thumbnailUrl(hit: FileSearchHit) {
       const cached = managed ? thumbnails.get(hit.item) : undefined
       if (cached) return cached
-      const query = '&size=sm&v=' + encodeURIComponent(hit.item.updatedAt)
+      const query = '&size=SM&v=' + encodeURIComponent(hit.item.updatedAt)
       const thumbnail = managed ? url(hit, FileAction.Preview, query)
         : fileUrl(fileId(hit), query)
       if (managed) thumbnails.set(hit.item, thumbnail)

@@ -1,4 +1,4 @@
-import { ErrorCode } from '@/lib/api/error-code'
+import { HttpErrorCode } from '@/lib/api/http-error-code'
 import type { IUploadItem } from '@/stores/temp'
 import { upload, discardUploadChunks } from './upload'
 import { GqlError } from '../api/gql-error'
@@ -12,7 +12,7 @@ export interface IUploadTask {
   id: string
   upload: IUploadItem
   replace: boolean
-  status: 'pending' | 'running' | 'paused' | 'completed' | 'failed'
+  status: 'pending' | 'running' | 'paused' | 'completed' | 'FAILED'
   aborted?: boolean
 }
 
@@ -108,7 +108,7 @@ class UploadQueue {
     }
 
     this.queue = this.queue.filter((t) => t.id !== taskId)
-    setUploadStatus(task.upload, 'canceled')
+    setUploadStatus(task.upload, 'CANCELED')
     this.rejectTask(task, new Error('Upload canceled'))
     this.discardChunks([task])
     this.processQueue()
@@ -154,7 +154,7 @@ class UploadQueue {
   retryTasksByBatch(batchId: string): void {
     let retried = false
     for (const task of this.tasksByBatch(batchId)) {
-      if (task.status !== 'failed') continue
+      if (task.status !== 'FAILED') continue
       this.resetTaskForRetry(task)
       retried = true
     }
@@ -163,7 +163,7 @@ class UploadQueue {
 
   retryTask(taskId: string): boolean {
     const task = this.findTask(taskId)
-    if (!task || task.status !== 'failed') return false
+    if (!task || task.status !== 'FAILED') return false
     this.resetTaskForRetry(task)
     this.processQueue()
     return true
@@ -185,7 +185,7 @@ class UploadQueue {
         this.abortTaskXhrs(task)
         this.running.delete(task.id)
       }
-      setUploadStatus(task.upload, 'canceled')
+      setUploadStatus(task.upload, 'CANCELED')
       this.rejectTask(task, new Error('Upload canceled'))
       removed.add(task)
     }
@@ -217,7 +217,7 @@ class UploadQueue {
     for (const task of tasks) if (task.upload.fileId) owners.set(uploadChunkOwner(task.upload), task.upload)
     for (const [owner, upload] of owners) {
       void discardUploadChunks(upload, () => this.queue.some(task => task.upload.fileId && uploadChunkOwner(task.upload) === owner)).catch(error => {
-        emitter.emit('toast', error instanceof GqlError ? error.message : ErrorCode.NetworkError)
+        emitter.emit('toast', error instanceof GqlError ? error.message : HttpErrorCode.NetworkError)
       })
     }
   }
@@ -292,12 +292,12 @@ class UploadQueue {
       }
 
       if (result?.error) {
-        task.status = 'failed'
+        task.status = 'FAILED'
         setUploadStatus(task.upload, 'error')
         task.upload.error ||= result.error
       } else if (task.upload.status === 'error') {
         // uploadWithChunks set error status internally but returned undefined
-        task.status = 'failed'
+        task.status = 'FAILED'
       } else {
         task.status = 'completed'
         setUploadStatus(task.upload, 'done')
@@ -308,7 +308,7 @@ class UploadQueue {
         return
       }
 
-      task.status = 'failed'
+      task.status = 'FAILED'
       setUploadStatus(task.upload, 'error')
       task.upload.error = error.message || 'Upload failed'
     } finally {
@@ -322,7 +322,7 @@ class UploadQueue {
           this.queue = this.queue.filter((candidate) => candidate !== task)
           this.resolveTask(task)
           this.emitSafely('upload_task_done', task.upload)
-        } else if (task.status === 'failed') {
+        } else if (task.status === 'FAILED') {
           task.upload.uploadSpeed = 0
           if (isTransientUploadError(task.upload.error) && ++this.failureStreak >= AUTO_PAUSE_FAILURE_STREAK) {
             this.failureStreak = 0

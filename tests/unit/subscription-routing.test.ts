@@ -57,7 +57,7 @@ it.each([true, false])('opens Desktop local=%s subscriptions with the window sco
   const connection = openSubscriptionConnection(events)
   await vi.waitFor(() => expect(events.opened).toHaveBeenCalledTimes(1))
   expect(mock.scope).toHaveBeenCalledTimes(1)
-  expect(mock.invoke).toHaveBeenCalledWith('native_subscription_open', { scope: 'document', target: local ? { kind: 'local' } : { kind: 'peer', peerId: '706c6169-8ed4-8fb1-b534-79c532096b42' } })
+  expect(mock.invoke).toHaveBeenCalledWith('native_subscription_open', { scope: 'document', target: local ? { kind: 'LOCAL' } : { kind: 'PEER', peerId: '706c6169-8ed4-8fb1-b534-79c532096b42' } })
   expect(mock.openSocket).not.toHaveBeenCalled()
   connection.send({ type: 'ping' })
   await vi.waitFor(() => expect(mock.invoke).toHaveBeenCalledWith('native_subscription_send', { handle: 7, message: '{"type":"ping"}' }))
@@ -80,7 +80,7 @@ it.each(['third-peer', ''])('rejects explicit Desktop proxy targets without netw
 it('rejects a missing selected remote ID without substituting the local identity', () => {
   mock.local = false
   mock.remote = ''
-  expect(() => openSubscriptionConnection(callbacks())).toThrow('native_peer_id_missing')
+  expect(() => openSubscriptionConnection(callbacks())).toThrow('NATIVE_PEER_ID_MISSING')
   expect(mock.invoke).not.toHaveBeenCalled()
   expect(mock.scope).not.toHaveBeenCalled()
   expect(mock.openSocket).not.toHaveBeenCalled()
@@ -118,8 +118,8 @@ it('closes only a late old handle after a replacement opens on another peer', as
   oldOpen.resolve(7)
   await vi.waitFor(() => expect(mock.invoke).toHaveBeenCalledWith('native_subscription_close', { handle: 7 }))
   expect(mock.invoke.mock.calls.filter(([command]) => command === 'native_subscription_open')).toEqual([
-    ['native_subscription_open', { scope: 'document', target: { kind: 'peer', peerId: '706c6169-8ed4-8fb1-b534-79c532096b42' } }],
-    ['native_subscription_open', { scope: 'document', target: { kind: 'peer', peerId: '706c6169-a60b-8d45-b5e2-8d95a2b44a95' } }],
+    ['native_subscription_open', { scope: 'document', target: { kind: 'PEER', peerId: '706c6169-8ed4-8fb1-b534-79c532096b42' } }],
+    ['native_subscription_open', { scope: 'document', target: { kind: 'PEER', peerId: '706c6169-a60b-8d45-b5e2-8d95a2b44a95' } }],
   ])
   expect(mock.invoke).not.toHaveBeenCalledWith('native_subscription_close', { handle: 8 })
   expect(oldEvents.opened).not.toHaveBeenCalled()
@@ -133,10 +133,10 @@ it('closes only a late old handle after a replacement opens on another peer', as
 
 it('reports an IPC open failure without attempting a WebSocket fallback', async () => {
   mock.local = false
-  mock.invoke.mockRejectedValue(new Error('unauthorized'))
+  mock.invoke.mockRejectedValue(new Error('UNAUTHORIZED'))
   const events = callbacks()
   openSubscriptionConnection(events)
-  await vi.waitFor(() => expect(events.dropped).toHaveBeenCalledExactlyOnceWith(new Error('unauthorized')))
+  await vi.waitFor(() => expect(events.dropped).toHaveBeenCalledExactlyOnceWith(new Error('UNAUTHORIZED')))
   expect(events.opened).not.toHaveBeenCalled()
   expect(mock.openSocket).not.toHaveBeenCalled()
 })
@@ -162,7 +162,7 @@ it('keeps an explicitly local discovery client on this computer while a remote p
   client.onConnectionChange(connected)
   client.start()
   await vi.waitFor(() => expect(connected).toHaveBeenCalledExactlyOnceWith(true))
-  expect(mock.invoke).toHaveBeenCalledWith('native_subscription_open', { scope: 'document', target: { kind: 'local' } })
+  expect(mock.invoke).toHaveBeenCalledWith('native_subscription_open', { scope: 'document', target: { kind: 'LOCAL' } })
   expect(mock.openSocket).not.toHaveBeenCalled()
   client.stop()
   read.resolve('{}')

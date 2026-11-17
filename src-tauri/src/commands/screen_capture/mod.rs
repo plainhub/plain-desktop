@@ -212,7 +212,7 @@ mod contract_tests {
         let phase = NativeCapturePhase::Active;
         let json = plain_libs::serde_json::to_string(&phase).expect("serialize native phase");
 
-        assert_eq!(json, "\"active\"");
+        assert_eq!(json, "\"ACTIVE\"");
         assert!(!json.contains("annotating"));
     }
 }
@@ -379,7 +379,7 @@ mod backend_tests {
             };
 
             assert_eq!(
-                capture_frame_at_cursor(&backend, "failed", &[])
+                capture_frame_at_cursor(&backend, "FAILED", &[])
                     .expect_err("backend failure must propagate")
                     .code,
                 code

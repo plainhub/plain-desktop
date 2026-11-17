@@ -32,7 +32,7 @@ beforeEach(() => {
   fixture.local = true
   fixture.peer = '706c6169-8ed4-8fb1-b534-79c532096b42'
   fixture.scope.mockResolvedValue('document')
-  fixture.reference.mockReturnValue({ path: 'fid:owned-image', target: { kind: 'local' } })
+  fixture.reference.mockReturnValue({ path: 'fid:owned-image', target: { kind: 'LOCAL' } })
   fixture.directory.mockResolvedValue('/downloads')
   fixture.proxy.mockImplementation((path: string) => `http://localhost:3210${path}`)
 })
@@ -41,12 +41,12 @@ it('uses the local shared Rust copy and returns its actual collision-safe path w
   fixture.native.mockResolvedValue({ data: { copyFileToDirectory: '/downloads/report (1).txt' } })
   const fetch = vi.spyOn(globalThis, 'fetch')
   try {
-    expect(await downloadToDir('https://device.invalid/fs?id=encrypted%2Bvalue&action=download', 'report.txt'))
+    expect(await downloadToDir('https://device.invalid/fs?id=encrypted%2Bvalue&action=DOWNLOAD', 'report.txt'))
       .toBe('/downloads/report (1).txt')
-    expect(fixture.proxy).toHaveBeenCalledWith('/fs?id=encrypted%2Bvalue&action=download')
+    expect(fixture.proxy).toHaveBeenCalledWith('/fs?id=encrypted%2Bvalue&action=DOWNLOAD')
     expect(fixture.native).toHaveBeenCalledTimes(1)
     expect(fixture.native.mock.calls[0][0].variables).toEqual({
-      source: 'http://localhost:3210/fs?id=encrypted%2Bvalue&action=download',
+      source: 'http://localhost:3210/fs?id=encrypted%2Bvalue&action=DOWNLOAD',
       directory: '/downloads',
       name: 'report.txt',
     })
@@ -97,7 +97,7 @@ it.each(['plain-resource://file/owned-handle', 'http://plain-resource.file/owned
   try {
     expect(await downloadToDir(url, 'image.png', 'fid:owned-image')).toBe('/downloads/image.png')
     expect(fixture.invoke).toHaveBeenCalledExactlyOnceWith('native_resource_download', {
-      path: 'fid:owned-image', target: { kind: 'local' }, scope: 'document', directory: '/downloads', name: 'image.png',
+      path: 'fid:owned-image', target: { kind: 'LOCAL' }, scope: 'document', directory: '/downloads', name: 'image.png',
     })
     expect(fixture.proxy).not.toHaveBeenCalled()
     expect(fetch).not.toHaveBeenCalled()
@@ -115,11 +115,11 @@ it('rejects an expired native handle instead of guessing its source from an opaq
 })
 
 it('uses the native save dialog with the captured original target', async () => {
-  fixture.reference.mockReturnValue({ path: '/peer/image.png', target: { kind: 'peer', peerId: '706c6169-e3ca-893f-84cc-51e42fb93a9c' } })
+  fixture.reference.mockReturnValue({ path: '/peer/image.png', target: { kind: 'PEER', peerId: '706c6169-e3ca-893f-84cc-51e42fb93a9c' } })
   fixture.invoke.mockResolvedValue('/saved/image.png')
   expect(await downloadAs('http://plain-resource.file/opaque', 'image.png')).toBe('/saved/image.png')
   expect(fixture.invoke).toHaveBeenCalledExactlyOnceWith('native_resource_save_as', {
-    path: '/peer/image.png', target: { kind: 'peer', peerId: '706c6169-e3ca-893f-84cc-51e42fb93a9c' }, scope: 'document', name: 'image.png',
+    path: '/peer/image.png', target: { kind: 'PEER', peerId: '706c6169-e3ca-893f-84cc-51e42fb93a9c' }, scope: 'document', name: 'image.png',
   })
   expect(fixture.proxy).not.toHaveBeenCalled()
   expect(fixture.native).not.toHaveBeenCalled()
@@ -128,9 +128,9 @@ it('uses the native save dialog with the captured original target', async () => 
 it('downloads large original references through Rust even when their preview is still HTTP', async () => {
   fixture.local = false
   fixture.invoke.mockResolvedValue('/downloads/large.mp4')
-  expect(await downloadToDir('https://device.invalid/fs?id=large', 'large.mp4', { path: '/peer/large.mp4', target: { kind: 'peer', peerId: '706c6169-8ed4-8fb1-b534-79c532096b42' } })).toBe('/downloads/large.mp4')
+  expect(await downloadToDir('https://device.invalid/fs?id=large', 'large.mp4', { path: '/peer/large.mp4', target: { kind: 'PEER', peerId: '706c6169-8ed4-8fb1-b534-79c532096b42' } })).toBe('/downloads/large.mp4')
   expect(fixture.invoke).toHaveBeenCalledExactlyOnceWith('native_resource_download', {
-    path: '/peer/large.mp4', target: { kind: 'peer', peerId: '706c6169-8ed4-8fb1-b534-79c532096b42' }, scope: 'document', directory: '/downloads', name: 'large.mp4',
+    path: '/peer/large.mp4', target: { kind: 'PEER', peerId: '706c6169-8ed4-8fb1-b534-79c532096b42' }, scope: 'document', directory: '/downloads', name: 'large.mp4',
   })
   expect(fixture.proxy).not.toHaveBeenCalled()
   expect(fixture.write).not.toHaveBeenCalled()

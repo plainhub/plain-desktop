@@ -121,9 +121,9 @@ it('keeps failed listings distinct from selectable empty folders and retries the
 
 it('retries mount loading before requesting directories after a mount failure', async () => {
   const picker = create()
-  query.mounts.handle(undefined, 'network_error')
+  query.mounts.handle(undefined, 'NETWORK_ERROR')
   expect(picker.loadingMounts.value).toBe(false)
-  expect(picker.listingError.value).toBe('network_error')
+  expect(picker.listingError.value).toBe('NETWORK_ERROR')
   await picker.reload()
   expect(picker.loadingMounts.value).toBe(true)
   expect(query.refetch).toHaveBeenCalledOnce()

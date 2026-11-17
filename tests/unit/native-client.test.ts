@@ -19,7 +19,7 @@ it('pins the document scope once and preserves ordinary GraphQL fields and exten
   expect(await nativeViewScope()).toBe('document')
   await nativeGraphql({ query: '{ app { name } }' }, 500)
   expect(fixture.invoke.mock.calls.filter(([command]) => command === 'native_view_scope')).toHaveLength(1)
-  expect(fixture.invoke.mock.calls[1]).toEqual(['native_graphql', { target: { kind: 'local' }, body: {
+  expect(fixture.invoke.mock.calls[1]).toEqual(['native_graphql', { target: { kind: 'LOCAL' }, body: {
     ...body, extensions: { trace: 'test', nativeScope: 'document', nativeDeadlineMs: 1500 },
   } }])
   expect(vi.getTimerCount()).toBe(0)
@@ -28,10 +28,10 @@ it('pins the document scope once and preserves ordinary GraphQL fields and exten
 it('dispatches a peer ID with the scoped body without accepting network credentials', async () => {
   fixture.invoke.mockImplementation(async (command: string) => command === 'native_view_scope' ? 'document' : { data: {} })
   const { nativeGraphql } = await import('../../src/lib/api/native-client')
-  await nativeGraphql({ query: 'query Read { app { name } }', operationName: 'Read', extensions: { nativeDeadlineMs: 9999 } }, 500, { kind: 'peer', peerId: 'paired-device' })
+  await nativeGraphql({ query: 'query Read { app { name } }', operationName: 'Read', extensions: { nativeDeadlineMs: 9999 } }, 500, { kind: 'PEER', peerId: 'paired-device' })
   expect(fixture.invoke.mock.calls).toEqual([
     ['native_view_scope'],
-    ['native_graphql', { target: { kind: 'peer', peerId: 'paired-device' }, body: {
+    ['native_graphql', { target: { kind: 'PEER', peerId: 'paired-device' }, body: {
       query: 'query Read { app { name } }', operationName: 'Read', extensions: { nativeScope: 'document', nativeDeadlineMs: 1500 },
     } }],
   ])
@@ -39,7 +39,7 @@ it('dispatches a peer ID with the scoped body without accepting network credenti
 
 it('rejects a missing peer ID without opening a native scope or falling back to local', async () => {
   const { nativeGraphql } = await import('../../src/lib/api/native-client')
-  await expect(nativeGraphql({ query: '{ app { name } }' }, 500, { kind: 'peer', peerId: '' })).rejects.toThrow('native_peer_id_missing')
+  await expect(nativeGraphql({ query: '{ app { name } }' }, 500, { kind: 'PEER', peerId: '' })).rejects.toThrow('NATIVE_PEER_ID_MISSING')
   expect(fixture.invoke).not.toHaveBeenCalled()
   expect(vi.getTimerCount()).toBe(0)
 })
@@ -49,7 +49,7 @@ it('does not issue a mutation when the document handshake completes after its de
   fixture.invoke.mockImplementation(() => new Promise<string>((resolve) => { finish = resolve }))
   const { nativeGraphql } = await import('../../src/lib/api/native-client')
   const request = nativeGraphql({ query: 'mutation { startDiscovery }' }, 500)
-  const rejected = expect(request).rejects.toThrow('connection_timeout')
+  const rejected = expect(request).rejects.toThrow('CONNECTION_TIMEOUT')
   await vi.advanceTimersByTimeAsync(500)
   await rejected
   finish('document')
@@ -83,7 +83,7 @@ it.each([new Error('native_failure'), 'native_failure'])('preserves the original
 })
 
 it('preserves an existing timeout error without wrapping it', async () => {
-  const error = new Error('connection_timeout')
+  const error = new Error('CONNECTION_TIMEOUT')
   fixture.invoke.mockRejectedValue(error)
   const { nativeGraphql } = await import('../../src/lib/api/native-client')
   await expect(nativeGraphql({ query: '{ app { name } }' }, 500)).rejects.toBe(error)

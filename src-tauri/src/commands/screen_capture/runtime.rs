@@ -91,7 +91,7 @@ pub struct SessionStartedPayload {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SessionEndOutcome {
     Completed,
     Canceled,
@@ -5264,7 +5264,7 @@ mod tests {
                     OVERLAY_WINDOW_LABEL,
                     "session-1",
                     generation,
-                    "permission_denied",
+                    "PERMISSION_DENIED",
                     "untrusted",
                     &windows,
                 )

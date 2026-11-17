@@ -1,4 +1,4 @@
-import { ErrorCode } from '@/lib/api/error-code'
+import { HttpErrorCode } from '@/lib/api/http-error-code'
 import { wrapWithReplayProtection } from '../api/time-sync'
 import type { IUploadItem } from '@/stores/temp'
 import emitter from '@/plugins/eventbus'
@@ -30,12 +30,12 @@ async function acquireChunkSlot(upload: IUploadItem, signal: AbortSignal): Promi
   while (activeChunkUploads >= MAX_CONCURRENT_CHUNKS) {
     signal.throwIfAborted()
     assertUploadContext(upload)
-    if (upload.status === 'paused' || upload.status === 'canceled') return false
+    if (upload.status === 'paused' || upload.status === 'CANCELED') return false
     await new Promise<void>((resolve) => setTimeout(resolve, 200))
   }
   signal.throwIfAborted()
   assertUploadContext(upload)
-  if (upload.status === 'paused' || upload.status === 'canceled') return false
+  if (upload.status === 'paused' || upload.status === 'CANCELED') return false
   activeChunkUploads++
   return true
 }
@@ -59,7 +59,7 @@ async function nativeWriteChunk(upload: IUploadItem, chunkData: IUploadChunk, ta
     scope = await getUploadNativeScope(upload)
     signal.throwIfAborted()
     assertUploadContext(upload)
-    if (upload.status === 'paused' || upload.status === 'canceled') return false
+    if (upload.status === 'paused' || upload.status === 'CANCELED') return false
     handle = await invoke<string>('native_upload_chunk_open', {
       scope,
       target,
@@ -72,30 +72,30 @@ async function nativeWriteChunk(upload: IUploadItem, chunkData: IUploadChunk, ta
     for (let offset = 0; offset < chunkData.chunk.size; offset += NATIVE_WRITE_BYTES) {
       signal.throwIfAborted()
       assertUploadContext(upload)
-      if (upload.status === 'paused' || upload.status === 'canceled') return false
+      if (upload.status === 'paused' || upload.status === 'CANCELED') return false
       const end = Math.min(offset + NATIVE_WRITE_BYTES, chunkData.chunk.size)
       const bytes = new Uint8Array(await chunkData.chunk.slice(offset, end).arrayBuffer())
       signal.throwIfAborted()
       assertUploadContext(upload)
-      if (upload.status === 'paused' || upload.status === 'canceled') return false
+      if (upload.status === 'paused' || upload.status === 'CANCELED') return false
       await invoke('native_upload_chunk_write', bytes, {
         headers: { 'x-plain-upload-handle': handle, 'x-plain-native-scope': scope },
       })
       signal.throwIfAborted()
       assertUploadContext(upload)
-      if (upload.status === 'paused' || upload.status === 'canceled') return false
+      if (upload.status === 'paused' || upload.status === 'CANCELED') return false
       sent += bytes.length
       onProgress(sent)
     }
     signal.throwIfAborted()
     assertUploadContext(upload)
-    if (upload.status === 'paused' || upload.status === 'canceled') return false
+    if (upload.status === 'paused' || upload.status === 'CANCELED') return false
     const savedSize = await invoke<number>('native_upload_chunk_finish', { scope, handle })
     if (savedSize !== chunkData.chunk.size) throw new Error(`Chunk ${chunkData.index} size mismatch: saved=${savedSize}, expected=${chunkData.chunk.size}`)
     handle = ''
     signal.throwIfAborted()
     assertUploadContext(upload)
-    return upload.status !== 'paused' && upload.status !== 'canceled'
+    return upload.status !== 'paused' && upload.status !== 'CANCELED'
   } catch (error: any) {
     signal.throwIfAborted()
     assertUploadContext(upload)
@@ -248,7 +248,7 @@ async function uploadDirect(upload: IUploadItem, replace: boolean, context: WebU
       const stale = () => {
         if (isUploadContextCurrent(upload)) return false
         setUploadStatus(upload, 'error')
-        upload.error = ErrorCode.RequestContextChanged
+        upload.error = HttpErrorCode.RequestContextChanged
         resolve({ error: upload.error })
         return true
       }
@@ -349,7 +349,7 @@ async function uploadChunkedFile(upload: IUploadItem, fileId: string, replace: b
   try {
     signal.throwIfAborted()
     assertUploadContext(upload)
-    if (upload.status === 'paused' || upload.status === 'canceled') {
+    if (upload.status === 'paused' || upload.status === 'CANCELED') {
       return { error: 'Upload paused' }
     }
 
@@ -358,7 +358,7 @@ async function uploadChunkedFile(upload: IUploadItem, fileId: string, replace: b
 
     // Query uploaded chunks with sizes for verification
     const verifiedChunks = await getUploadedChunks(upload, fileId, upload.file.size, totalChunks)
-    if (upload.status === 'paused' || upload.status === 'canceled') {
+    if (upload.status === 'paused' || upload.status === 'CANCELED') {
       return { error: 'Upload paused' }
     }
 
@@ -401,7 +401,7 @@ async function uploadChunkedFile(upload: IUploadItem, fileId: string, replace: b
 
     const uploadNextChunk = async (): Promise<void> => {
       while (cursor < pendingIndices.length) {
-        if (upload.status === 'canceled' || upload.status === 'paused') return
+        if (upload.status === 'CANCELED' || upload.status === 'paused') return
 
         const myIdx = cursor++
         if (myIdx >= pendingIndices.length) return
@@ -461,7 +461,7 @@ async function uploadChunkedFile(upload: IUploadItem, fileId: string, replace: b
     signal.throwIfAborted()
     assertUploadContext(upload)
 
-    if (upload.status === 'canceled' || upload.status === 'paused') {
+    if (upload.status === 'CANCELED' || upload.status === 'paused') {
       return { error: 'Upload paused' }
     }
 
@@ -484,7 +484,7 @@ async function uploadChunkedFile(upload: IUploadItem, fileId: string, replace: b
 
     signal.throwIfAborted()
     assertUploadContext(upload)
-    if (upload.status === 'paused' || upload.status === 'canceled') {
+    if (upload.status === 'paused' || upload.status === 'CANCELED') {
       return { error: 'Upload paused' }
     }
 
@@ -584,7 +584,7 @@ async function uploadChunkWithRetry(upload: IUploadItem, chunkData: IUploadChunk
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     signal.throwIfAborted()
     assertUploadContext(upload)
-    if (upload.status === 'canceled' || upload.status === 'paused') {
+    if (upload.status === 'CANCELED' || upload.status === 'paused') {
       return false
     }
 
@@ -596,7 +596,7 @@ async function uploadChunkWithRetry(upload: IUploadItem, chunkData: IUploadChunk
         return true
       }
 
-      if (upload.status === 'paused' || upload.status === 'canceled') {
+      if (upload.status === 'paused' || upload.status === 'CANCELED') {
         return false
       }
 
@@ -612,7 +612,7 @@ async function uploadChunkWithRetry(upload: IUploadItem, chunkData: IUploadChunk
     } catch (error: any) {
       signal.throwIfAborted()
       assertUploadContext(upload)
-      if (upload.status === 'paused' || upload.status === 'canceled') {
+      if (upload.status === 'paused' || upload.status === 'CANCELED') {
         return false
       }
 
@@ -634,7 +634,7 @@ async function waitWithPauseCheck(upload: IUploadItem, signal: AbortSignal, dela
   while (Date.now() - startTime < delay) {
     signal.throwIfAborted()
     assertUploadContext(upload)
-    if (upload.status === 'paused' || upload.status === 'canceled') {
+    if (upload.status === 'paused' || upload.status === 'CANCELED') {
       return
     }
     await new Promise((resolve) => setTimeout(resolve, 100))

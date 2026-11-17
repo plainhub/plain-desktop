@@ -1,4 +1,5 @@
-import { ErrorCode } from '@/lib/api/error-code'
+import { NativeErrorCode } from '@/lib/api/native-error-code'
+import { PeerConnectionErrorCode } from '@/lib/api/peer-connection-error-code'
 import { invoke } from '@/lib/api/native-invoke'
 
 export interface NativeGraphqlBody {
@@ -8,7 +9,7 @@ export interface NativeGraphqlBody {
   extensions?: Record<string, unknown>
 }
 
-export type NativeTarget = { kind: 'local' } | { kind: 'peer'; peerId: string }
+export type NativeTarget = { kind: 'LOCAL' } | { kind: 'PEER'; peerId: string }
 
 let documentScope: Promise<string> | undefined
 
@@ -16,16 +17,16 @@ export function nativeViewScope(): Promise<string> {
   return documentScope ??= invoke<string>('native_view_scope')
 }
 
-export async function nativeGraphql<T = any>(body: NativeGraphqlBody, timeout: number, target: NativeTarget = { kind: 'local' }, beforeDispatch?: () => void): Promise<T> {
-  if (target.kind === 'peer' && !target.peerId) throw new Error(ErrorCode.NativePeerIdMissing)
+export async function nativeGraphql<T = any>(body: NativeGraphqlBody, timeout: number, target: NativeTarget = { kind: 'LOCAL' }, beforeDispatch?: () => void): Promise<T> {
+  if (target.kind === 'PEER' && !target.peerId) throw new Error(NativeErrorCode.NativePeerIdMissing)
   const deadline = Date.now() + timeout
   let timer: ReturnType<typeof setTimeout> | undefined
   const expiry = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(ErrorCode.ConnectionTimeout)), timeout)
+    timer = setTimeout(() => reject(new Error(PeerConnectionErrorCode.ConnectionTimeout)), timeout)
   })
   const execute = async () => {
     const scope = await nativeViewScope()
-    if (Date.now() >= deadline) throw new Error(ErrorCode.ConnectionTimeout)
+    if (Date.now() >= deadline) throw new Error(PeerConnectionErrorCode.ConnectionTimeout)
     beforeDispatch?.()
     return invoke<T>('native_graphql', { target, body: {
       ...body,
@@ -35,8 +36,8 @@ export async function nativeGraphql<T = any>(body: NativeGraphqlBody, timeout: n
   try {
     return await Promise.race([execute(), expiry])
   } catch (e: any) {
-    if (e?.message === ErrorCode.ConnectionTimeout) throw e
-    throw new Error(typeof e === 'string' ? e : e?.message || ErrorCode.NativeError, { cause: e })
+    if (e?.message === PeerConnectionErrorCode.ConnectionTimeout) throw e
+    throw new Error(typeof e === 'string' ? e : e?.message || NativeErrorCode.NativeError, { cause: e })
   } finally {
     clearTimeout(timer)
   }

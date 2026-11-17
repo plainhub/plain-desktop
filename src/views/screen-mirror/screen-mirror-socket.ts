@@ -18,7 +18,7 @@ export class ScreenMirrorSocket {
   connect() {
     if (this.socket || this.native) return
     if (__IS_TAURI__) {
-      const native = openNativeSocket('screen', {
+      const native = openNativeSocket('SCREEN', {
         opened: () => { if (this.native === native) this.callbacks.onConnected() },
         message: (kind, payload) => {
           if (this.native !== native) return

@@ -1,4 +1,5 @@
-import { ErrorCode } from '@/lib/api/error-code'
+import { PairingErrorCode } from '@/lib/api/pairing-error-code'
+import { AuthErrorCode } from '@/lib/api/auth-error-code'
 import { computed, ref, watch } from 'vue'
 import { base64ToArrayBuffer } from '@/lib/strutil'
 import type { BrowserIdentity } from '@/lib/device/login-peers'
@@ -63,7 +64,7 @@ export function useLogin(options: UseLoginOptions = {}) {
     if (!state || !nativeActive) return
     showConfirm.value = state.phase === 'PAIRING'
     verificationCode.value = state.verificationCode || ''
-    showPasswordInput.value = state.phase === 'PASSWORD_REQUIRED' || state.phase === 'FAILED' && state.error === ErrorCode.InvalidPassword
+    showPasswordInput.value = state.phase === 'PASSWORD_REQUIRED' || state.phase === 'FAILED' && state.error === PairingErrorCode.InvalidPassword
     isSubmitting.value = !['PASSWORD_REQUIRED', 'TRUST_REQUIRED', 'SUCCEEDED', 'FAILED', 'CANCELED'].includes(state.phase)
     if (state.phase === 'FAILED') { showError.value = true; error.value = loginErrorMessage(state.error) }
     if (state.phase === 'SUCCEEDED' && state.deviceId) {
@@ -109,7 +110,7 @@ export function useLogin(options: UseLoginOptions = {}) {
   // Returns true when the stored token was accepted and login completed.
   function applyInitResult(result: InitResult): boolean {
     if (result.status === 403) {
-      showError.value = true; webAccessDisabled.value = true; error.value = ErrorCode.RemoteAccessDisabled; return false
+      showError.value = true; webAccessDisabled.value = true; error.value = AuthErrorCode.RemoteAccessDisabled; return false
     }
     webAccessDisabled.value = false
     const initData = result.data
@@ -119,7 +120,7 @@ export function useLogin(options: UseLoginOptions = {}) {
       lastInitSignaturePublicKey = initData.signaturePublicKey
     }
     if (result.status !== 200 || !initData || typeof initData.authenticated !== 'boolean' || typeof initData.passwordRequired !== 'boolean') {
-      showError.value = true; webAccessDisabled.value = true; error.value = 'login.failed'; return false
+      showError.value = true; webAccessDisabled.value = true; error.value = 'login.FAILED'; return false
     }
     showPasswordInput.value = initData.passwordRequired
     try {
@@ -137,10 +138,10 @@ export function useLogin(options: UseLoginOptions = {}) {
             changedIdentity = { previous: saved, publicKey: initData.signaturePublicKey, opaquePublicKey: initData.opaquePublicKey }
           }
         }
-        throw ErrorCode.PeerIdentityChanged
+        throw AuthErrorCode.PeerIdentityChanged
       }
     } catch {
-      showError.value = true; error.value = 'login.peer_identity_changed'; webAccessDisabled.value = true; return false
+      showError.value = true; error.value = 'login.PEER_IDENTITY_CHANGED'; webAccessDisabled.value = true; return false
     }
     if (initData.authenticated && getCurrentAuthToken()) {
       void finishLoginSuccess()
@@ -196,7 +197,7 @@ export function useLogin(options: UseLoginOptions = {}) {
 
       if (controller.signal.aborted) return
       if (approved) {
-        if (trustedIdentity !== approved) throw ErrorCode.PeerIdentityChanged
+        if (trustedIdentity !== approved) throw AuthErrorCode.PeerIdentityChanged
         replaceBrowserIdentity(approved.previous, { deviceId, publicKey: signaturePublicKey, opaquePublicKey })
         trustedIdentity = undefined
       } else {

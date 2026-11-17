@@ -13,13 +13,13 @@ export function isScreenCapturePermissionDenied(error: unknown): boolean {
 
 export async function presentCaptureError(error: unknown, t: ComposerTranslation): Promise<void> {
   if (!isMacPlatform() || !isScreenCapturePermissionDenied(error)) {
-    toast(t('failed'), 'error')
+    toast(t('FAILED'), 'error')
     return
   }
   if (getCurrentModal()?.component === CapturePermissionModal || permissionModalOpening) return
 
   permissionModalOpening = openModal(CapturePermissionModal).catch(() => {
-    toast(t('failed'), 'error')
+    toast(t('FAILED'), 'error')
   })
   try {
     await permissionModalOpening

@@ -61,6 +61,6 @@ it('projects authenticated pairing subscriptions to the existing UI handlers', (
   mock.mounted.forEach(fn => fn())
   mock.listeners.get('pairingCompleted')!({ deviceId: 'peer', deviceName: 'Peer', ip: 'host' })
   expect(mock.emit).toHaveBeenCalledWith('PAIRING_COMPLETED', { deviceId: 'peer', deviceName: 'Peer', ip: 'host', error: '' })
-  mock.listeners.get('pairingFailed')!({ deviceId: 'peer', deviceName: 'Peer', error: 'failed' })
-  expect(mock.emit).toHaveBeenCalledWith('PAIRING_FAILED', { deviceId: 'peer', deviceName: 'Peer', error: 'failed' })
+  mock.listeners.get('pairingFailed')!({ deviceId: 'peer', deviceName: 'Peer', error: 'FAILED' })
+  expect(mock.emit).toHaveBeenCalledWith('PAIRING_FAILED', { deviceId: 'peer', deviceName: 'Peer', error: 'FAILED' })
 })

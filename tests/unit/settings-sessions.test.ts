@@ -28,11 +28,11 @@ describe('sessions API', () => {
     expect(gqlFetch).toHaveBeenCalledWith(sessionsGQL, {}, { fresh: true })
   })
   it('surfaces GraphQL errors for reads and both mutations', async () => {
-    vi.mocked(gqlFetch).mockResolvedValue({ data: null, errors: [{ message: 'no_permission' }] })
-    await expect(readSessions()).rejects.toThrow('no_permission')
-    await expect(renameSession('706c6169-1dfd-8b72-82bb-3ad00a9928ca', '')).rejects.toThrow('no_permission')
-    await expect(revokeSession('706c6169-1dfd-8b72-82bb-3ad00a9928ca')).rejects.toThrow('no_permission')
-    await expect(createApiToken('Fixture')).rejects.toThrow('no_permission')
+    vi.mocked(gqlFetch).mockResolvedValue({ data: null, errors: [{ message: 'NO_PERMISSION' }] })
+    await expect(readSessions()).rejects.toThrow('NO_PERMISSION')
+    await expect(renameSession('706c6169-1dfd-8b72-82bb-3ad00a9928ca', '')).rejects.toThrow('NO_PERMISSION')
+    await expect(revokeSession('706c6169-1dfd-8b72-82bb-3ad00a9928ca')).rejects.toThrow('NO_PERMISSION')
+    await expect(createApiToken('Fixture')).rejects.toThrow('NO_PERMISSION')
   })
 })
 
@@ -60,9 +60,9 @@ describe('session management', () => {
   })
   it('reports creation failure and permits a later retry', async () => {
     const state = setup()
-    vi.mocked(gqlFetch).mockResolvedValueOnce({ data: null, errors: [{ message: 'no_permission' }] })
+    vi.mocked(gqlFetch).mockResolvedValueOnce({ data: null, errors: [{ message: 'NO_PERMISSION' }] })
     expect(await state.create('Fixture token')).toBe(false)
-    expect(state.error.value).toBe('no_permission')
+    expect(state.error.value).toBe('NO_PERMISSION')
     expect(state.busy.value).toBe(false)
     vi.mocked(gqlFetch).mockResolvedValueOnce({ data: { createApiToken: { clientId: '706c6169-75e3-8c73-8c22-08c39345416f', token: 'synthetic-token' } } }).mockResolvedValueOnce({ data: { sessions: [] } })
     expect(await state.create('Fixture token')).toEqual({ clientId: '706c6169-75e3-8c73-8c22-08c39345416f', token: 'synthetic-token' })

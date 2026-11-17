@@ -740,7 +740,7 @@ fn native_media_child() {
                     }));
                     let passed = cases_passed && forbidden.is_some() && revoked.is_some() && control.is_some()
                         && png_no_store && bounded_responses && records.len() == settled;
-                    json!({"status": if passed {"passed"} else {"failed"}, "reports": reports,
+                    json!({"status": if passed {"passed"} else {"FAILED"}, "reports": reports,
                         "events":events, "page_origins":origins, "report_transport":transport_states,
                         "shared_profile":"owned data/webview-profile", "same_nonopaque_origin":true,
                         "http_route_probes":http_probes,
@@ -760,7 +760,7 @@ fn native_media_child() {
                 }));
                 let mut value = outcome.unwrap_or_else(|panic| {
                     let error = panic.downcast_ref::<String>().cloned().or_else(|| panic.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_else(|| "Native controller panic".into());
-                    json!({"status":"failed", "error":error, "reports":reports, "events":events,
+                    json!({"status":"FAILED", "error":error, "reports":reports, "events":events,
                         "http_route_probes":http_probes,
                         "requests":REQUESTS.get().unwrap().lock().unwrap().clone()})
                 });
@@ -793,20 +793,20 @@ fn native_media_child() {
                         .and_then(|window| report_transport_idle(&window)) {
                         Ok(state) => { value["report_transport"]["media-foreign"] = state; }
                         Err(error) => {
-                            value["status"] = json!("failed");
+                            value["status"] = json!("FAILED");
                             value["report_transport_error"] = json!(error);
                         }
                     }
                 }
                 for (label, message) in received.try_iter() {
                     if let Err(error) = retain_diagnostic(&label, &message, &mut events) {
-                        value["status"] = json!("failed");
+                        value["status"] = json!("FAILED");
                         value["late_report_error"] = json!(error);
                     }
                 }
                 value["events"] = json!(events);
-                value["core_shutdown"] = json!({"completed":stopped, "loopback_listener_closed":listener_closed});
-                if !stopped || !listener_closed { value["status"] = json!("failed"); }
+                value["core_shutdown"] = json!({"COMPLETED":stopped, "loopback_listener_closed":listener_closed});
+                if !stopped || !listener_closed { value["status"] = json!("FAILED"); }
                 fs::write(output_root.join("native-results.json"), plain_libs::serde_json::to_vec_pretty(&value).unwrap()).unwrap();
                 let passed = value["status"] == "passed";
                 *final_result.lock().unwrap() = Some(value);

@@ -26,7 +26,7 @@ export const useDeleteItems = () => {
     const type = deleteType.value
     const q = deleteQuery.value
     confirmingDelete.value = false
-    emitter.emit('media_items_actioned', { type, action: 'delete', query: q })
+    emitter.emit('media_items_actioned', { type, action: 'DELETE', query: q })
   })
 
   const { mutate: doDeleteItem, onDone: onDeleteItemDone } = initMutation({ document: deleteMediaItemsGQL })
@@ -62,7 +62,7 @@ export const useDeleteItems = () => {
 
     deleteItem: (type: string, item: IImageItem | IVideoItem | IAudio) => {
       pendingDeleteCallback = () => {
-        emitter.emit('media_items_actioned', { type, action: 'delete', id: item.id, query: `ids:${item.id}` })
+        emitter.emit('media_items_actioned', { type, action: 'DELETE', id: item.id, query: `ids:${item.id}` })
       }
       return doDeleteItem({ type, query: `ids:${item.id}` })
     },

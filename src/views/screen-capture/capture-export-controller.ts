@@ -155,8 +155,8 @@ export function createCaptureExportController(deps: CaptureExportControllerDepen
         return
       }
       const outcome = await deps.invoke('screen_capture_save_result', args)
-      if (outcome === 'saved') currentResult = null
-      else if (outcome !== 'canceled') throw new Error('native capture save returned an invalid outcome')
+      if (outcome === 'SAVED') currentResult = null
+      else if (outcome !== 'CANCELED') throw new Error('native capture save returned an invalid outcome')
     } finally {
       busy = false
     }

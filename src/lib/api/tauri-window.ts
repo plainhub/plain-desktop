@@ -44,7 +44,7 @@ export async function openMediaInWindow(source: ISource): Promise<void> {
   let peerId = getRemoteClientId()
   if (isNativeResourceUrl(source.src)) {
     const reference = nativeResourceReference(source.src)
-    peerId = reference.target.kind === 'peer' ? reference.target.peerId : ''
+    peerId = reference.target.kind === 'PEER' ? reference.target.peerId : ''
     source = { ...source, path: reference.path, src: '', playbackUrl: undefined, transcoded: undefined }
   }
   if (source.thumbnail && isNativeResourceUrl(source.thumbnail)) source = { ...source, thumbnail: undefined }
@@ -56,7 +56,7 @@ export async function openImageEditor(source: Pick<ISource, 'src' | 'path' | 'na
   if (isNativeResourceUrl(source.src)) {
     const reference = nativeResourceReference(source.src)
     query.set('reference', reference.path)
-    await openWindow(`/image-editor/new?${query}`, reference.target.kind === 'peer' ? reference.target.peerId : '')
+    await openWindow(`/image-editor/new?${query}`, reference.target.kind === 'PEER' ? reference.target.peerId : '')
   } else {
     query.set('src', source.src)
     const peerId = getRemoteClientId()

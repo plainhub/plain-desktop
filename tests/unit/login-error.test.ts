@@ -1,36 +1,45 @@
+import { AuthErrorCode, parseAuthErrorCode } from '@/lib/api/auth-error-code'
 import { expect, it } from 'vitest'
 import { loginErrorMessage, loginErrorReason } from '../../src/lib/api/login-error'
 
-it.each(['invalid_password', 'peer_identity_changed', 'internal_error', 'timeout'])('preserves known %s from strings and Error objects', reason => {
+it.each(['INVALID_PASSWORD', 'PEER_IDENTITY_CHANGED', 'INTERNAL_ERROR', 'TIMEOUT'])('preserves known %s from strings and Error objects', reason => {
   expect(loginErrorReason(reason)).toBe(reason)
   expect(loginErrorReason(new Error(reason))).toBe(reason)
   expect(loginErrorMessage(new Error(reason))).toBe(`login.${reason}`)
 })
 
 it('never exposes arbitrary close reasons or exception text', () => {
-  expect(loginErrorReason(new Error('private server data'))).toBe('invalid_auth_response')
-  expect(loginErrorMessage('unexpected remote content')).toBe('login.failed')
-  expect(loginErrorMessage('failed_connect_ws')).toBe('failed_connect_ws')
-  expect(loginErrorMessage('proxy_auth_failed')).toBe('failed_connect_ws')
+  expect(loginErrorReason(new Error('private server data'))).toBe('INVALID_AUTH_RESPONSE')
+  expect(loginErrorMessage('unexpected remote content')).toBe('login.FAILED')
+  expect(loginErrorMessage('FAILED_CONNECT_WS')).toBe('FAILED_CONNECT_WS')
+  expect(loginErrorMessage('PROXY_AUTH_FAILED')).toBe('FAILED_CONNECT_WS')
 })
 
 it('accepts generated enum codes at both protocol boundaries', async () => {
-  const { ErrorCode, parseErrorCode } = await import('../../src/lib/api/error-code')
-  for (const reason of [ErrorCode.InvalidPassword, ErrorCode.PeerIdentityChanged, ErrorCode.RemoteAccessDisabled, ErrorCode.Rejected, ErrorCode.LoginExpired, ErrorCode.TooManyLoginAttempts]) {
-    expect(parseErrorCode(reason.toUpperCase())).toBe(reason)
+  for (const reason of [AuthErrorCode.InvalidPassword, AuthErrorCode.PeerIdentityChanged, AuthErrorCode.RemoteAccessDisabled, AuthErrorCode.Rejected, AuthErrorCode.LoginExpired, AuthErrorCode.TooManyLoginAttempts]) {
+    expect(parseAuthErrorCode(reason.toUpperCase())).toBe(reason)
     expect(loginErrorReason(reason)).toBe(reason)
   }
-  expect(parseErrorCode('unrecognized reason')).toBeUndefined()
-  expect(parseErrorCode('Invalid_Password')).toBeUndefined()
+  expect(parseAuthErrorCode('unrecognized reason')).toBeUndefined()
+  expect(parseAuthErrorCode('Invalid_Password')).toBeUndefined()
+  expect(parseAuthErrorCode('invalid_password')).toBeUndefined()
+  expect(parseAuthErrorCode('MOUNT_FAILED')).toBeUndefined()
+  expect(parseAuthErrorCode('PASSWORD_REQUIRED')).toBeUndefined()
 })
 
 it('uses a structured GraphQL enum code independently of diagnostic prose', async () => {
-  const { ErrorCode } = await import('../../src/lib/api/error-code')
   const { GqlError } = await import('../../src/lib/api/gql-error')
-  const failure = GqlError.fromGraphql({ message: 'approval diagnostic', extensions: { code: 'rejected' } })
+  const failure = GqlError.fromGraphql({ message: 'approval diagnostic', extensions: { code: 'REJECTED' } })
   expect(failure.message).toBe('approval diagnostic')
-  expect(failure.code).toBe(ErrorCode.Rejected)
-  expect(loginErrorReason(failure)).toBe(ErrorCode.Rejected)
-  const unrelated = GqlError.fromGraphql({ message: 'invalid_password' })
-  expect(loginErrorReason(unrelated)).toBe(ErrorCode.InternalError)
+  expect(failure.code).toBe(AuthErrorCode.Rejected)
+  expect(loginErrorReason(failure)).toBe(AuthErrorCode.Rejected)
+  const unrelated = GqlError.fromGraphql({ message: 'INVALID_PASSWORD' })
+  expect(loginErrorReason(unrelated)).toBe(AuthErrorCode.InternalError)
+})
+
+it('keeps pairing codes separate and rejects lowercase and unrelated feature codes', async () => {
+  const { PairingErrorCode, parsePairingErrorCode } = await import('../../src/lib/api/pairing-error-code')
+  expect(parsePairingErrorCode('PASSWORD_REQUIRED')).toBe(PairingErrorCode.PasswordRequired)
+  expect(parsePairingErrorCode('INVALID_PASSWORD')).toBe(PairingErrorCode.InvalidPassword)
+  for (const value of ['invalid_password', 'MOUNT_FAILED', 'INVALID_PREF_VALUE']) expect(parsePairingErrorCode(value)).toBeUndefined()
 })

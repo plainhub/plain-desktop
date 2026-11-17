@@ -23,20 +23,20 @@ fn deadlines_reject_delayed_requests_and_preserve_remaining_time() {
 #[test]
 fn graphql_targets_accept_only_local_or_peer_identity() {
     assert_eq!(
-        plain_libs::serde_json::from_value::<NativeTarget>(json!({"kind":"local"})).unwrap(),
+        plain_libs::serde_json::from_value::<NativeTarget>(json!({"kind":"LOCAL"})).unwrap(),
         NativeTarget::Local {}
     );
     assert_eq!(
-        plain_libs::serde_json::from_value::<NativeTarget>(json!({"kind":"peer","peerId":"paired"})).unwrap(),
+        plain_libs::serde_json::from_value::<NativeTarget>(json!({"kind":"PEER","peerId":"paired"})).unwrap(),
         NativeTarget::Peer {
             peer_id: "paired".into()
         }
     );
     for target in [
-        json!({"kind":"peer"}),
-        json!({"kind":"peer","peerId":"paired","url":"https://other.invalid"}),
-        json!({"kind":"peer","peerId":"paired","token":"secret"}),
-        json!({"kind":"local","peerId":"paired"}),
+        json!({"kind":"PEER"}),
+        json!({"kind":"PEER","peerId":"paired","url":"https://other.invalid"}),
+        json!({"kind":"PEER","peerId":"paired","token":"secret"}),
+        json!({"kind":"LOCAL","peerId":"paired"}),
         json!({"kind":"proxy","peerId":"paired","via":"other"}),
     ] {
         assert!(

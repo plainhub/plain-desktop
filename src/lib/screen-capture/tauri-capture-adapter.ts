@@ -140,7 +140,7 @@ export async function getTauriCaptureClient(onError: (error: CaptureClientError)
   const [{ invoke }, { listen }, { getCurrentWindow }] = await Promise.all([import('@/lib/api/native-invoke'), import('@tauri-apps/api/event'), import('@tauri-apps/api/window')])
   const windowLabel = getCurrentWindow().label
   if (!isRegularCaptureWindowLabel(windowLabel)) {
-    throw new CaptureClientError('target_unavailable', 'screen capture is unavailable in utility windows')
+    throw new CaptureClientError('TARGET_UNAVAILABLE', 'screen capture is unavailable in utility windows')
   }
   return getCaptureClient({
     windowLabel,

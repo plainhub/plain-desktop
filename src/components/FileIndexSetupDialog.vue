@@ -10,7 +10,7 @@
       <div class="file-access-content">
         <p>{{ $t('file_index_setup_body') }}</p>
         <p aria-live="polite">{{ $t(pending === 'continue' ? 'file_index_setup_waiting' : 'file_index_setup_hint') }}</p>
-        <p v-if="failed" class="file-access-error" role="alert">{{ $t(failed === 'dismiss' ? 'failed' : 'file_index_setup_error') }}</p>
+        <p v-if="failed" class="file-access-error" role="alert">{{ $t(failed === 'dismiss' ? 'FAILED' : 'file_index_setup_error') }}</p>
       </div>
     </template>
     <template #actions>

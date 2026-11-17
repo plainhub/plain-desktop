@@ -1,4 +1,4 @@
-import { ErrorCode } from '@/lib/api/error-code'
+import { NativeErrorCode } from '@/lib/api/native-error-code'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { invoke, onNativeReload } from '@/lib/api/native-invoke'
 import { getWebSocketBaseUrl } from './api'
@@ -16,7 +16,7 @@ export interface SubscriptionCallbacks { opened(): void; message(message: unknow
 export function openSubscriptionConnection(callbacks: SubscriptionCallbacks, peerId?: string): SubscriptionConnection {
   if (!__IS_TAURI__) return openNetwork(callbacks, peerId)
   if (peerId !== undefined) throw new Error('Native peer-proxy subscriptions are unsupported')
-  return openNative(callbacks, isLocalMode() ? { kind: 'local' } : { kind: 'peer', peerId: getRemoteClientId() })
+  return openNative(callbacks, isLocalMode() ? { kind: 'LOCAL' } : { kind: 'PEER', peerId: getRemoteClientId() })
 }
 function openNetwork(callbacks: SubscriptionCallbacks, peerId?: string): SubscriptionConnection {
   const path = getDeviceRequestPath('/graphql', peerId)
@@ -97,8 +97,8 @@ function isSubscriptionRequest(message: unknown): message is { type: 'subscribe'
   const payload = message.payload
   return !!payload && typeof payload === 'object' && 'query' in payload && typeof payload.query === 'string'
 }
-export function openNative(callbacks: SubscriptionCallbacks, target: NativeTarget = { kind: 'local' }): SubscriptionConnection {
-  if (target.kind === 'peer' && !target.peerId) throw new Error(ErrorCode.NativePeerIdMissing)
+export function openNative(callbacks: SubscriptionCallbacks, target: NativeTarget = { kind: 'LOCAL' }): SubscriptionConnection {
+  if (target.kind === 'PEER' && !target.peerId) throw new Error(NativeErrorCode.NativePeerIdMissing)
   let active = true
   let handle: number | undefined
   let writes = Promise.resolve()

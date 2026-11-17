@@ -53,9 +53,9 @@ it('sends selected, direct and fixed local GraphQL through the same scoped IPC c
   expect(await gqlFetch(query, variables)).toEqual(result)
   const body = { query, variables, extensions: { nativeScope: 'document', nativeDeadlineMs: 31000 } }
   expect(fixture.invoke.mock.calls.filter(([command]) => command === 'native_graphql')).toEqual([
-    ['native_graphql', { body, target: { kind: 'peer', peerId: '706c6169-4132-8ab2-8ec9-5a9f1a04658b' } }],
-    ['native_graphql', { body, target: { kind: 'peer', peerId: '706c6169-d74d-885c-bc72-0b0704412cf1' } }],
-    ['native_graphql', { body, target: { kind: 'local' } }],
+    ['native_graphql', { body, target: { kind: 'PEER', peerId: '706c6169-4132-8ab2-8ec9-5a9f1a04658b' } }],
+    ['native_graphql', { body, target: { kind: 'PEER', peerId: '706c6169-d74d-885c-bc72-0b0704412cf1' } }],
+    ['native_graphql', { body, target: { kind: 'LOCAL' } }],
   ])
   expect(fixture.http).not.toHaveBeenCalled()
   expect(fixture.key).not.toHaveBeenCalled()
@@ -68,15 +68,15 @@ it('pins a bound IPC target while later direct and current calls use their own p
   await gqlFetchPeer(peer, query, variables)
   await gqlFetch(query, variables)
   expect(fixture.invoke.mock.calls.filter(([command]) => command === 'native_graphql').map(([, args]) => args.target)).toEqual([
-    { kind: 'peer', peerId: '706c6169-4132-8ab2-8ec9-5a9f1a04658b' }, { kind: 'peer', peerId: '706c6169-d74d-885c-bc72-0b0704412cf1' }, { kind: 'peer', peerId: '706c6169-a60b-8d45-b5e2-8d95a2b44a95' },
+    { kind: 'PEER', peerId: '706c6169-4132-8ab2-8ec9-5a9f1a04658b' }, { kind: 'PEER', peerId: '706c6169-d74d-885c-bc72-0b0704412cf1' }, { kind: 'PEER', peerId: '706c6169-a60b-8d45-b5e2-8d95a2b44a95' },
   ])
   expect(fixture.http).not.toHaveBeenCalled()
 })
 
 it('does not substitute the local client ID for a missing selected or direct peer ID', async () => {
   fixture.selected = ''
-  await expect(gqlFetch(query, variables)).rejects.toThrow('native_peer_id_missing')
-  await expect(gqlFetchPeer({ ...peer, id: '' }, query, variables)).rejects.toThrow('native_peer_id_missing')
+  await expect(gqlFetch(query, variables)).rejects.toThrow('NATIVE_PEER_ID_MISSING')
+  await expect(gqlFetchPeer({ ...peer, id: '' }, query, variables)).rejects.toThrow('NATIVE_PEER_ID_MISSING')
   expect(fixture.invoke).not.toHaveBeenCalled()
   expect(fixture.http).not.toHaveBeenCalled()
 })

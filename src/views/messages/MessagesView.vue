@@ -195,7 +195,7 @@ function currentCaptureDestination(): ChatCaptureDestination {
 function showCaptureError(error: unknown) {
   void import('@/views/screen-capture/capture-error-presentation')
     .then((presentation) => presentation.presentCaptureError(error, t))
-    .catch(() => toast(t('failed'), 'error'))
+    .catch(() => toast(t('FAILED'), 'error'))
 }
 
 function showCaptureRequestError(context: string, error: unknown) {
