@@ -202,6 +202,7 @@ export default {
   clipboard_direction_both: '양방향 동기화',
   screen_capture_permission_denied: '화면 기록 권한이 필요합니다. 시스템 설정 > 개인정보 보호 및 보안 > 화면 기록에서 PlainApp을 허용한 후 다시 시도하세요.',
   check_phone: '휴대폰을 확인해 주세요.',
+  login_confirmation_hint: '이 설정을 켜면 새 로그인 요청을 PlainApp에서 승인해야 합니다.',
   open_access_settings: '액세스 설정 열기',
   no_data: '데이터 없음.',
   show_more: '더 보기',

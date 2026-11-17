@@ -206,6 +206,7 @@ export default {
   screen_capture_permission_denied:
     "L'autorisation d'enregistrement de l'écran est requise. Autorisez PlainApp dans Réglages système > Confidentialité et sécurité > Enregistrement de l'écran, puis réessayez.",
   check_phone: 'Veuillez vérifier votre téléphone.',
+  login_confirmation_hint: 'Si cette option est activée, vous devrez approuver les nouvelles connexions dans PlainApp.',
   open_access_settings: "Ouvrir les paramètres d'accès",
   no_data: 'Pas de données.',
   show_more: 'Afficher plus',

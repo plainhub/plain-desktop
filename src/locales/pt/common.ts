@@ -201,6 +201,7 @@ export default {
   clipboard_direction_both: 'Sincronização bidirecional',
   screen_capture_permission_denied: 'É necessária a permissão de gravação de tela. Permita o PlainApp em Ajustes do Sistema > Privacidade e Segurança > Gravação de Tela e tente novamente.',
   check_phone: 'Por favor, verifique o seu telefone.',
+  login_confirmation_hint: 'Com esta opção ativada, você precisará aprovar novos logins no PlainApp.',
   open_access_settings: 'Abrir Configurações de acesso',
   no_data: 'Sem dados.',
   show_more: 'Mostrar mais',

@@ -205,6 +205,7 @@ export default {
   screen_capture_permission_denied:
     'Die Berechtigung zur Bildschirmaufnahme ist erforderlich. Erlauben Sie PlainApp unter Systemeinstellungen > Datenschutz & Sicherheit > Bildschirmaufnahme und versuchen Sie es erneut.',
   check_phone: 'Bitte überprüfen Sie Ihr Telefon.',
+  login_confirmation_hint: 'Wenn diese Option aktiviert ist, musst du neue Anmeldungen in PlainApp bestätigen.',
   open_access_settings: 'Zugriffseinstellungen öffnen',
   no_data: 'Keine Daten.',
   show_more: 'Mehr anzeigen',

@@ -201,6 +201,7 @@ export default {
   clipboard_direction_both: 'Çift yönlü eşitleme',
   screen_capture_permission_denied: "Ekran kaydı izni gerekiyor. Sistem Ayarları > Gizlilik ve Güvenlik > Ekran Kaydı bölümünde PlainApp'e izin verin ve tekrar deneyin.",
   check_phone: 'Lütfen telefonunuzu kontrol edin.',
+  login_confirmation_hint: 'Bu seçenek açıkken yeni girişleri PlainApp’te onaylamanız gerekir.',
   open_access_settings: 'Erişim Ayarlarını Aç',
   no_data: 'Veri yok.',
   show_more: 'Daha fazla göster',

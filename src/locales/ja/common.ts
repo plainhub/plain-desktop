@@ -202,6 +202,7 @@ export default {
   clipboard_direction_both: '双方向同期',
   screen_capture_permission_denied: '画面収録の権限が必要です。「システム設定 > プライバシーとセキュリティ > 画面収録」で PlainApp を許可してから、もう一度お試しください。',
   check_phone: 'スマートフォンをご確認ください。',
+  login_confirmation_hint: 'この設定をオンにすると、新しいログインを PlainApp で承認する必要があります。',
   open_access_settings: 'アクセス設定を開く',
   no_data: 'データがありません。',
   show_more: 'もっと見る',

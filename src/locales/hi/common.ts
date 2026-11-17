@@ -202,6 +202,7 @@ export default {
   clipboard_direction_both: 'दो-तरफ़ा सिंक',
   screen_capture_permission_denied: 'स्क्रीन रिकॉर्डिंग अनुमति आवश्यक है। सिस्टम सेटिंग्स > प्राइवेसी और सुरक्षा > स्क्रीन रिकॉर्डिंग में PlainApp को अनुमति दें और फिर से प्रयास करें।',
   check_phone: 'कृपया अपना फोन जांचें।',
+  login_confirmation_hint: 'यह विकल्प चालू होने पर आपको नए लॉगिन की पुष्टि PlainApp में करनी होगी।',
   open_access_settings: 'एक्सेस सेटिंग्स खोलें',
   no_data: 'नो डाटा.',
   show_more: 'और देखें',
