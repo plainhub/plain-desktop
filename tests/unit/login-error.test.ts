@@ -37,9 +37,13 @@ it('uses a structured GraphQL enum code independently of diagnostic prose', asyn
   expect(loginErrorReason(unrelated)).toBe(AuthErrorCode.InternalError)
 })
 
-it('keeps pairing codes separate and rejects lowercase and unrelated feature codes', async () => {
+it('accepts only the public pairing error codes', async () => {
   const { PairingErrorCode, parsePairingErrorCode } = await import('../../src/lib/api/pairing-error-code')
+  expect(Object.values(PairingErrorCode).sort()).toEqual([
+    'INTERNAL_ERROR', 'INVALID_PASSWORD', 'PASSWORD_REQUIRED', 'PEER_IDENTITY_CHANGED',
+    'REJECTED', 'TIMEOUT', 'TOO_MANY_LOGIN_ATTEMPTS',
+  ])
   expect(parsePairingErrorCode('PASSWORD_REQUIRED')).toBe(PairingErrorCode.PasswordRequired)
   expect(parsePairingErrorCode('INVALID_PASSWORD')).toBe(PairingErrorCode.InvalidPassword)
-  for (const value of ['invalid_password', 'MOUNT_FAILED', 'INVALID_PREF_VALUE']) expect(parsePairingErrorCode(value)).toBeUndefined()
+  for (const value of ['invalid_password', 'MOUNT_FAILED', 'INVALID_PREF_VALUE', 'PAIRING_TRANSPORT_UNAVAILABLE']) expect(parsePairingErrorCode(value)).toBeUndefined()
 })
