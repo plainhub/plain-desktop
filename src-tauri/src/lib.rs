@@ -7,6 +7,9 @@ mod host;
 #[cfg(all(test, target_os = "linux"))]
 #[path = "../tests/unit/native_media_gui.rs"]
 mod native_media_gui;
+#[cfg(test)]
+#[path = "../tests/unit/native_media_http.rs"]
+mod native_media_http;
 mod native_resource_protocol;
 mod prefs;
 mod utils;
