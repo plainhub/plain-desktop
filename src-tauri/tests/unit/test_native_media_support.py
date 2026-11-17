@@ -255,7 +255,46 @@ function video(deliverFrames = true, distinct = true) {
   assert.equal(rendered.quality_before, 100);
   assert.equal(rendered.quality_after, 2, 'A seek-reset counter is not a no-frame failure');
   assert.equal(rendered.video_callbacks, 2);
+  assert.equal(rendered.before_pause.paused, false);
+  assert.equal(rendered.before_pause.ended, false);
   assert.ok(rendered.last_frame.media_time > rendered.first_frame.media_time);
+  const audio = { ...emptyMedia(), pauseCalls: 0,
+    play() { this.paused = false; this.currentTime += .5; return Promise.resolve(); },
+    pause() { this.pauseCalls++; this.paused = true; } };
+  const played = await api.advance(audio, 200);
+  assert.equal(audio.pauseCalls, 1);
+  assert.equal(played.before_pause.paused, false);
+  assert.equal(played.before_pause.ended, false);
+  assert.equal(played.final.paused, true);
+  assert.equal(played.final.ended, false);
+  for (const kind of ['audio', 'video']) {
+    const ended = kind === 'video' ? video() : { ...audio };
+    const play = ended.play.bind(ended);
+    ended.pauseCalls = 0;
+    ended.pause = function () { this.pauseCalls++; this.paused = true; };
+    ended.play = async function () {
+      await play();
+      await sleep(40);
+      this.currentTime = 60;
+      this.ended = true;
+      this.paused = true;
+    };
+    const observation = {};
+    await assert.rejects(api.advance(ended, 200, observation), /Media is not playing before pause/);
+    assert.equal(observation.play_promise, 'fulfilled');
+    assert.equal(observation.at_promise_settlement.ended, true);
+    assert.ok(observation.after_time >= observation.before_time + .3);
+    if (kind === 'video') assert.equal(observation.video_callbacks, 2);
+    assert.equal(ended.pauseCalls, 0, 'Natural completion must not be tested as a successful pause');
+    assert.equal(observation.before_pause.ended, true);
+    assert.equal(observation.before_pause.paused, true);
+  }
+  for (const state of [{ paused: true, ended: false }, { paused: false, ended: true }]) {
+    const inactive = { ...audio, pauseCalls: 0,
+      play() { this.currentTime += .5; Object.assign(this, state); return Promise.resolve(); } };
+    await assert.rejects(api.advance(inactive, 200), /Media is not playing before pause/);
+    assert.equal(inactive.pauseCalls, 0);
+  }
   await assert.rejects(api.advance(video(false), 40), /actual video frames/);
   await assert.rejects(api.advance(video(true, false), 40), /actual video frames/);
   const unsupported = video(); delete unsupported.requestVideoFrameCallback;
@@ -293,7 +332,7 @@ function video(deliverFrames = true, distinct = true) {
   const ranges = { count: 4, ranges: Array.from({ length: 4 }, (_, i) =>
     [1.2345678901234567 + i, 190.12345678901235 + i]) };
   const state = { ...rendered.initial, current_time: 210, buffered: ranges, seekable: ranges };
-  const worst = { ...rendered, initial: state, final: state, at_promise_settlement: state,
+  const worst = { ...rendered, initial: state, final: state, at_promise_settlement: state, before_pause: state,
     promise_settled_ms: 12000, elapsed_ms: 24000, trace: {
       events: Array.from({ length: 40 }, () => ({ event: 'canplaythrough', ms: 24000,
         time: 193.12345678901235, network: 3, ready: 4, paused: false, seeking: false, ended: false })),

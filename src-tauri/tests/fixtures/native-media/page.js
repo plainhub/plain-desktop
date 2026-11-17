@@ -153,6 +153,8 @@ async function advance(media, timeout = 12000, observation = {}, original = medi
     await waitFor(() => media.currentTime >= before + .3 && (!video ||
       (callbacks >= 2 && last.media_time > first.media_time && last.media_time >= before + .2)),
       'Playback time or actual video frames did not advance', timeout);
+    observation.before_pause = mediaState(media, original);
+    check(!media.paused && !media.ended, 'Media is not playing before pause');
     media.pause();
     const paused = media.currentTime;
     await delay(250);
