@@ -87,7 +87,6 @@ export default {
   select_all: '모두 선택',
   troubleshoot: '문제 해결',
   fix_disconnect_tips: '연결이 해제되었습니다. 핸드폰 화면을 켜놓거나 핸드폰을 USB로 연결해 보세요. 또는 애플리케이션을 다시 열고 페이지를 새로고침하세요.',
-  FAILED_CONNECT_WS: '연결이 해제되었습니다. 애플리케이션을 재시작하고 다시 시도해보세요.',
   desktop_notification_need_https: '데스크톱 알림에는 안전한 링크 (HTTPS)가 필요합니다.',
   use_https_link: 'HTTPS 링크 사용',
   send: '보내기',

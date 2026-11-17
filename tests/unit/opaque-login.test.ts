@@ -150,7 +150,7 @@ it('rejects configuration changes instead of falling back to device confirmation
 
 it('requires the result to be encrypted and bound to this login', async () => {
   const { promise } = await begin()
-  const rejected = expect(promise).rejects.toBe('INVALID_AUTH_RESPONSE')
+  const rejected = expect(promise).rejects.toBe('INTERNAL_ERROR')
   await socket.message(ke2)
   await socket.message(utf8.encode(JSON.stringify({ status: 'COMPLETED', deviceId: '706c6169-070b-8226-915b-f78c137ec2f0' })))
   await rejected

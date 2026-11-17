@@ -8,13 +8,13 @@ self.onmessage = async (event: MessageEvent<OpaqueCommand>) => {
   try {
     if (command.type === 'START') {
       try {
-        if (typeof globalThis.crypto?.getRandomValues !== 'function') throw AuthErrorCode.SecureLoginUnavailable
+        if (typeof globalThis.crypto?.getRandomValues !== 'function') throw AuthErrorCode.InternalError
         await init()
         login = OpaqueLogin.start(command.password)
       } finally { command.password.fill(0) }
       self.postMessage({ type: 'REQUEST', request: login.request() } satisfies OpaqueReply)
     } else {
-      if (!login) throw AuthErrorCode.InvalidAuthResponse
+      if (!login) throw AuthErrorCode.InternalError
       const active = login
       login = undefined // finish consumes the WASM state, including failures.
       const result = active.finish(command.response, command.clientId, command.signingKey)
@@ -33,6 +33,6 @@ self.onmessage = async (event: MessageEvent<OpaqueCommand>) => {
   } catch (error) {
     login?.free()
     login = undefined
-    self.postMessage({ type: 'ERROR', reason: parseAuthErrorCode(error) ?? (command.type === 'FINISH' ? AuthErrorCode.InvalidPassword : AuthErrorCode.InvalidAuthResponse) } satisfies OpaqueReply)
+    self.postMessage({ type: 'ERROR', reason: parseAuthErrorCode(error) ?? AuthErrorCode.InternalError } satisfies OpaqueReply)
   }
 }

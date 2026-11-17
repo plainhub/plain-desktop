@@ -17,7 +17,9 @@ export type OpaqueReply =
 
 export async function startOpaqueLogin(password: string, signal?: AbortSignal) {
   if (signal?.aborted) throw AuthErrorCode.Canceled
-  if (typeof globalThis.crypto?.getRandomValues !== 'function' || typeof Worker !== 'function') throw AuthErrorCode.SecureLoginUnavailable
+  if (typeof globalThis.crypto?.getRandomValues !== 'function' || typeof Worker !== 'function') {
+    throw new DOMException('Secure login unavailable', 'NotSupportedError')
+  }
   const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
   let failure: AuthErrorCode | undefined
   let pending: { resolve: (value: OpaqueReply) => void; reject: (reason: AuthErrorCode) => void } | undefined
@@ -31,35 +33,35 @@ export async function startOpaqueLogin(password: string, signal?: AbortSignal) {
     worker.terminate()
   }
   const abort = () => close(AuthErrorCode.Canceled)
-  const deadline = setTimeout(() => close(AuthErrorCode.LoginExpired), 300000)
+  const deadline = setTimeout(() => close(AuthErrorCode.Timeout), 300000)
   worker.onmessage = (event: MessageEvent<OpaqueReply>) => {
     if (event.data.type === 'ERROR') { close(event.data.reason); return }
     pending?.resolve(event.data)
     pending = undefined
   }
-  worker.onerror = () => close(AuthErrorCode.InvalidAuthResponse)
+  worker.onerror = () => close(AuthErrorCode.InternalError)
   signal?.addEventListener('abort', abort, { once: true })
   const exchange = (command: OpaqueCommand): Promise<OpaqueReply> => new Promise((resolve, reject) => {
     if (failure) { reject(failure); return }
     pending = { resolve, reject }
     try { worker.postMessage(command) }
-    catch { close(AuthErrorCode.InvalidAuthResponse) }
+    catch { close(AuthErrorCode.InternalError) }
   })
   const bytes = new TextEncoder().encode(password)
   try {
     const starting = exchange({ type: 'START', password: bytes })
     bytes.fill(0)
     const hello = await starting
-    if (hello.type !== 'REQUEST') throw AuthErrorCode.InvalidAuthResponse
+    if (hello.type !== 'REQUEST') throw AuthErrorCode.InternalError
     let finished = false
     return {
       request: () => hello.request,
       async finish(response: Uint8Array, clientId: string, signingKey: Uint8Array): Promise<OpaqueResult> {
-        if (finished) throw AuthErrorCode.InvalidAuthResponse
+        if (finished) throw AuthErrorCode.InternalError
         finished = true
         try {
           const reply = await exchange({ type: 'FINISH', response, clientId, signingKey })
-          if (reply.type !== 'RESULT') throw AuthErrorCode.InvalidAuthResponse
+          if (reply.type !== 'RESULT') throw AuthErrorCode.InternalError
           return reply.result
         } finally { close(AuthErrorCode.Canceled) }
       },

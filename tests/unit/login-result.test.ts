@@ -8,7 +8,7 @@ it('returns the server deviceId without confusing it with the caller clientId', 
 })
 
 it('rejects the removed clientId response field', () => {
-  expect(() => completeLogin({ status: 'COMPLETED', clientId: '706c6169-3dee-8e04-918a-58062a09d734' } as never, 'signature', 'session-key')).toThrow('INVALID_AUTH_RESPONSE')
+  expect(() => completeLogin({ status: 'COMPLETED', clientId: '706c6169-3dee-8e04-918a-58062a09d734' } as never, 'signature', 'session-key')).toThrow('INTERNAL_ERROR')
 })
 
 it('rejects a different server identity', () => {

@@ -10,7 +10,7 @@ type LoginFrame = string | ArrayBuffer | Blob
 export async function openLoginSocket(url: string, signal?: AbortSignal) {
   const target = new URL(url)
   const proxied = /^\/proxy\/[^/]+\/auth$/.test(target.pathname)
-  if (proxied && target.origin !== new URL(getWebSocketBaseUrl()).origin) throw AuthErrorCode.ProxyAuthFailed
+  if (proxied && target.origin !== new URL(getWebSocketBaseUrl()).origin) throw AuthErrorCode.InternalError
   const socket = openSocket(url)
   const frames: LoginFrame[] = []
   const pendingWork = new Set<(reason: AuthErrorCode) => void>()
@@ -46,7 +46,7 @@ export async function openLoginSocket(url: string, signal?: AbortSignal) {
   }
   const abort = () => fail(AuthErrorCode.Canceled)
   const connectionTimeout = window.setTimeout(() => fail(AuthErrorCode.Timeout), 10000)
-  const deadline = window.setTimeout(() => fail(AuthErrorCode.LoginExpired), 300000)
+  const deadline = window.setTimeout(() => fail(AuthErrorCode.Timeout), 300000)
 
   socket.onopen = () => {
     if (!proxied) window.clearTimeout(connectionTimeout)
@@ -61,7 +61,7 @@ export async function openLoginSocket(url: string, signal?: AbortSignal) {
           ? event.data.byteLength
           : event.data.size
     if (size > 65536 || frames.length >= 16) {
-      fail(AuthErrorCode.InvalidAuthResponse)
+      fail(AuthErrorCode.InternalError)
       return
     }
     if (waiting) {
@@ -71,8 +71,8 @@ export async function openLoginSocket(url: string, signal?: AbortSignal) {
       frames.push(event.data)
     }
   }
-  socket.onerror = () => fail(AuthErrorCode.FailedConnectWs)
-  socket.onclose = (event: CloseEvent) => fail(loginErrorReason(event.reason, AuthErrorCode.FailedConnectWs))
+  socket.onerror = () => fail(AuthErrorCode.InternalError)
+  socket.onclose = (event: CloseEvent) => fail(loginErrorReason(event.reason))
   signal?.addEventListener('abort', abort, { once: true })
   if (signal?.aborted) abort()
   await connected
@@ -99,8 +99,9 @@ export async function openLoginSocket(url: string, signal?: AbortSignal) {
       socket.send(crypto.encode(new Uint8Array()) as ArrayBufferView<ArrayBuffer>)
       window.clearTimeout(connectionTimeout)
     } catch {
-      fail(AuthErrorCode.ProxyAuthFailed)
-      throw AuthErrorCode.ProxyAuthFailed
+      const reason = failure ?? AuthErrorCode.InternalError
+      fail(reason)
+      throw reason
     }
   }
 
@@ -130,12 +131,12 @@ export async function openLoginSocket(url: string, signal?: AbortSignal) {
     },
     async receiveText() {
       const frame = await receive()
-      if (typeof frame !== 'string' || frame.length > 4096) throw AuthErrorCode.InvalidAuthResponse
+      if (typeof frame !== 'string' || frame.length > 4096) throw AuthErrorCode.InternalError
       return frame
     },
     async receiveBytes() {
       const frame = await receive()
-      if (typeof frame === 'string') throw AuthErrorCode.InvalidAuthResponse
+      if (typeof frame === 'string') throw AuthErrorCode.InternalError
       const bytes = frame instanceof ArrayBuffer ? frame : await frame.arrayBuffer()
       if (failure) throw failure
       return new Uint8Array(bytes)

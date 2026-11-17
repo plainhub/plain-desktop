@@ -87,7 +87,6 @@ export default {
   select_all: 'Tümünü Seç',
   troubleshoot: 'Sorunu Gider',
   fix_disconnect_tips: 'Bağlantı kesildi, lütfen telefon ekranınızı açık tutmayı veya telefonunuzu USB şarjıyla bağlamayı deneyin. Alternatif olarak, uygulamayı yeniden açın ve sayfayı yenileyin.',
-  FAILED_CONNECT_WS: 'Bağlantı kesildi, lütfen uygulamayı yeniden başlatın ve yeniden deneyin.',
   desktop_notification_need_https: 'Masaüstü bildirimleri güvenli bir bağlantıya (HTTPS) ihtiyaç duyar.',
   use_https_link: 'HTTPS bağlantısı kullanın',
   send: 'Gönder',

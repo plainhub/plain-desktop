@@ -145,7 +145,7 @@ it.each(['http:', 'https:'])(
 
 it('rejects a malformed or substituted hello without sending credentials', async () => {
   const promise = performLoginHandshake(params())
-  const rejection = expect(promise).rejects.toBe('SIGNATURE_VERIFICATION_FAILED')
+  const rejection = expect(promise).rejects.toBe('INTERNAL_ERROR')
   await socket.open()
   await socket.message(
     JSON.stringify({ ...vector.response, signature: Buffer.alloc(64, 4).toString('base64') })
@@ -174,7 +174,7 @@ it('cancels a pending connection and clears both deadlines', async () => {
 
 it('bounds the complete handshake after connection instead of timing only socket opening', async () => {
   const promise = performLoginHandshake(params())
-  const rejection = expect(promise).rejects.toBe('LOGIN_EXPIRED')
+  const rejection = expect(promise).rejects.toBe('TIMEOUT')
   await socket.open()
   await vi.advanceTimersByTimeAsync(300000)
   await rejection
@@ -183,7 +183,7 @@ it('bounds the complete handshake after connection instead of timing only socket
 
 it('does not extend the login deadline after pending replies', async () => {
   const promise = performLoginHandshake(params())
-  const rejection = expect(promise).rejects.toBe('LOGIN_EXPIRED')
+  const rejection = expect(promise).rejects.toBe('TIMEOUT')
   await socket.open()
   await socket.message(JSON.stringify(vector.response))
   await vi.advanceTimersByTimeAsync(299000)
@@ -256,6 +256,6 @@ it('authenticates to A before delivering B login frames on the existing proxy UR
 
 it('keeps the A session handshake on the current API origin', async () => {
   await expect(openLoginSocket('wss://other.invalid/proxy/device-b/auth?cid=706c6169-76ca-875b-a559-d6fd7695ee9b'))
-    .rejects.toBe('PROXY_AUTH_FAILED')
+    .rejects.toBe('INTERNAL_ERROR')
   expect(mock.socket).not.toHaveBeenCalled()
 })

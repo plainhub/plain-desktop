@@ -34,7 +34,7 @@ export function completeLogin(
   token: string,
   expectedDeviceId?: string
 ): LoginHandshakeResult {
-  if (response.status !== 'COMPLETED' || typeof response.deviceId !== 'string' || !response.deviceId) throw AuthErrorCode.InvalidAuthResponse
+  if (response.status !== 'COMPLETED' || typeof response.deviceId !== 'string' || !response.deviceId) throw AuthErrorCode.InternalError
   if (expectedDeviceId && response.deviceId !== expectedDeviceId) throw AuthErrorCode.PeerIdentityChanged
   return { deviceId: response.deviceId, token, signaturePublicKey: signatureKey, chatPaired: response.chatPaired === true }
 }

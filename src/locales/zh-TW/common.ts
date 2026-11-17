@@ -88,7 +88,6 @@ export default {
   select_all: '全選',
   troubleshoot: '故障排除',
   fix_disconnect_tips: '連線已斷開，請嘗試保持手機螢幕開啟或通過USB充電連線手機。或者，重新開啟應用程式並重新整理頁面。',
-  FAILED_CONNECT_WS: '連線已斷開，請重啟應用程式並重試。',
   desktop_notification_need_https: '桌面通知需要安全連結（HTTPS）。',
   use_https_link: '使用HTTPS連結',
   send: '發送',

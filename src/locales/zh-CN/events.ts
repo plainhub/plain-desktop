@@ -20,7 +20,7 @@ export default {
   "event_reason.INVALID_PASSWORD": "密码错误",
   "event_reason.INVALID_LOGIN_REQUEST": "登录请求无效",
   "event_reason.REMOTE_ACCESS_DISABLED": "远程访问已关闭",
-  "event_reason.LOGIN_EXPIRED": "登录请求已过期",
+  "event_reason.TIMEOUT": "登录请求已过期",
   "event_reason.TOO_MANY_LOGIN_ATTEMPTS": "登录尝试过多",
   "event_reason.REJECTED": "登录请求已拒绝",
   "event_reason.CANCELED": "登录请求已取消"

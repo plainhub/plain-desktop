@@ -87,7 +87,6 @@ export default {
   select_all: 'Chọn tất cả',
   troubleshoot: 'Khắc phục sự cố',
   fix_disconnect_tips: 'Đã mất kết nối, vui lòng thử giữ màn hình điện thoại của bạn hoặc kết nối điện thoại qua cổng USB sạc. Hoặc có thể mở lại ứng dụng và làm mới trang.',
-  FAILED_CONNECT_WS: 'Đã mất kết nối, vui lòng khởi động lại ứng dụng và thử lại.',
   desktop_notification_need_https: 'Thông báo trên máy tính cần một liên kết an toàn (HTTPS).',
   use_https_link: 'Sử dụng liên kết HTTPS',
   send: 'Gửi',

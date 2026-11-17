@@ -20,7 +20,7 @@ afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers() })
 
 it.each(['crypto', 'Worker'])('fails closed without %s support, without a main-thread fallback', async missing => {
   vi.stubGlobal(missing, missing === 'crypto' ? {} : undefined)
-  await expect(startOpaqueLogin('synthetic password')).rejects.toBe('SECURE_LOGIN_UNAVAILABLE')
+  await expect(startOpaqueLogin('synthetic password')).rejects.toMatchObject({ name: 'NotSupportedError' })
   expect(WorkerMock.instances).toHaveLength(0)
 })
 
@@ -40,7 +40,7 @@ it('uses a dedicated lazy worker and clears the sender password bytes', async ()
   worker.reply({ type: 'RESULT', result })
   await expect(finished).resolves.toEqual(result)
   expect(worker.terminate).toHaveBeenCalledOnce()
-  await expect(login.finish(new Uint8Array(), 'browser', new Uint8Array())).rejects.toBe('INVALID_AUTH_RESPONSE')
+  await expect(login.finish(new Uint8Array(), 'browser', new Uint8Array())).rejects.toBe('INTERNAL_ERROR')
   expect(vi.getTimerCount()).toBe(0)
 })
 
@@ -63,12 +63,12 @@ it.each(['START', 'FINISH'])('terminates the worker immediately when canceled du
 
 it('terminates state after a worker error and on login expiry', async () => {
   const first = startOpaqueLogin('synthetic password')
-  const error = expect(first).rejects.toBe('INVALID_AUTH_RESPONSE')
+  const error = expect(first).rejects.toBe('INTERNAL_ERROR')
   WorkerMock.instances[0].onerror?.()
   await error
   expect(WorkerMock.instances[0].terminate).toHaveBeenCalledOnce()
   const second = startOpaqueLogin('synthetic password')
-  const expired = expect(second).rejects.toBe('LOGIN_EXPIRED')
+  const expired = expect(second).rejects.toBe('TIMEOUT')
   await vi.advanceTimersByTimeAsync(300000)
   await expired
   expect(WorkerMock.instances[1].terminate).toHaveBeenCalledOnce()

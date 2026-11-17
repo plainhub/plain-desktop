@@ -20,7 +20,7 @@ export default {
   "event_reason.INVALID_PASSWORD": "Incorrect password",
   "event_reason.INVALID_LOGIN_REQUEST": "Invalid sign-in request",
   "event_reason.REMOTE_ACCESS_DISABLED": "Remote access is disabled",
-  "event_reason.LOGIN_EXPIRED": "Sign-in request expired",
+  "event_reason.TIMEOUT": "Sign-in request expired",
   "event_reason.TOO_MANY_LOGIN_ATTEMPTS": "Too many sign-in attempts",
   "event_reason.REJECTED": "Sign-in request rejected",
   "event_reason.CANCELED": "Sign-in request canceled"

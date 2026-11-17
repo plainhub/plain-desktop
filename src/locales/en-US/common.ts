@@ -112,7 +112,6 @@ export default {
   select_all: 'Select all',
   troubleshoot: 'Troubleshoot',
   fix_disconnect_tips: 'Connection has been lost, please try keeping your phone screen on or connect your phone via USB charging. Alternatively, reopen the application and refresh the page.',
-  FAILED_CONNECT_WS: 'Connection has been lost, please restart the application and try again.',
   desktop_notification_need_https: 'Desktop notifications need a secure link (HTTPS).',
   use_https_link: 'Use HTTPS link',
   send: 'Send',
