@@ -33,6 +33,7 @@
     <footer class="remote-access-footer" :class="{ online: count !== null && count > 0 }" aria-live="polite">
       <span v-if="count !== null" class="online-dot" aria-hidden="true"></span>
       <span>{{ clientsFailed ? $t('remote_access_clients_unavailable') : count === null ? $t('loading') : $t('remote_access_clients_online', { count }) }}</span>
+      <v-text-button v-if="localMode" class="access-settings-action" @click="openModal(AccessSettingsDialog)">{{ $t('access_settings') }}</v-text-button>
     </footer>
   </section>
 </template>
@@ -47,6 +48,7 @@ import RemoteAccessAddresses from './RemoteAccessAddresses.vue'
 import MdnsDebugModal from './MdnsDebugModal.vue'
 import MdnsHostnameDialog from './MdnsHostnameDialog.vue'
 import PortEditDialog from './PortEditDialog.vue'
+import AccessSettingsDialog from './AccessSettingsDialog.vue'
 
 const localMode = isLocalMode()
 const { enabled, hostname, saving, save } = useRemoteAccess()
@@ -126,6 +128,9 @@ function showDiagnostics() {
   margin-top: 16px;
   color: var(--md-sys-color-on-surface-variant);
   font-size: 0.875rem;
+}
+.access-settings-action {
+  margin-inline-start: auto;
 }
 .remote-access-footer.online {
   color: #247444;
