@@ -1,3 +1,6 @@
+import { GqlError } from '@/lib/api/gql-error'
+import { ErrorCode, parseErrorCode } from '@/lib/api/error-code'
+import { loginErrorReason } from '@/lib/api/login-error'
 import { computed, reactive, ref } from 'vue'
 import { nativeGraphql } from '@/lib/api/native-client'
 import type { bindGraphqlClient, GqlResult } from '@/lib/api/gql-client'
@@ -6,7 +9,7 @@ import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 export interface PairingView {
   deviceId: string
   phase: 'CONNECTING' | 'PAIRING' | 'PASSWORD_REQUIRED' | 'TRUST_REQUIRED' | 'SUCCEEDED' | 'FAILED' | 'CANCELED'
-  error: string | null
+  error: ErrorCode | null
   verificationCode?: string | null
   identityChanged?: boolean
 }
@@ -26,7 +29,7 @@ export function createPairing(subscriptions = graphqlSubscriptions, request?: Re
   async function execute<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
     const result = request ? await request<T>(query, variables)
       : await nativeGraphql<GqlResult<T>>({ query, variables }, 30000)
-    if (result.errors?.length) throw new Error(result.errors[0].message)
+    if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
     return result.data
   }
   const peerId = ref<string>()
@@ -46,9 +49,12 @@ export function createPairing(subscriptions = graphqlSubscriptions, request?: Re
       if (notice.fromId === peerId.value) update(notice.fromId, { phase: 'TRUST_REQUIRED', verificationCode: notice.verificationCode, identityChanged: notice.identityChanged })
     }),
     subscriptions.subscribe('pairingCompleted', result => update(result.deviceId, { phase: 'SUCCEEDED' })),
-    subscriptions.subscribe('pairingFailed', result => update(result.deviceId, {
-      phase: result.error === 'password_required' || result.error === 'invalid_password' ? 'PASSWORD_REQUIRED' : 'FAILED', error: result.error,
-    })),
+    subscriptions.subscribe('pairingFailed', result => {
+      const error = parseErrorCode(result.error) ?? ErrorCode.InternalError
+      update(result.deviceId, {
+        phase: error === ErrorCode.PasswordRequired || error === ErrorCode.InvalidPassword ? 'PASSWORD_REQUIRED' : 'FAILED', error,
+      })
+    }),
     subscriptions.subscribe('pairingCanceled', result => update(result.deviceId, { phase: 'CANCELED' })),
   ]
   async function cancel(id = peerId.value) {
@@ -66,7 +72,7 @@ export function createPairing(subscriptions = graphqlSubscriptions, request?: Re
       await execute('mutation($input: PairPeerInput!) { pairPeer(input: $input) }', { input: value })
       if (disposed) await cancel(value.peerId)
     } catch (error) {
-      update(value.peerId, { phase: 'FAILED', error: error instanceof Error ? error.message : String(error) })
+      update(value.peerId, { phase: 'FAILED', error: loginErrorReason(error, ErrorCode.InternalError) })
       throw error
     }
   }

@@ -1,7 +1,9 @@
+import { ErrorCode } from '@/lib/api/error-code'
 import type { IUploadItem } from '@/stores/temp'
 import { getApiBaseUrl, proxyUrlFor } from '@/lib/api/api'
 import { getDeviceRequestPath } from '@/lib/api/device-path'
-import { bindGraphqlClient, getGraphqlContextKey, GqlError } from '@/lib/api/gql-client'
+import { GqlError } from '@/lib/api/gql-error'
+import { bindGraphqlClient, getGraphqlContextKey } from '@/lib/api/gql-client'
 import { nativeViewScope, type NativeTarget } from '@/lib/api/native-client'
 import { getDesktopClientId, getRemoteClientId } from '@/lib/device/client-id'
 import { getLoginPeerRevision } from '@/lib/device/login-peers'
@@ -54,7 +56,7 @@ export function isUploadContextCurrent(upload: IUploadItem): boolean {
 }
 
 export function assertUploadContext(upload: IUploadItem): void {
-  if (!isUploadContextCurrent(upload)) throw new GqlError('request_context_changed', undefined, true)
+  if (!isUploadContextCurrent(upload)) throw new GqlError(ErrorCode.RequestContextChanged, undefined, true)
 }
 
 export function getUploadNativeScope(upload: IUploadItem): Promise<string> {

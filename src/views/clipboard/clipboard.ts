@@ -1,3 +1,4 @@
+import { ErrorCode } from '@/lib/api/error-code'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
@@ -23,7 +24,7 @@ export function useClipboardData() {
 
   const { loading, fetch } = initLazyQuery({
     handle: (data: { clipboardItems: IClipboardItem[]; clipboardItemCount: number }, error: string) => {
-      if (error === 'clipboard_sync_disabled') {
+      if (error === ErrorCode.ClipboardSyncDisabled) {
         // Switch turned off after load; the app query state reflects it, stay quiet.
       } else if (error) {
         toast(t(error), 'error')

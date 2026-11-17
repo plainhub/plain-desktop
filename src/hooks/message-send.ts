@@ -1,3 +1,4 @@
+import { ErrorCode } from '@/lib/api/error-code'
 import { computed, onUnmounted, ref } from 'vue'
 import toast from '@/components/toaster'
 import { useI18n } from 'vue-i18n'
@@ -177,7 +178,7 @@ export function useMessageSend(
       if (!outcome.ok) {
         callbacks.onSmsFailed(requestId)
         restoreDraft(body)
-        toast(t(outcome.error || 'network_error'), 'error')
+        toast(t(outcome.error || ErrorCode.NetworkError), 'error')
         return false
       }
       callbacks.onSmsAccepted(requestId)

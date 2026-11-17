@@ -8,7 +8,7 @@ import {
   initMutation, relaunchAppGQL, startScreenMirrorGQL, stopScreenMirrorGQL,
   updateScreenMirrorQualityGQL, requestScreenMirrorAudioGQL,
 } from '@/lib/api/mutation'
-import type { GqlError } from '@/lib/api/gql-client'
+import type { GqlError } from '@/lib/api/gql-error'
 import { openModal } from '@/components/modal'
 import AccessibilityGuideModal from '@/components/AccessibilityGuideModal.vue'
 

@@ -1,3 +1,5 @@
+import { GqlError, type GraphqlFailure } from './gql-error'
+import { ErrorCode, parseErrorCode } from '@/lib/api/error-code'
 import { shallowRef } from 'vue'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { getApiBaseUrl, getApiHeaders } from './api'
@@ -29,7 +31,7 @@ function operationName(query: string): string {
 
 export interface GqlResult<T = any> {
   data: T
-  errors?: Array<{ message: string; path?: string[] }>
+  errors?: GraphqlFailure[]
 }
 
 const pendingRequests = new Map<string, Promise<GqlResult<any>>>()
@@ -80,7 +82,7 @@ export async function gqlFetch<T = any>(
   }
 
   const promise = doGqlFetch<T>(context, query, variables, options.timeout).then((result) => {
-    if (contextKey !== JSON.stringify(graphqlContext(options.origin))) throw new GqlError('request_context_changed', undefined, true)
+    if (contextKey !== JSON.stringify(graphqlContext(options.origin))) throw new GqlError(ErrorCode.RequestContextChanged, undefined, true)
     return result
   })
   if (options.dedupe !== false) pendingRequests.set(dedupeKey, promise)
@@ -115,7 +117,7 @@ export async function encryptedGqlPost<T = any>(
   timeout: number = TIMEOUT,
   headers: Record<string, string> = getApiHeaders(),
 ): Promise<GqlResult<T>> {
-  if (!token) throw new GqlError('unauthorized', 401)
+  if (!token) throw new GqlError(ErrorCode.Unauthorized, 401)
   const key = tokenToKey(token)
   const json = graphqlRequestPayload(query, variables)
   const op = operationName(query)
@@ -148,11 +150,11 @@ export async function encryptedGqlPost<T = any>(
     })
 
     if (response.status === 401) {
-      throw new GqlError('unauthorized', 401)
+      throw new GqlError(ErrorCode.Unauthorized, 401)
     } else if (response.status === 403) {
-      throw new GqlError('remote_access_disabled', 403)
+      throw new GqlError(ErrorCode.RemoteAccessDisabled, 403)
     } else if (!response.ok) {
-      throw new GqlError('network_error', response.status)
+      throw new GqlError(ErrorCode.NetworkError, response.status)
     }
 
     const arrayBuffer = await response.arrayBuffer()
@@ -172,8 +174,8 @@ export async function encryptedGqlPost<T = any>(
       console.warn(`[gql] ✗ ${op} @${host} ${e instanceof GqlError ? `${e.message} (${e.status ?? 'network'})` : e.name || e.message}`)
     }
     if (e instanceof GqlError) throw e
-    if (e.name === 'AbortError') throw new GqlError('connection_timeout')
-    throw new GqlError(e.message || 'network_error')
+    if (e.name === 'AbortError') throw new GqlError(ErrorCode.ConnectionTimeout)
+    throw new GqlError(e.message || ErrorCode.NetworkError, undefined, false, ErrorCode.NetworkError)
   } finally {
     clearTimeout(timer)
   }
@@ -194,9 +196,11 @@ export async function nativeGqlFetch<T = any>(query: string, variables?: Record<
     }
     return result
   } catch (e: any) {
-    const message = e?.message || 'native_error'
+    if (e instanceof GqlError) throw e
+    const message = e?.message || ErrorCode.NativeError
+    const code = parseErrorCode(message) ?? ErrorCode.NativeError
     if (window.__PLAIN_LOG__) console.warn(`[gql] ✗ ${op} @native ${message}`)
-    throw new GqlError(message, message === 'unauthorized' ? 401 : message === 'remote_access_disabled' ? 403 : undefined, message === 'request_context_changed')
+    throw new GqlError(message, code === ErrorCode.Unauthorized ? 401 : code === ErrorCode.RemoteAccessDisabled ? 403 : undefined, code === ErrorCode.RequestContextChanged, code)
   }
 }
 
@@ -248,7 +252,7 @@ export function bindGraphqlClient(origin = false) {
   const context = graphqlContext(origin)
   const target = context.target
   const beforeDispatch = target?.kind === 'peer' ? () => {
-    if (context.authRevision !== getLoginPeerRevision(target.peerId)) throw new GqlError('request_context_changed', undefined, true)
+    if (context.authRevision !== getLoginPeerRevision(target.peerId)) throw new GqlError(ErrorCode.RequestContextChanged, undefined, true)
   } : undefined
   return <T = any>(query: string, variables?: Record<string, any>, timeout = TIMEOUT): Promise<GqlResult<T>> =>
     context.native ? nativeGqlFetch<T>(query, variables, timeout, context.target, beforeDispatch) : webGqlFetch<T>(context, query, variables, timeout)
@@ -274,7 +278,7 @@ async function webGqlFetch<T>(context: ReturnType<typeof graphqlContext>, query:
         context.originUrl, context.token, '{ app { urlToken } }', undefined, timeout, context.headers,
       ).then(response => {
         const key = response.data?.app?.urlToken
-        if (!key) throw new GqlError(response.errors?.[0]?.message || 'unauthorized')
+        if (!key) throw response.errors?.length ? GqlError.fromGraphql(response.errors[0]) : new GqlError(ErrorCode.Unauthorized)
         return key
       }).catch(error => {
         if (originResourceToken?.promise === promise) originResourceToken = undefined
@@ -285,15 +289,4 @@ async function webGqlFetch<T>(context: ReturnType<typeof graphqlContext>, query:
     app.urlToken = await originResourceToken.promise
   }
   return result
-}
-
-export class GqlError extends Error {
-  constructor(
-    message: string,
-    public status?: number,
-    public canceled = false,
-  ) {
-    super(message)
-    this.name = 'GqlError'
-  }
 }

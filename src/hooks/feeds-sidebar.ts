@@ -1,3 +1,5 @@
+import { GqlError } from '@/lib/api/gql-error'
+import { ErrorCode } from '@/lib/api/error-code'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import router, { replacePath } from '@/plugins/router'
 import { useMainStore } from '@/stores/main'
@@ -97,10 +99,10 @@ export function useFeedsSidebar() {
   async function exportFile() {
     try {
       const result = await gqlFetch<{ exportFeeds: string }>(exportFeedsGQL, undefined, { fresh: true })
-      if (result.errors?.length) throw new Error(result.errors[0].message)
+      if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
       downloadFromString(result.data.exportFeeds, 'application/xml', 'feeds.xml')
     } catch (error) {
-      toast(error instanceof Error ? error.message : t('network_error'), 'error')
+      toast(error instanceof Error ? error.message : t(ErrorCode.NetworkError), 'error')
     }
   }
 

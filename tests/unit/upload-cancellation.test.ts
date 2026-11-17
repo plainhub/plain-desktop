@@ -6,7 +6,6 @@ vi.mock('@/lib/upload/upload', () => ({ upload: io.upload, discardUploadChunks: 
 vi.mock('@/lib/upload/batch-progress', () => ({ setUploadStatus: (item: IUploadItem, status: string) => { item.status = status }, resetUploadProgress: vi.fn() }))
 vi.mock('@/plugins/eventbus', () => ({ default: { emit: io.emit } }))
 vi.mock('@/lib/api/gql-client', () => ({ GqlError: class extends Error {} }))
-import { GqlError } from '@/lib/api/gql-client'
 let queue: typeof import('@/lib/upload/upload-queue')
 function item(id: string, fileId = 'a'.repeat(32), batchId = id): IUploadItem {
   return { id, batchId, fileId, fileName: 'sample.bin', file: new File(['payload'], 'sample.bin'), dir: '/owned', status: 'created', uploadedSize: 0, error: '' }
@@ -52,6 +51,7 @@ it('does not discard chunks for a task that never acquired a file ID', () => {
   expect(queue.removeUpload('missing')).toBe(false)
 })
 it.each([true, false])('reports a cleanup failure using the existing toast error contract: %s', async graphql => {
+  const { GqlError } = await import('@/lib/api/gql-error')
   io.discard.mockRejectedValueOnce(graphql ? new GqlError('Permission denied') : new Error('connection lost'))
   const a = item('removed'); queue.addUploadTask(a, false); queue.removeUpload(a.id)
   await vi.waitFor(() => expect(io.emit).toHaveBeenCalledWith('toast', graphql ? 'Permission denied' : 'network_error'))

@@ -1,3 +1,5 @@
+import { GqlError } from '@/lib/api/gql-error'
+import { ErrorCode } from '@/lib/api/error-code'
 import { invoke } from '@/lib/api/native-invoke'
 import { listen } from '@tauri-apps/api/event'
 import { reactive, ref } from 'vue'
@@ -8,7 +10,7 @@ const AUTH_TOKEN_KEY = 'auth_token'
 
 async function localData<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
   const result = await nativeGraphql<{ data: T; errors?: { message: string }[] }>({ query, variables }, 30000)
-  if (result.errors?.length) throw new Error(result.errors[0].message)
+  if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
   return result.data
 }
 
@@ -92,21 +94,21 @@ export function getBrowserIdentity(): BrowserIdentity | undefined {
     const identity = JSON.parse(saved)
     if (typeof identity.deviceId === 'string' && identity.deviceId && typeof identity.publicKey === 'string' && identity.publicKey && (identity.opaquePublicKey === undefined || typeof identity.opaquePublicKey === 'string' && identity.opaquePublicKey)) return identity
   } catch {
-    throw 'peer_identity_changed'
+    throw ErrorCode.PeerIdentityChanged
   }
-  throw 'peer_identity_changed'
+  throw ErrorCode.PeerIdentityChanged
 }
 
 export function saveBrowserIdentity(deviceId: string, publicKey: string, opaquePublicKey?: string): void {
   const saved = getBrowserIdentity()
-  if (saved && (saved.deviceId !== deviceId || saved.publicKey !== publicKey)) throw 'peer_identity_changed'
-  if (saved?.opaquePublicKey && opaquePublicKey && saved.opaquePublicKey !== opaquePublicKey) throw 'peer_identity_changed'
+  if (saved && (saved.deviceId !== deviceId || saved.publicKey !== publicKey)) throw ErrorCode.PeerIdentityChanged
+  if (saved?.opaquePublicKey && opaquePublicKey && saved.opaquePublicKey !== opaquePublicKey) throw ErrorCode.PeerIdentityChanged
   localStorage.setItem('login_identity', JSON.stringify({ deviceId, publicKey, opaquePublicKey: opaquePublicKey || saved?.opaquePublicKey }))
 }
 
 export function replaceBrowserIdentity(previous: BrowserIdentity, next: BrowserIdentity): void {
   const saved = getBrowserIdentity()
-  if (!saved || saved.deviceId !== previous.deviceId || saved.publicKey !== previous.publicKey || saved.opaquePublicKey !== previous.opaquePublicKey) throw 'peer_identity_changed'
+  if (!saved || saved.deviceId !== previous.deviceId || saved.publicKey !== previous.publicKey || saved.opaquePublicKey !== previous.opaquePublicKey) throw ErrorCode.PeerIdentityChanged
   localStorage.setItem('login_identity', JSON.stringify(next))
 }
 

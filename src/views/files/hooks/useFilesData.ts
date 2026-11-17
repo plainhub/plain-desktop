@@ -9,7 +9,8 @@ import { useRoute } from 'vue-router'
 import { decodeBase64 } from '@/lib/strutil'
 import type { IFileFilter } from '@/lib/interfaces'
 import toast from '@/components/toaster'
-import { gqlFetch, GqlError, getGraphqlContextKey } from '@/lib/api/gql-client'
+import { GqlError } from '@/lib/api/gql-error'
+import { gqlFetch, getGraphqlContextKey } from '@/lib/api/gql-client'
 import { searchFiles } from '@/lib/api/file-search'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 
@@ -98,7 +99,7 @@ export function useFilesData() {
     try {
       const result = await gqlFetch(indexed.value ? indexedFilesGQL : filesGQL, variables, { fresh: options?.force })
       if (current !== sequence) return
-      if (result.errors?.length) throw new Error(result.errors[0].message)
+      if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
       items.value = result.data.files.map(enrichFile)
       totalRef.value = Number(result.data.count ?? items.value.length)
     } catch (error) {

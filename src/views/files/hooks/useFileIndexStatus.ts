@@ -1,3 +1,4 @@
+import { GqlError } from '@/lib/api/gql-error'
 import { ref, watch, type Ref } from 'vue'
 import { usePageScope } from '@/hooks/page-scope'
 import { createRefreshScheduler } from '@/lib/refresh-scheduler'
@@ -19,7 +20,7 @@ export function useFileIndexStatus(enabled: Ref<boolean>) {
     pending = current
     try {
       const response = await gqlFetch<{ fileIndexScanProgress: IFileIndexScanProgress }>(fileIndexScanProgressGQL, undefined, { fresh: true })
-      if (response.errors?.length) throw new Error(response.errors[0].message)
+      if (response.errors?.length) throw GqlError.fromGraphql(response.errors[0])
       if (current === generation) { progress.value = response.data.fileIndexScanProgress; error.value = '' }
     } catch (cause) {
       if (current === generation) error.value = cause instanceof Error ? cause.message : String(cause)

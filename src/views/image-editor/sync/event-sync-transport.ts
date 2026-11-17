@@ -1,3 +1,4 @@
+import { GqlError } from '@/lib/api/gql-error'
 import * as Y from 'yjs'
 import { gqlFetch } from '@/lib/api/gql-client'
 import { arrayBufferToBase64 } from '@/lib/strutil'
@@ -164,7 +165,7 @@ export class EventSyncTransport implements SyncTransport {
         { id, update: arrayBufferToBase64(update.buffer) },
         { dedupe: false },
       )
-      if (result.errors?.length) throw new Error(result.errors[0].message)
+      if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
     }).catch(error => {
       console.error('Image editor update failed', error)
       if (this.connectedState && !this.syncRetry) {

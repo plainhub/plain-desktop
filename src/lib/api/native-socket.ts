@@ -1,3 +1,4 @@
+import { ErrorCode } from '@/lib/api/error-code'
 import { invoke, onNativeReload } from '@/lib/api/native-invoke'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { getRemoteClientId } from '@/lib/device/client-id'
@@ -50,7 +51,7 @@ export function openNativeSocket(kind: NativeSocketKind, callbacks: SocketCallba
     callbacks.dropped(error)
   }
   void (async () => {
-    if (target.kind === 'peer' && !target.peerId) throw new Error('native_peer_id_missing')
+    if (target.kind === 'peer' && !target.peerId) throw new Error(ErrorCode.NativePeerIdMissing)
     scope = await nativeViewScope()
     if (!active) return
     handle = await invoke<string>('native_socket_open', { scope, target, kind })

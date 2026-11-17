@@ -1,5 +1,7 @@
+import { ErrorCode } from '@/lib/api/error-code'
 import { ref } from 'vue'
-import { gqlFetch, GqlError } from './gql-client'
+import { GqlError } from './gql-error'
+import { gqlFetch } from './gql-client'
 import {
   chatItemFragment,
   chatChannelFragment,
@@ -34,7 +36,7 @@ export function initMutation(params: InitMutationParams, handleError = true) {
       if (r.errors?.length) {
         const message = r.errors[0].message
         if (handleError) emitter.emit('toast', message)
-        const err = new GqlError(message)
+        const err = GqlError.fromGraphql(r.errors[0])
         for (const cb of errorCallbacks) cb(err)
         return undefined
       }
@@ -42,7 +44,7 @@ export function initMutation(params: InitMutationParams, handleError = true) {
       return r
     } catch (e: any) {
       if (e instanceof GqlError && e.canceled) return undefined
-      const message = e instanceof GqlError ? e.message : 'network_error'
+      const message = e instanceof GqlError ? e.message : ErrorCode.NetworkError
       if (handleError) emitter.emit('toast', message)
       for (const cb of errorCallbacks) cb(e)
       return undefined

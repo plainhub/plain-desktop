@@ -1,3 +1,4 @@
+import { GqlError } from '@/lib/api/gql-error'
 import { bindGraphqlClient } from './gql-client'
 
 export type FileIndexMode = 'UNCONFIGURED' | 'DISABLED' | 'ALLOWLIST' | 'BLOCKLIST'
@@ -42,7 +43,7 @@ const setFileIndexVolumeGQL = `mutation($input: FileIndexVolumeInput!) {
 export async function saveFileIndexVolume(volume: FileIndexVolume, request = bindGraphqlClient()): Promise<void> {
   const { id, indexMode, includedDirs, excludedDirs } = volume
   const result = await request<{ setFileIndexVolume: boolean }>(setFileIndexVolumeGQL, { input: { volumeId: id, indexMode, includedDirs, excludedDirs } })
-  if (result.errors?.length) throw new Error(result.errors[0].message)
+  if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
   if (!result.data.setFileIndexVolume) throw new Error('Index configuration write refused')
 }
 
@@ -56,6 +57,6 @@ export function canScanVolume(volume: FileIndexVolume): boolean {
 
 export async function rebuildFileIndex(volumeId: string | null, request = bindGraphqlClient()): Promise<void> {
   const result = await request<{ rebuildFileIndex: boolean }>(rebuildFileIndexGQL, { volumeId })
-  if (result.errors?.length) throw new Error(result.errors[0].message)
+  if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
   if (!result.data.rebuildFileIndex) throw new Error('File index rebuild refused')
 }

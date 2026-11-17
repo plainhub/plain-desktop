@@ -1,3 +1,4 @@
+import { GqlError } from '@/lib/api/gql-error'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { invoke } from '@/lib/api/native-invoke'
 import { ref } from 'vue'
@@ -50,7 +51,7 @@ export function useMdns() {
     if (h.length === 0 || !h.endsWith('.local')) return false
     try {
       const result = await gqlFetch(setMdnsHostnameMutation, { key: 'mdns_hostname', value: h })
-      if (result.errors?.length) throw new Error(result.errors[0].message)
+      if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
 
       return true
     } catch (e) {
@@ -66,7 +67,7 @@ export function useMdns() {
         undefined,
         { fresh: true }
       )
-      if (result.errors?.length) throw new Error(result.errors[0].message)
+      if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
       snapshots.value = result.data.mdnsState.services
       activity.value = result.data.mdnsState.activity
     } catch (e) {
@@ -78,7 +79,7 @@ export function useMdns() {
     if (isLocalMode()) await invoke('native_release_mdns_debug_session', { token })
     else {
       const result = await gqlFetch(releaseMdnsDebugSessionMutation, { token })
-      if (result.errors?.length) throw new Error(result.errors[0].message)
+      if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
     }
   }
 
@@ -91,7 +92,7 @@ export function useMdns() {
       if (isLocalMode()) await invoke('native_acquire_mdns_debug_session', { token })
       else {
         const result = await gqlFetch(acquireMdnsDebugSessionMutation, { token })
-        if (result.errors?.length) throw new Error(result.errors[0].message)
+        if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
       }
       if (!browsing || generation !== current) {
         await release(token)

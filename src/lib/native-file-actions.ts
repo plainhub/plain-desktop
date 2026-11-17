@@ -1,3 +1,4 @@
+import { GqlError } from '@/lib/api/gql-error'
 import { invoke } from '@/lib/api/native-invoke'
 import { nativeGraphql } from '@/lib/api/native-client'
 
@@ -27,7 +28,7 @@ export async function saveTextFileAs(name: string, contents: string): Promise<vo
     query: 'mutation($path:String!,$content:String!){writeTextFile(path:$path,content:$content,overwrite:true){path}}',
     variables: { path, content: contents },
   }, 30000)
-  if (response.errors?.length) throw new Error(response.errors[0].message)
+  if (response.errors?.length) throw GqlError.fromGraphql(response.errors[0])
   if (!response.data?.writeTextFile?.path) throw new Error('Text export did not produce a file')
 }
 

@@ -1,3 +1,4 @@
+import { ErrorCode } from '@/lib/api/error-code'
 import type { SubscriptionResults } from '@/lib/api/subscription-results'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 
@@ -53,7 +54,7 @@ export async function requestMerge(upload: IUploadItem, args: Record<string, unk
     if (outcome !== 'pending') return outcome
     return await waitForMergeResult(upload, args.fileId as string)
   } catch (e: any) {
-    return { error: e.message || 'connection_timeout' }
+    return { error: e.message || ErrorCode.ConnectionTimeout }
   }
 }
 
@@ -79,7 +80,7 @@ function waitForMergeResult(upload: IUploadItem, fileId: string): Promise<IMerge
 
     const stale = () => {
       if (isUploadContextCurrent(upload)) return false
-      finish({ error: 'request_context_changed' })
+      finish({ error: ErrorCode.RequestContextChanged })
       return true
     }
 
@@ -116,7 +117,7 @@ function waitForMergeResult(upload: IUploadItem, fileId: string): Promise<IMerge
         }
         if (settled || stale()) return
         if (--pollsLeft <= 0) {
-          return finish({ error: 'connection_timeout' })
+          return finish({ error: ErrorCode.ConnectionTimeout })
         }
         armWatchdog()
       }, WATCHDOG_POLL_MS)

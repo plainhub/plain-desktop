@@ -1,3 +1,4 @@
+import { ErrorCode } from '@/lib/api/error-code'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -13,7 +14,7 @@ export function useRemoteAccess() {
     try {
       await prefs.set('remote_access', value)
     } catch (error) {
-      toast(t(error instanceof Error ? error.message : 'network_error'), 'error')
+      toast(t(error instanceof Error ? error.message : ErrorCode.NetworkError), 'error')
     } finally {
       saving.value = false
     }

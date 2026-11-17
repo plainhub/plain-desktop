@@ -40,6 +40,8 @@
 </template>
 
 <script setup lang="ts">
+import { GqlError } from '@/lib/api/gql-error'
+
 import { ref, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useTempStore } from '@/stores/temp'
@@ -90,7 +92,7 @@ async function runCheck() {
   error.value = ''
   try {
     const response = await gqlFetchOp('appUpdateGQL', appUpdateGQL, undefined)
-    if (response.errors?.length) throw new Error(response.errors[0].message)
+    if (response.errors?.length) throw GqlError.fromGraphql(response.errors[0])
     result.value = response.data.appUpdate
     status.value = 'success'
   } catch (e) {

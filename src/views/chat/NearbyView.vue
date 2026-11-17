@@ -96,6 +96,8 @@
 </template>
 
 <script setup lang="ts">
+import { ErrorCode } from '@/lib/api/error-code'
+
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { popModal, pushModal } from '@/components/modal'
 import DeviceDiscoveryStatus from '@/components/DeviceDiscoveryStatus.vue'
@@ -105,7 +107,8 @@ import NearbyPairOptions from './NearbyPairOptions.vue'
 import NearbyDeviceItem from './NearbyDeviceItem.vue'
 import DiscoveredDeviceLogin from '@/views/login/DiscoveredDeviceLogin.vue'
 import { useDeviceDiscovery, type DiscoveredDevice } from '@/hooks/use-device-discovery'
-import { bindGraphqlClient, gqlFetch, GqlError, nativeGqlFetch } from '@/lib/api/gql-client'
+import { GqlError } from '@/lib/api/gql-error'
+import { bindGraphqlClient, gqlFetch, nativeGqlFetch } from '@/lib/api/gql-client'
 import { managedGraphql } from '@/lib/api/managed-proxy'
 import { SubscriptionClient, graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { openNative, openSubscriptionConnection } from '@/lib/api/subscription-connection'
@@ -153,12 +156,12 @@ let active = true
 
 async function loadPeers() {
   const [result] = await Promise.all([request<{ peers: IPeer[] }>(peersGQL), preloadLoginPeers()])
-  if (result.errors?.length) throw new Error(result.errors[0].message)
+  if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
   if (active) peers.value = result.data.peers
 }
 function reportFailure(reason: unknown) {
   console.error('Nearby devices request failed', reason)
-  error.value = 'network_error'
+  error.value = ErrorCode.NetworkError
 }
 const stopPeers = subscriptions.subscribe('peersChanged', () => loadPeers().catch(reportFailure))
 const stopAttached = subscriptions.onAttached(() => {
@@ -299,7 +302,7 @@ async function removeDevice(peer: IPeer) {
   error.value = ''
   try {
     const result = await request<{ unpairPeer: boolean }>(unpairPeerGQL, { peerId: peer.id })
-    if (result.errors?.length) throw new Error(result.errors[0].message)
+    if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
     if (!result.data.unpairPeer) throw new Error('Device removal failed')
     prefsRemove(`main_state:${peer.id}`)
     if (peer.id === getRemoteClientId()) switchToLocal()

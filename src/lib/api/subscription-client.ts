@@ -1,3 +1,4 @@
+import { ErrorCode, parseErrorCode } from './error-code'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { openSubscriptionConnection, type SubscriptionCallbacks, type SubscriptionConnection } from './subscription-connection'
 import type { SubscriptionOperation } from './subscription-operations'
@@ -6,7 +7,7 @@ import type { SubscriptionField, SubscriptionResults } from './subscription-resu
 interface Message {
   type: 'next' | 'error' | 'complete'
   id: string
-  payload?: { data?: Record<string, unknown>; errors?: { message: string }[]; extensions?: { subscriptionReady?: boolean } } | { message: string }[]
+  payload?: { data?: Record<string, unknown>; errors?: { message: string; extensions?: { code?: string } }[]; extensions?: { subscriptionReady?: boolean } } | { message: string; extensions?: { code?: string } }[]
 }
 export class SubscriptionClient {
   constructor(private readonly openConnection: (callbacks: SubscriptionCallbacks) => SubscriptionConnection = openSubscriptionConnection) {}
@@ -122,7 +123,7 @@ export class SubscriptionClient {
     } else if (message.type === 'error') {
       if (!Array.isArray(message.payload)) throw new Error('Invalid subscription error')
       console.error('GraphQL subscription failed', operation.field, message.payload)
-      if (message.payload.some(error => error.message === 'resync_required')) {
+      if (message.payload.some(error => parseErrorCode(error.extensions?.code) === ErrorCode.ResyncRequired)) {
         this.ids.delete(message.id)
         this.pending.delete(message.id)
         this.attaching = true

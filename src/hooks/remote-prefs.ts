@@ -1,3 +1,4 @@
+import { GqlError } from '@/lib/api/gql-error'
 import type { AppFeatureType } from '@/lib/app-feature.generated'
 import { ref, watch, onUnmounted } from 'vue'
 import { gqlFetch } from '@/lib/api/gql-client'
@@ -22,7 +23,7 @@ export function useRemotePrefs(store: ReturnType<typeof useMainStore>) {
   const savePreference = (key: string) => debounce((value: unknown) => {
     writes = writes.then(async () => {
       const result = await gqlFetch(setPrefGQL, { key, value }, { dedupe: false })
-      if (result.errors?.length) throw new Error(result.errors[0].message)
+      if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
     }).catch((error) => { console.warn(`Failed to save ${key}`, error) })
   }, 500)
   for (const { field, key } of featurePrefs) {
@@ -40,7 +41,7 @@ export function useRemotePrefs(store: ReturnType<typeof useMainStore>) {
   async function refresh() {
     try {
       const result = await gqlFetch<{ prefs: Record<string, unknown> }>(preferencesQuery, { keys: isLocalMode() ? [...preferenceKeys, 'remote_access', 'mdns_hostname'] : preferenceKeys }, { fresh: true })
-      if (result.errors?.length) throw new Error(result.errors[0].message)
+      if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
       applySnapshot(result.data.prefs)
       applying = true
       for (const { field, key, defaults } of featurePrefs) {

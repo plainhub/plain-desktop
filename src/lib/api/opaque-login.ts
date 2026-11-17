@@ -1,3 +1,4 @@
+import { ErrorCode } from '@/lib/api/error-code'
 import { loginErrorReason } from './login-error'
 import { startOpaqueLogin } from '@/lib/opaque/client'
 import { base64ToArrayBuffer } from '@/lib/strutil'
@@ -9,9 +10,9 @@ import type { LoginHandshakeParams, LoginHandshakeResult } from './login-handsha
 const utf8 = new TextEncoder()
 
 function publicKey(value: string | undefined): Uint8Array {
-  if (!value) throw 'invalid_auth_response'
+  if (!value) throw ErrorCode.InvalidAuthResponse
   const bytes = base64ToArrayBuffer(value)
-  if (bytes.length !== 32 || bitArrayToBase64(bytes) !== value) throw 'invalid_auth_response'
+  if (bytes.length !== 32 || bitArrayToBase64(bytes) !== value) throw ErrorCode.InvalidAuthResponse
   return bytes
 }
 
@@ -21,18 +22,18 @@ export async function performOpaqueLogin(
   url: string,
   metadata: () => Promise<object>
 ): Promise<LoginHandshakeResult> {
-  if (params.signal?.aborted) throw 'canceled'
+  if (params.signal?.aborted) throw ErrorCode.Canceled
   const signingKey = publicKey(signatureKey)
   const pinnedKey = publicKey(params.initOpaquePublicKey)
   if (params.storedOpaquePublicKey && params.storedOpaquePublicKey !== params.initOpaquePublicKey) {
-    throw 'peer_identity_changed'
+    throw ErrorCode.PeerIdentityChanged
   }
   let login: Awaited<ReturnType<typeof startOpaqueLogin>> | undefined
   let socket: LoginSocket | undefined
   let key: Uint8Array | undefined
   try {
     login = await startOpaqueLogin(params.password!, params.signal)
-    if (params.signal?.aborted) throw 'canceled'
+    if (params.signal?.aborted) throw ErrorCode.Canceled
     socket = await openLoginSocket(url, params.signal)
     socket.send(login.request())
     const response = await socket.receiveBytes()
@@ -40,7 +41,7 @@ export async function performOpaqueLogin(
     login = undefined // finish consumes the WASM state even when authentication fails.
     const result = await active.finish(response, params.clientId, signingKey)
     key = result.apiKey
-    if (bitArrayToBase64(result.serverPublicKey) !== bitArrayToBase64(pinnedKey)) throw 'peer_identity_changed'
+    if (bitArrayToBase64(result.serverPublicKey) !== bitArrayToBase64(pinnedKey)) throw ErrorCode.PeerIdentityChanged
     const { ke3, requestAad, responseAad } = result
     const details = await socket.waitFor(metadata())
     const encrypted = chachaEncryptBytes(key, utf8.encode(JSON.stringify(details)), requestAad)

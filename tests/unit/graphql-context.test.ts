@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { bindGraphqlClient, gqlFetch, GqlError } from '@/lib/api/gql-client'
+import { GqlError } from '@/lib/api/gql-error'
+import { bindGraphqlClient, gqlFetch } from '@/lib/api/gql-client'
 import { nativeGraphql } from '@/lib/api/native-client'
 import { httpRequest } from '@/lib/api/http'
 import { getCurrentAuthToken, clearCurrentSession } from '@/lib/device/current'
@@ -460,4 +461,22 @@ it('leaves selected-peer 500s and origin 502s to ordinary handling', async () =>
   expect(managedPeerFailure.value).toBe(previousFailure)
   expect(httpRequest).toHaveBeenCalledTimes(2)
   expect(clearCurrentSession).not.toHaveBeenCalled()
+})
+
+it('preserves structured mutation error codes independently of diagnostic text', async () => {
+  const { ErrorCode } = await import('@/lib/api/error-code')
+  const mutation = initMutation({ document: 'mutation { logout }' }, false)
+  const failed = vi.fn()
+  mutation.onError(failed)
+  vi.mocked(nativeGraphql).mockResolvedValueOnce({ errors: [{ message: 'approval diagnostic', extensions: { code: 'rejected' } }] })
+  await mutation.mutate()
+  expect(failed).toHaveBeenCalledWith(expect.objectContaining({ code: ErrorCode.Rejected, message: 'approval diagnostic' }))
+})
+
+it('keeps network diagnostic text from becoming a business failure', async () => {
+  const { ErrorCode } = await import('@/lib/api/error-code')
+  const { encryptedGqlPost } = await import('@/lib/api/gql-client')
+  vi.mocked(httpRequest).mockRejectedValueOnce(new Error('invalid_password'))
+  await expect(encryptedGqlPost('https://fixture.test/graphql', 'session-a', '{ __typename }'))
+    .rejects.toMatchObject({ code: ErrorCode.NetworkError, message: 'invalid_password' })
 })

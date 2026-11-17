@@ -1,3 +1,4 @@
+import { GqlError } from '@/lib/api/gql-error'
 import { getProxyUrl } from '@/lib/api/api'
 import { nativeGraphql, nativeViewScope, type NativeTarget } from '@/lib/api/native-client'
 import { invoke } from '@/lib/api/native-invoke'
@@ -46,7 +47,7 @@ export async function downloadToDir(url: string, name: string, reference?: Downl
     query: 'mutation($source:String!,$directory:String!,$name:String!){copyFileToDirectory(src:$source,directory:$directory,name:$name)}',
     variables: { source, directory: await downloadDir(), name },
   }, 24 * 60 * 60 * 1000)
-  if (response.errors?.length) throw new Error(response.errors[0].message)
+  if (response.errors?.length) throw GqlError.fromGraphql(response.errors[0])
   const path = response.data?.copyFileToDirectory
   if (typeof path !== 'string' || !path) throw new Error('Download did not produce a file')
   return path

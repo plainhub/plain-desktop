@@ -6,6 +6,10 @@
 </template>
 
 <script setup lang="ts">
+import { GqlError } from '@/lib/api/gql-error'
+
+import { ErrorCode } from '@/lib/api/error-code'
+
 import { computed } from 'vue'
 import type { AccessFeature } from '@/lib/interfaces'
 import { useI18n } from 'vue-i18n'
@@ -43,7 +47,7 @@ const props = withDefaults(
 
 const { t } = useI18n()
 const dataKey = computed(() => props.placeholderKey || noDataKey(props.loading, props.access ?? [], props.feature ?? '', props.online))
-const showSettingsLink = computed(() => !!props.feature && (props.showSettingsLink ?? (dataKey.value === 'no_permission' || !!props.placeholderKey)))
+const showSettingsLink = computed(() => !!props.feature && (props.showSettingsLink ?? (dataKey.value === ErrorCode.NoPermission || !!props.placeholderKey)))
 
 const { mutate, loading: mutating } = initMutation({ document: requestAccessGQL })
 
@@ -60,10 +64,10 @@ async function openSettings() {
       result = await mutate(variables)
     }
     if (result == null) { tapPhone(''); return }
-    if (result.errors?.length) throw new Error(result.errors[0].message)
+    if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
     if (result.data?.requestAccess === false) {
       tapPhone('')
-      toast(t('no_permission'), 'error')
+      toast(t(ErrorCode.NoPermission), 'error')
     }
   } catch (error) {
     tapPhone('')

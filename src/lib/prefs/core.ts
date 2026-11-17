@@ -1,3 +1,4 @@
+import { GqlError } from '@/lib/api/gql-error'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { shallowReactive } from 'vue'
 import { bindGraphqlClient, getGraphqlContextKey, gqlFetch } from '@/lib/api/gql-client'
@@ -22,7 +23,7 @@ export const preferencesQuery = 'query($keys: [String!]!) { prefs(keys: $keys) }
 export async function preload(): Promise<void> {
   await writes
   const result = await gqlFetch<{ prefs: Record<string, unknown> }>(preferencesQuery, { keys: isLocalMode() ? [...preferenceKeys, 'remote_access', 'mdns_hostname'] : preferenceKeys }, { fresh: true })
-  if (result.errors?.length) throw new Error(result.errors[0].message)
+  if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
   const snapshot = result.data.prefs
   if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
     throw new Error('Invalid preference snapshot')
@@ -43,7 +44,7 @@ export function set(key: string, value: unknown): Promise<void> {
       'mutation($key: String!, $value: JSON!) { result: setPref(key: $key, value: $value) }',
       { key, value },
     )
-    if (result.errors?.length) throw new Error(result.errors[0].message)
+    if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
     if (!result.data.result) throw new Error('Preference write refused')
     if (context === getGraphqlContextKey()) currentCache().set(key, value)
   })

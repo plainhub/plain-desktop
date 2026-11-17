@@ -16,6 +16,8 @@
 </template>
 
 <script setup lang="ts">
+import { ErrorCode } from '@/lib/api/error-code'
+
 import type { SubscriptionClient } from '@/lib/api/subscription-client'
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import LoginForm from './LoginForm.vue'
@@ -41,7 +43,7 @@ onMounted(async () => {
   try {
     await loginFormRef.value?.startPairing()
   } catch {
-    if (active) initError.value = 'network_error'
+    if (active) initError.value = ErrorCode.NetworkError
   }
 })
 

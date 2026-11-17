@@ -1,3 +1,4 @@
+import { GqlError } from '@/lib/api/gql-error'
 import { gqlFetch } from '@/lib/api/gql-client'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { loadDeviceIdentity, type DeviceIdentity } from '@/lib/device/identity'
@@ -25,7 +26,7 @@ export function useDeviceIdentity() {
     saving.value = true
     try {
       const result = await gqlFetch('mutation($name: String!) { updateDeviceName(name: $name) }', { name })
-      if (result.errors?.length) throw new Error(result.errors[0].message)
+      if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
       if (identity.value) {
         identity.value = { ...identity.value, deviceName: name }
       }

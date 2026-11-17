@@ -1,3 +1,4 @@
+import { GqlError } from '@/lib/api/gql-error'
 import { computed, onMounted, watch } from 'vue'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useTempStore } from '@/stores/temp'
@@ -17,7 +18,7 @@ export function useFileIndexSetup() {
   async function needsSetup() {
     const request = bindGraphqlClient()
     const result = await request<{ fileIndexVolumes: FileIndexVolume[] }>(fileIndexVolumesGQL, undefined)
-    if (result.errors?.length) throw new Error(result.errors[0].message)
+    if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
     return result.data.fileIndexVolumes.some((volume) => volume.path === '/' && volume.indexMode === 'UNCONFIGURED')
   }
 
@@ -26,7 +27,7 @@ export function useFileIndexSetup() {
       'query { fileIndexVolumes { id path isAvailable indexMode includedDirs excludedDirs } fileIndexScanProgress { state } }',
       undefined
     )
-    if (result.errors?.length) throw new Error(result.errors[0].message)
+    if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
     const root = result.data.fileIndexVolumes.find((volume) => volume.path === '/')
     if (!root) throw new Error('Primary filesystem volume unavailable')
     return { root, scanState: result.data.fileIndexScanProgress.state }

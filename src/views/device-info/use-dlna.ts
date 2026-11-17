@@ -1,3 +1,4 @@
+import { GqlError } from '@/lib/api/gql-error'
 import { invoke } from '@/lib/api/native-invoke'
 import { ref } from 'vue'
 import { gqlFetch } from '@/lib/api/gql-client'
@@ -48,7 +49,7 @@ export function useDlna() {
     loading.value = true
     try {
       const result = await gqlFetch('mutation($key: String!, $value: JSON!) { setPref(key: $key, value: $value) }', { key: 'dlna', value: enabled })
-      if (result.errors?.length) throw new Error(result.errors[0].message)
+      if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
       await load()
     } catch (e) {
       console.error('DLNA receiver control failed', e)

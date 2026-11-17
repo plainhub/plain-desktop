@@ -1,3 +1,4 @@
+import { GqlError } from '@/lib/api/gql-error'
 import { getPeerBaseUrl } from '../device/login-peers'
 import { getApiBaseUrl, getApiHeaders, getLocalServerPort, proxyUrlFor } from './api'
 import { getDeviceRequestPath } from './device-path'
@@ -45,7 +46,7 @@ export async function loadSearchClient(device: SearchDevice, sessionUrlToken = '
     else if (device.target === 'managed') result = await managedGraphql<T>(device.id, document, variables)
     else if (device.target === 'local') result = await nativeGqlFetch<T>(document, variables)
     else result = await gqlFetch<T>(document, variables)
-    if (result.errors?.length) throw new Error(result.errors[0].message)
+    if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
     return result.data
   }
   const managed = device.target === 'managed'

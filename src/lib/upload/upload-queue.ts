@@ -1,6 +1,7 @@
+import { ErrorCode } from '@/lib/api/error-code'
 import type { IUploadItem } from '@/stores/temp'
 import { upload, discardUploadChunks } from './upload'
-import { GqlError } from '../api/gql-client'
+import { GqlError } from '../api/gql-error'
 import { isTransientUploadError } from './errors'
 import { resetUploadProgress, setUploadStatus } from './batch-progress'
 import emitter from '@/plugins/eventbus'
@@ -216,7 +217,7 @@ class UploadQueue {
     for (const task of tasks) if (task.upload.fileId) owners.set(uploadChunkOwner(task.upload), task.upload)
     for (const [owner, upload] of owners) {
       void discardUploadChunks(upload, () => this.queue.some(task => task.upload.fileId && uploadChunkOwner(task.upload) === owner)).catch(error => {
-        emitter.emit('toast', error instanceof GqlError ? error.message : 'network_error')
+        emitter.emit('toast', error instanceof GqlError ? error.message : ErrorCode.NetworkError)
       })
     }
   }

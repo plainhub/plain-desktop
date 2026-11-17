@@ -1,3 +1,4 @@
+import { ErrorCode } from '@/lib/api/error-code'
 import type { AccessFeature } from '@/lib/interfaces'
 
 export function noDataKey(loading: boolean, access: readonly AccessFeature[] = [], feature: AccessFeature | '' = '', online = true): string {
@@ -10,7 +11,7 @@ export function noDataKey(loading: boolean, access: readonly AccessFeature[] = [
   }
 
   if (feature && !access.includes(feature)) {
-    return 'no_permission'
+    return ErrorCode.NoPermission
   }
 
   return 'no_data'

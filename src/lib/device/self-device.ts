@@ -1,3 +1,4 @@
+import { GqlError } from '@/lib/api/gql-error'
 import { readNativeDeviceIdentity } from './native-settings'
 import { readLocalAddresses } from '@/lib/api/local-server'
 import { gqlFetch, type bindGraphqlClient } from '@/lib/api/gql-client'
@@ -20,7 +21,7 @@ export async function loadSelfDevice(request?: ReturnType<typeof bindGraphqlClie
     const result = await (request ?? gqlFetch)<{ app: { clientId: string; deviceName: string; httpsPort: number; deviceType: DeviceType } }>(
       'query { app { clientId deviceName httpsPort deviceType } }',
     )
-    if (result.errors?.length) throw new Error(result.errors[0].message)
+    if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
     const app = result.data.app
     const ips = __IS_TAURI__ ? await readLocalAddresses() : []
     const port = app.httpsPort

@@ -1,3 +1,4 @@
+import { ErrorCode } from '@/lib/api/error-code'
 import { loginErrorReason } from './login-error'
 import { openSocket } from './http'
 import { getWebSocketBaseUrl } from './api'
@@ -9,19 +10,19 @@ type LoginFrame = string | ArrayBuffer | Blob
 export async function openLoginSocket(url: string, signal?: AbortSignal) {
   const target = new URL(url)
   const proxied = /^\/proxy\/[^/]+\/auth$/.test(target.pathname)
-  if (proxied && target.origin !== new URL(getWebSocketBaseUrl()).origin) throw 'proxy_auth_failed'
+  if (proxied && target.origin !== new URL(getWebSocketBaseUrl()).origin) throw ErrorCode.ProxyAuthFailed
   const socket = openSocket(url)
   const frames: LoginFrame[] = []
-  const pendingWork = new Set<(reason: string) => void>()
-  let failure: string | undefined
+  const pendingWork = new Set<(reason: ErrorCode) => void>()
+  let failure: ErrorCode | undefined
   let waiting:
     | {
         resolve(frame: LoginFrame): void
-        reject(reason: string): void
+        reject(reason: ErrorCode): void
       }
     | undefined
   let resolveOpen: () => void
-  let rejectOpen: (reason: string) => void
+  let rejectOpen: (reason: ErrorCode) => void
   const connected = new Promise<void>((resolve, reject) => {
     resolveOpen = resolve
     rejectOpen = reject
@@ -32,7 +33,7 @@ export async function openLoginSocket(url: string, signal?: AbortSignal) {
     window.clearTimeout(connectionTimeout)
     window.clearTimeout(deadline)
   }
-  const fail = (reason: string) => {
+  const fail = (reason: ErrorCode) => {
     if (failure) return
     failure = reason
     cleanup()
@@ -43,9 +44,9 @@ export async function openLoginSocket(url: string, signal?: AbortSignal) {
     pendingWork.clear()
     socket.close(3001, reason)
   }
-  const abort = () => fail('canceled')
-  const connectionTimeout = window.setTimeout(() => fail('timeout'), 10000)
-  const deadline = window.setTimeout(() => fail('login_expired'), 300000)
+  const abort = () => fail(ErrorCode.Canceled)
+  const connectionTimeout = window.setTimeout(() => fail(ErrorCode.Timeout), 10000)
+  const deadline = window.setTimeout(() => fail(ErrorCode.LoginExpired), 300000)
 
   socket.onopen = () => {
     if (!proxied) window.clearTimeout(connectionTimeout)
@@ -60,7 +61,7 @@ export async function openLoginSocket(url: string, signal?: AbortSignal) {
           ? event.data.byteLength
           : event.data.size
     if (size > 65536 || frames.length >= 16) {
-      fail('invalid_auth_response')
+      fail(ErrorCode.InvalidAuthResponse)
       return
     }
     if (waiting) {
@@ -70,8 +71,8 @@ export async function openLoginSocket(url: string, signal?: AbortSignal) {
       frames.push(event.data)
     }
   }
-  socket.onerror = () => fail('failed_connect_ws')
-  socket.onclose = (event: CloseEvent) => fail(loginErrorReason(event.reason, 'failed_connect_ws'))
+  socket.onerror = () => fail(ErrorCode.FailedConnectWs)
+  socket.onclose = (event: CloseEvent) => fail(loginErrorReason(event.reason, ErrorCode.FailedConnectWs))
   signal?.addEventListener('abort', abort, { once: true })
   if (signal?.aborted) abort()
   await connected
@@ -98,8 +99,8 @@ export async function openLoginSocket(url: string, signal?: AbortSignal) {
       socket.send(crypto.encode(new Uint8Array()) as ArrayBufferView<ArrayBuffer>)
       window.clearTimeout(connectionTimeout)
     } catch {
-      fail('proxy_auth_failed')
-      throw 'proxy_auth_failed'
+      fail(ErrorCode.ProxyAuthFailed)
+      throw ErrorCode.ProxyAuthFailed
     }
   }
 
@@ -129,23 +130,23 @@ export async function openLoginSocket(url: string, signal?: AbortSignal) {
     },
     async receiveText() {
       const frame = await receive()
-      if (typeof frame !== 'string' || frame.length > 4096) throw 'invalid_auth_response'
+      if (typeof frame !== 'string' || frame.length > 4096) throw ErrorCode.InvalidAuthResponse
       return frame
     },
     async receiveBytes() {
       const frame = await receive()
-      if (typeof frame === 'string') throw 'invalid_auth_response'
+      if (typeof frame === 'string') throw ErrorCode.InvalidAuthResponse
       const bytes = frame instanceof ArrayBuffer ? frame : await frame.arrayBuffer()
       if (failure) throw failure
       return new Uint8Array(bytes)
     },
-    close(reason?: string) {
+    close(reason?: ErrorCode) {
       if (reason) {
         fail(reason)
         return
       }
       if (failure) return
-      failure = 'canceled'
+      failure = ErrorCode.Canceled
       cleanup()
       frames.length = 0
       socket.close()

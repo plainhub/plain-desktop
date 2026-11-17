@@ -3,7 +3,8 @@ import type { IApp } from '@/lib/interfaces'
 import { getDesktopClientId, getRemoteClientId } from '@/lib/device/client-id'
 import { loginPeers } from '@/lib/device/login-peers'
 import { getCurrentAuthToken } from '@/lib/device/current'
-import { gqlFetch, GqlError } from '@/lib/api/gql-client'
+import { GqlError } from '@/lib/api/gql-error'
+import { gqlFetch } from '@/lib/api/gql-client'
 import { loadSearchClient, searchDomains, type SearchDevice, type SearchDomain, type SearchHit } from '@/lib/api/global-search'
 
 type Client = Awaited<ReturnType<typeof loadSearchClient>>

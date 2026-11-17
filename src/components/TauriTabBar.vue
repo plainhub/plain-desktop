@@ -61,6 +61,8 @@
 </template>
 
 <script setup lang="ts">
+import { GqlError } from '@/lib/api/gql-error'
+
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useMainStore } from '@/stores/main'
@@ -171,7 +173,7 @@ watch(homeDeviceMenuOpen, async (open, _, onCleanup) => {
   onCleanup(() => { active = false })
   try {
     const result = await nativeGqlFetch<{ app: { deviceName: string } }>('query { app { deviceName } }')
-    if (result.errors?.length) throw new Error(result.errors[0].message)
+    if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
     if (active) nativeDeviceName.value = result.data.app.deviceName
   } catch (error) {
     console.error('Failed to load local device name', error)

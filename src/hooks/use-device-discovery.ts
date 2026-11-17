@@ -1,3 +1,4 @@
+import { GqlError } from '@/lib/api/gql-error'
 import { ref } from 'vue'
 import { startDiscoveryGQL, stopDiscoveryGQL } from '@/lib/api/mutation'
 import { bindGraphqlClient } from '@/lib/api/gql-client'
@@ -51,7 +52,7 @@ export function useDeviceDiscovery(bindClient = bindGraphqlClient, subscriptions
 
   async function discoveryRequest(client: ReturnType<typeof bindGraphqlClient>, document: string): Promise<void> {
     const result = await client(document)
-    if (result.errors?.length) throw new Error(result.errors[0].message)
+    if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
   }
 
   function enqueue(operation: () => Promise<void>): Promise<void> {
@@ -67,7 +68,7 @@ export function useDeviceDiscovery(bindClient = bindGraphqlClient, subscriptions
       if (!active || request !== client) return
       try {
         const result = await client<{ isDiscovering: boolean; nearbyDevices: DiscoveredDevice[] }>(nearbyDevicesGQL)
-        if (result.errors?.length) throw new Error(result.errors[0].message)
+        if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
         if (!active || request !== client) return
         devices.value = result.data.nearbyDevices
         if (!result.data.isDiscovering) await discoveryRequest(client, startDiscoveryGQL)

@@ -1,3 +1,4 @@
+import { GqlError } from '@/lib/api/gql-error'
 import { encodeBase64 } from '@/lib/strutil'
 import { ref } from 'vue'
 import type { INote } from '@/lib/interfaces'
@@ -44,7 +45,7 @@ export function useNotesActions(opts: UseNotesActionsOptions) {
   async function exportNotes2() {
     try {
       const result = await gqlFetch<{ exportNotes: string }>(exportNotesGQL, { query: getQuery() }, { fresh: true })
-      if (result.errors?.length) throw new Error(result.errors[0].message)
+      if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
       const notes: INote[] = JSON.parse(result.data.exportNotes)
       const zip = new ZipWriter()
       for (const note of notes) {

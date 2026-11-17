@@ -15,7 +15,7 @@ vi.mock('@/lib/device/current', () => ({ getCurrentAuthToken: () => 'test-token'
 vi.mock('@/lib/device/client-id', () => ({ getRemoteClientId: () => '', getDesktopClientId: () => '706c6169-e2eb-85ac-b78e-a2754bf184e8' }))
 vi.mock('@/plugins/eventbus', () => ({ default: { emit: io.emit } }))
 import { upload, discardUploadChunks } from '@/lib/upload/upload'
-import { GqlError } from '@/lib/api/gql-client'
+import { GqlError } from '@/lib/api/gql-error'
 const fileId = 'a'.repeat(32)
 function item(status = 'uploading'): IUploadItem {
   return { id: 'test', fileId, fileName: 'large.bin', file: new File([new Uint8Array(12 * 1024 * 1024)], 'large.bin'), dir: '/owned', uploadedSize: 0, status, error: '' }

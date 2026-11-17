@@ -1,3 +1,4 @@
+import { ErrorCode } from '@/lib/api/error-code'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { invoke } from '@/lib/api/native-invoke'
 import { nativeViewScope, type NativeTarget } from '@/lib/api/native-client'
@@ -108,7 +109,7 @@ export function createNativeResourceOwner(): NativeResourceOwner {
       if ([...parameters.keys()].some(key => key !== 'size' && key !== 'v')) throw new Error('Unsupported native resource parameter')
       if (!thumbnail && typeof size === 'number' && size > MAX_NATIVE_RESPONSE_BYTES) return ''
       const context = resourceContext()
-      if (context.target.kind === 'peer' && !context.target.peerId) throw new Error('native_peer_id_missing')
+      if (context.target.kind === 'peer' && !context.target.peerId) throw new Error(ErrorCode.NativePeerIdMissing)
       const contextKey = JSON.stringify(context)
       const key = JSON.stringify([context, path, thumbnail, parameters.get('v')])
       let entry = handles.get(key)
@@ -120,7 +121,7 @@ export function createNativeResourceOwner(): NativeResourceOwner {
         opened.promise = (async () => {
           const checkCurrent = () => {
             if (!opened.owners.size || handles.get(key) !== opened) throw new Error('resource_closed')
-            if (JSON.stringify(resourceContext()) !== contextKey) throw new Error('request_context_changed')
+            if (JSON.stringify(resourceContext()) !== contextKey) throw new Error(ErrorCode.RequestContextChanged)
           }
           try {
             opened.scope = await nativeViewScope()
@@ -172,7 +173,7 @@ export async function nativeResourceImage(path: string, signal: AbortSignal): Pr
   const contextKey = JSON.stringify(context)
   const checkCurrent = () => {
     signal.throwIfAborted()
-    if (JSON.stringify(resourceContext()) !== contextKey) throw new Error('request_context_changed')
+    if (JSON.stringify(resourceContext()) !== contextKey) throw new Error(ErrorCode.RequestContextChanged)
   }
   const scope = await nativeViewScope()
   checkCurrent()

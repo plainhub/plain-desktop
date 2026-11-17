@@ -1,3 +1,5 @@
+import { GqlError } from '@/lib/api/gql-error'
+import { ErrorCode } from '@/lib/api/error-code'
 import { nativeGraphql } from '@/lib/api/native-client'
 import { invoke } from '@/lib/api/native-invoke'
 import { httpRequest } from '@/lib/api/http'
@@ -24,7 +26,7 @@ export interface HttpServerState {
 
 async function localData<T>(query: string, variables?: Record<string, unknown>, timeout = 30000): Promise<T> {
   const response = await nativeGraphql<{ data?: T; errors?: { message: string }[] }>({ query, variables }, timeout)
-  if (response.errors?.length) throw new Error(response.errors[0].message)
+  if (response.errors?.length) throw GqlError.fromGraphql(response.errors[0])
   if (!response.data) throw new Error('Missing server response')
   return response.data
 }
@@ -59,7 +61,7 @@ export async function restartLocalServer(kind: 'http' | 'https', port: number): 
   let lastFailure: unknown
   while (true) {
     const remaining = deadline - Date.now()
-    if (remaining <= 0) throw Object.assign(new Error('connection_timeout'), { cause: lastFailure })
+    if (remaining <= 0) throw Object.assign(new Error(ErrorCode.ConnectionTimeout), { cause: lastFailure })
     try {
       const response = await httpRequest(`http://127.0.0.1:${receipt.httpPort}/health`, {
         signal: AbortSignal.timeout(Math.min(2000, remaining)),

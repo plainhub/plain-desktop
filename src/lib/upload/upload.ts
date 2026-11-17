@@ -1,3 +1,4 @@
+import { ErrorCode } from '@/lib/api/error-code'
 import { wrapWithReplayProtection } from '../api/time-sync'
 import type { IUploadItem } from '@/stores/temp'
 import emitter from '@/plugins/eventbus'
@@ -9,7 +10,7 @@ import { chachaEncrypt, httpRequestAad, bitArrayToUint8Array } from '../api/cryp
 import { tokenToKey } from '../api/file'
 import { uploadedChunksGQL } from '../api/query'
 import { deleteChunksGQL } from '../api/mutation'
-import { GqlError } from '../api/gql-client'
+import { GqlError } from '../api/gql-error'
 import type { GqlResultType } from '../api/graphql/operations'
 import { requestMerge } from './merge-async'
 import { setUploadStatus, setUploadUploadedSize } from './batch-progress'
@@ -192,7 +193,7 @@ export function discardUploadChunks(upload: IUploadItem, hasOtherOwner: () => bo
   return runExclusively(uploadChunkOwner(upload), async () => {
     if (hasOtherOwner() || !isUploadAuthCurrent(upload)) return
     const result = await context.graphql(deleteChunksGQL, { fileId })
-    if (result.errors?.length) throw new GqlError(result.errors[0].message)
+    if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
   })
 }
 
@@ -247,7 +248,7 @@ async function uploadDirect(upload: IUploadItem, replace: boolean, context: WebU
       const stale = () => {
         if (isUploadContextCurrent(upload)) return false
         setUploadStatus(upload, 'error')
-        upload.error = 'request_context_changed'
+        upload.error = ErrorCode.RequestContextChanged
         resolve({ error: upload.error })
         return true
       }

@@ -1,6 +1,8 @@
+import { ErrorCode } from '@/lib/api/error-code'
 import { graphqlSubscriptions } from './subscription-client'
 import { ref, watch, nextTick, getCurrentInstance, onActivated, onDeactivated, onUnmounted, type Ref } from 'vue'
-import { gqlFetch, GqlError } from './gql-client'
+import { GqlError } from './gql-error'
+import { gqlFetch } from './gql-client'
 import {
   chatItemFragment,
   chatChannelFragment,
@@ -35,10 +37,10 @@ import {
 
 function getErrorMessage(e: any): string {
   if (e instanceof GqlError) {
-    if (e.status === 403) return 'remote_access_disabled'
+    if (e.status === 403) return ErrorCode.RemoteAccessDisabled
     return e.message
   }
-  return 'network_error'
+  return ErrorCode.NetworkError
 }
 
 function resolveVars(variables: any): Record<string, any> | undefined {

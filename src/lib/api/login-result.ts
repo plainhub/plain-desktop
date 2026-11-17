@@ -1,3 +1,4 @@
+import { ErrorCode } from '@/lib/api/error-code'
 import type { LoginSocket } from './login-socket'
 
 export interface LoginHandshakeResult {
@@ -33,7 +34,7 @@ export function completeLogin(
   token: string,
   expectedDeviceId?: string
 ): LoginHandshakeResult {
-  if (response.status !== 'COMPLETED' || typeof response.deviceId !== 'string' || !response.deviceId) throw 'invalid_auth_response'
-  if (expectedDeviceId && response.deviceId !== expectedDeviceId) throw 'peer_identity_changed'
+  if (response.status !== 'COMPLETED' || typeof response.deviceId !== 'string' || !response.deviceId) throw ErrorCode.InvalidAuthResponse
+  if (expectedDeviceId && response.deviceId !== expectedDeviceId) throw ErrorCode.PeerIdentityChanged
   return { deviceId: response.deviceId, token, signaturePublicKey: signatureKey, chatPaired: response.chatPaired === true }
 }

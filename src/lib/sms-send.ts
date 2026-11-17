@@ -1,4 +1,6 @@
-import { gqlFetch, GqlError } from '@/lib/api/gql-client'
+import { ErrorCode } from '@/lib/api/error-code'
+import { GqlError } from '@/lib/api/gql-error'
+import { gqlFetch } from '@/lib/api/gql-client'
 import { sendSmsGQL } from '@/lib/api/mutation'
 
 export interface SmsSendInput {
@@ -20,8 +22,8 @@ export async function sendSms(input: SmsSendInput): Promise<{ ok: boolean; recei
     const error = response.errors?.[0]?.message
     if (error) return { ok: false, error }
     const receipt = response.data?.sendSms
-    return receipt ? { ok: true, receipt } : { ok: false, error: 'network_error' }
+    return receipt ? { ok: true, receipt } : { ok: false, error: ErrorCode.NetworkError }
   } catch (error: any) {
-    return { ok: false, error: error instanceof GqlError ? error.message : (error.message || 'network_error') }
+    return { ok: false, error: error instanceof GqlError ? error.message : (error.message || ErrorCode.NetworkError) }
   }
 }

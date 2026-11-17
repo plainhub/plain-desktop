@@ -1,3 +1,4 @@
+import { ErrorCode } from '@/lib/api/error-code'
 import { computed, ref, reactive, watch, onMounted, onBeforeUnmount, type Ref } from 'vue'
 import { on, off, isArray } from '@/components/lightbox/utils/index'
 import { useImage, useMouse, useTouch } from '@/components/lightbox/utils/hooks'
@@ -592,7 +593,7 @@ export function useLightboxEvents(
       if (!active()) return
       status.loading = false
       status.loadError = true
-      emitter.emit('toast', error instanceof Error ? error.message : 'network_error')
+      emitter.emit('toast', error instanceof Error ? error.message : ErrorCode.NetworkError)
     }
   }
 

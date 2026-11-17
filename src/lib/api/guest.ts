@@ -1,3 +1,4 @@
+import { ErrorCode } from '@/lib/api/error-code'
 import { FileAction, fileQuery } from './file-action'
 import { resourceId } from './resource-link'
 import { getApiBaseUrl, getProxyUrl } from './api'
@@ -103,9 +104,9 @@ export async function guestFetch<T = any>(
       signal: controller.signal,
     })
     if (response.status === 401) {
-      throw new Error('unauthorized')
+      throw new Error(ErrorCode.Unauthorized)
     } else if (response.status === 403) {
-      throw new Error('forbidden')
+      throw new Error(ErrorCode.Forbidden)
     } else if (!response.ok) {
       throw new Error('bad_request')
     }
@@ -120,7 +121,7 @@ export async function guestFetch<T = any>(
     if (window.__PLAIN_LOG__) {
       console.warn(`[gql] ✗ sharedInfo ${e.message || e.name}`)
     }
-    if (e.name === 'AbortError') throw new Error('connection_timeout', { cause: e })
+    if (e.name === 'AbortError') throw new Error(ErrorCode.ConnectionTimeout, { cause: e })
     throw e
   } finally {
     clearTimeout(timer)

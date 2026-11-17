@@ -1,3 +1,4 @@
+import { GqlError } from '@/lib/api/gql-error'
 import { ref, reactive, onMounted, onUnmounted, watch, type ComputedRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { IChatItem } from '@/lib/interfaces'
@@ -194,7 +195,7 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
       if (!fileIds?.length) return
       await Promise.all(fileIds.map(async (fileId: string) => {
         const result = await gqlFetch(createDownloadGQL, { input: { chat: { messageId, peerId, fileIds: [fileId] } } })
-        if (result.errors?.length) throw new Error(result.errors[0].message)
+        if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
       }))
       await refreshDownloads()
     } catch (e) {
@@ -208,7 +209,7 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
     const document = action === 'pause' ? pauseDownloadGQL : action === 'resume' ? resumeDownloadGQL : retryDownloadGQL
     for (const id of taskIds) {
       const result = await gqlFetch(document, { id })
-      if (result.errors?.length) throw new Error(result.errors[0].message)
+      if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
     }
     await refreshDownloads()
   }
@@ -254,7 +255,7 @@ export function useChatUpload(chatId: ComputedRef<string>, channelId: ComputedRe
           undefined,
           { fresh: true },
         )
-        if (result.errors?.length) throw new Error(result.errors[0].message)
+        if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
         if (!downloadsActive) return
         const rows: ChatDownloadProgressItem[] = result.data.downloads
           .filter((task) => task.source.__typename === 'ChatDownloadSource')

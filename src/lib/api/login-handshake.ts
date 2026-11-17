@@ -1,3 +1,4 @@
+import { ErrorCode } from '@/lib/api/error-code'
 import { loginErrorReason } from './login-error'
 import { getWebSocketBaseUrl } from '@/lib/api/api'
 import { getAccurateAgent } from '@/lib/agent/agent'
@@ -48,10 +49,10 @@ function verifyDeviceIdentity(params: LoginHandshakeParams): string {
     params.initSignaturePublicKey &&
     params.storedSignaturePublicKey !== params.initSignaturePublicKey
   ) {
-    throw 'peer_identity_changed'
+    throw ErrorCode.PeerIdentityChanged
   }
   const signatureKey = params.storedSignaturePublicKey || params.initSignaturePublicKey
-  if (!signatureKey) throw 'signature_verification_failed'
+  if (!signatureKey) throw ErrorCode.SignatureVerificationFailed
 
   return signatureKey
 }
@@ -78,8 +79,8 @@ async function exchangeLoginKeys(
 export async function performLoginHandshake(
   params: LoginHandshakeParams
 ): Promise<LoginHandshakeResult> {
-  if (params.signal?.aborted) throw 'canceled'
-  if (params.passwordRequired && !params.password) throw 'invalid_password'
+  if (params.signal?.aborted) throw ErrorCode.Canceled
+  if (params.passwordRequired && !params.password) throw ErrorCode.InvalidPassword
   const signatureKey = verifyDeviceIdentity(params)
   if (params.passwordRequired) {
     const { performOpaqueLogin } = await import('./opaque-login')

@@ -1,3 +1,4 @@
+import { GqlError } from '@/lib/api/gql-error'
 import { gqlFetch } from '@/lib/api/gql-client'
 import type { GqlResultType } from '@/lib/api/graphql/operations'
 
@@ -36,6 +37,6 @@ export async function readEvents(text: string, offset: number, limit: number) {
   const result = await gqlFetch<{ events: EventRecord[] }>(eventsGQL, {
     query: text.trim() ? `text:${JSON.stringify(text.trim())}` : '', offset, limit,
   }, { fresh: true })
-  if (result.errors?.length) throw new Error(result.errors[0].message)
+  if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
   return result.data.events
 }

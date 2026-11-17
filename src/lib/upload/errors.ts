@@ -1,3 +1,4 @@
+import { ErrorCode } from '@/lib/api/error-code'
 // Upload error strings come from three worlds: GqlError i18n keys
 // (connection_timeout…), literal client strings set in upload.ts
 // ('Network error', 'Failed to merge chunks'…), and raw server response
@@ -8,10 +9,10 @@ const CHUNK_FAILED_RE = /^Failed to upload: chunk/
 const MERGE_SIZE_RE = /^Server merged size/
 
 const ERROR_KEYS: Record<string, string> = {
-  connection_timeout: 'connection_timeout',
-  network_error: 'network_error',
-  'Network error': 'network_error',
-  remote_access_disabled: 'remote_access_disabled',
+  connection_timeout: ErrorCode.ConnectionTimeout,
+  network_error: ErrorCode.NetworkError,
+  'Network error': ErrorCode.NetworkError,
+  remote_access_disabled: ErrorCode.RemoteAccessDisabled,
   unauthorized: 'upload_unauthorized',
   'Failed to merge chunks': 'upload_merge_failed',
 }
@@ -31,7 +32,7 @@ export function uploadErrorKey(raw: string): string | undefined {
 export function isTransientUploadError(raw: string): boolean {
   if (!raw) return false
   const key = uploadErrorKey(raw)
-  return key === 'connection_timeout' || key === 'network_error' || key === 'upload_chunk_failed' || key === 'upload_merge_failed'
+  return key === ErrorCode.ConnectionTimeout || key === ErrorCode.NetworkError || key === 'upload_chunk_failed' || key === 'upload_merge_failed'
 }
 
 export function uploadErrorText(t: (key: string) => string, raw: string): string {

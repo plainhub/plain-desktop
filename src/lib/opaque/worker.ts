@@ -1,3 +1,4 @@
+import { ErrorCode, parseErrorCode } from '@/lib/api/error-code'
 import init, { OpaqueLogin } from './pkg/plain_auth'
 import type { OpaqueCommand, OpaqueReply } from './client'
 
@@ -7,13 +8,13 @@ self.onmessage = async (event: MessageEvent<OpaqueCommand>) => {
   try {
     if (command.type === 'start') {
       try {
-        if (typeof globalThis.crypto?.getRandomValues !== 'function') throw 'secure_login_unavailable'
+        if (typeof globalThis.crypto?.getRandomValues !== 'function') throw ErrorCode.SecureLoginUnavailable
         await init()
         login = OpaqueLogin.start(command.password)
       } finally { command.password.fill(0) }
       self.postMessage({ type: 'request', request: login.request() } satisfies OpaqueReply)
     } else {
-      if (!login) throw 'invalid_auth_response'
+      if (!login) throw ErrorCode.InvalidAuthResponse
       const active = login
       login = undefined // finish consumes the WASM state, including failures.
       const result = active.finish(command.response, command.clientId, command.signingKey)
@@ -32,6 +33,6 @@ self.onmessage = async (event: MessageEvent<OpaqueCommand>) => {
   } catch (error) {
     login?.free()
     login = undefined
-    self.postMessage({ type: 'error', reason: error === 'secure_login_unavailable' || error === 'Secure randomness is unavailable' ? 'secure_login_unavailable' : command.type === 'finish' ? 'invalid_password' : 'invalid_auth_response' } satisfies OpaqueReply)
+    self.postMessage({ type: 'error', reason: parseErrorCode(error) ?? (command.type === 'finish' ? ErrorCode.InvalidPassword : ErrorCode.InvalidAuthResponse) } satisfies OpaqueReply)
   }
 }

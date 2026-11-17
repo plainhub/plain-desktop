@@ -1,3 +1,4 @@
+import { ErrorCode } from '@/lib/api/error-code'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { invoke, onNativeReload } from '@/lib/api/native-invoke'
 import { getWebSocketBaseUrl } from './api'
@@ -97,7 +98,7 @@ function isSubscriptionRequest(message: unknown): message is { type: 'subscribe'
   return !!payload && typeof payload === 'object' && 'query' in payload && typeof payload.query === 'string'
 }
 export function openNative(callbacks: SubscriptionCallbacks, target: NativeTarget = { kind: 'local' }): SubscriptionConnection {
-  if (target.kind === 'peer' && !target.peerId) throw new Error('native_peer_id_missing')
+  if (target.kind === 'peer' && !target.peerId) throw new Error(ErrorCode.NativePeerIdMissing)
   let active = true
   let handle: number | undefined
   let writes = Promise.resolve()

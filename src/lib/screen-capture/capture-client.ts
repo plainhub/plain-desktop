@@ -1,3 +1,4 @@
+import { ErrorCode } from '@/lib/api/error-code'
 import {
   CAPTURE_RESULT_AVAILABLE_EVENT,
   CAPTURE_SESSION_STARTED_EVENT,
@@ -46,7 +47,7 @@ export type CaptureNativeErrorCode =
   | 'invalid_frame'
   | 'frame_too_large'
   | 'overlay_failed'
-  | 'invalid_session'
+  | ErrorCode.InvalidSession
   | 'invalid_phase'
   | 'unauthorized_caller'
   | 'target_unavailable'
@@ -65,7 +66,7 @@ const NATIVE_ERROR_CODES = new Set<CaptureNativeErrorCode>([
   'invalid_frame',
   'frame_too_large',
   'overlay_failed',
-  'invalid_session',
+  ErrorCode.InvalidSession,
   'invalid_phase',
   'unauthorized_caller',
   'target_unavailable',

@@ -18,6 +18,7 @@
 </template>
 
 <script setup lang="ts">
+import { loginErrorMessage } from '@/lib/api/login-error'
 import RequestVerificationCode from '@/components/RequestVerificationCode.vue'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -49,7 +50,7 @@ async function decide(allowed: boolean) {
     requests.value = requests.value.filter((request) => request.requestId !== requestId)
   } catch (reason) {
     if (requests.value.some((request) => request.requestId === requestId)) {
-      error.value = t(/expired|no longer pending/.test(String(reason)) ? 'login.login_expired' : 'login.failed')
+      error.value = t(loginErrorMessage(reason))
     }
   } finally { busy.value = false }
 }
