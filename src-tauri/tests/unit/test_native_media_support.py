@@ -202,14 +202,15 @@ function video(deliverFrames = true, distinct = true) {
     pause() { this.paused = true; },
     play() {
       this.paused = false;
+      const position = this.currentTime;
       const frame = (time, count) => {
         quality = count;
         if (!deliverFrames) return;
         const entry = callbacks.entries().next().value;
         if (entry) { callbacks.delete(entry[0]); entry[1](performance.now(), { mediaTime: time, presentedFrames: count }); }
       };
-      setTimeout(() => { this.currentTime = 58.4; frame(58.05, 1); }, 5);
-      setTimeout(() => frame(distinct ? 58.35 : 58.05, 2), 25);
+      setTimeout(() => { this.currentTime = position + .4; frame(position + .05, 1); }, 5);
+      setTimeout(() => frame(position + (distinct ? .35 : .05), 2), 25);
       return Promise.resolve();
     }
   };
@@ -267,6 +268,53 @@ function video(deliverFrames = true, distinct = true) {
   assert.equal(played.before_pause.ended, false);
   assert.equal(played.final.paused, true);
   assert.equal(played.final.ended, false);
+  // Match the hosted post-seek trace: presented frames and the clock advance while play() is pending.
+  for (const target of [58.88, 7.36]) {
+    const seeking = video();
+    seeking.currentTime = target;
+    const play = seeking.play.bind(seeking);
+    let eos, rejectPlay;
+    seeking.play = function () {
+      play();
+      return new Promise((resolve, reject) => {
+        rejectPlay = reject;
+        eos = setTimeout(() => {
+          this.currentTime = target === 58.88 ? 64.000333 : 8.000333;
+          this.ended = true;
+          this.paused = true;
+          resolve();
+        }, 80);
+      });
+    };
+    seeking.pause = function () {
+      clearTimeout(eos);
+      this.paused = true;
+      rejectPlay(new DOMException('Playback was interrupted by pause()', 'AbortError'));
+    };
+    const afterSeek = await api.advance(seeking, 200, {}, seeking.currentSrc, true);
+    assert.equal(afterSeek.play_promise, 'aborted-by-pause');
+    assert.equal(afterSeek.before_pause.paused, false);
+    assert.equal(afterSeek.before_pause.ended, false);
+    assert.ok(afterSeek.last_frame.media_time > afterSeek.first_frame.media_time);
+    assert.equal(afterSeek.final.paused, true);
+    assert.equal(afterSeek.final.ended, false);
+  }
+  const prematureAbort = video();
+  prematureAbort.play = () => Promise.reject(new DOMException('Interrupted before pause', 'AbortError'));
+  prematureAbort.pause = () => assert.fail('A rejected play must not trigger pause');
+  await assert.rejects(api.advance(prematureAbort, 200, {}, prematureAbort.currentSrc, true), { name: 'AbortError' });
+  const failedSeek = video();
+  const playFailedSeek = failedSeek.play.bind(failedSeek);
+  let rejectFailedSeek;
+  failedSeek.play = () => {
+    playFailedSeek();
+    return new Promise((_, reject) => { rejectFailedSeek = reject; });
+  };
+  failedSeek.pause = function () {
+    this.paused = true;
+    rejectFailedSeek(new DOMException('Playback failed', 'NotSupportedError'));
+  };
+  await assert.rejects(api.advance(failedSeek, 200, {}, failedSeek.currentSrc, true), { name: 'NotSupportedError' });
   for (const kind of ['audio', 'video']) {
     const ended = kind === 'video' ? video() : { ...audio };
     const play = ended.play.bind(ended);
