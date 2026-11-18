@@ -1,104 +1,133 @@
 <template>
-  <v-modal @close="close">
+  <v-modal :modal-id="modalId" @close="close">
     <template #headline>{{ $t('forward_message') }}</template>
     <template #content>
-      <div class="forward-list">
-        <template v-if="channelTargets.length">
-          <div class="forward-section">{{ $t('channels') }}</div>
-          <div v-for="c in channelTargets" :key="c.id" class="forward-item" @click="toggle(`channel:${c.id}`)">
-            <span class="name">{{ c.name }}</span>
-            <v-checkbox :checked="selected.includes(`channel:${c.id}`)" @click.stop="toggle(`channel:${c.id}`)" />
-          </div>
-        </template>
-        <template v-if="peerTargets.length">
-          <div class="forward-section">{{ $t('devices') }}</div>
-          <div v-for="p in peerTargets" :key="p.id" class="forward-item" @click="toggle(`peer:${p.id}`)">
-            <span class="name">{{ p.name }}</span>
-            <v-checkbox :checked="selected.includes(`peer:${p.id}`)" @click.stop="toggle(`peer:${p.id}`)" />
-          </div>
-        </template>
+      <div :inert="submitting">
+        <ul class="list-items forward-targets">
+          <v-list-item
+            v-for="target in targets"
+            :key="target.id"
+            :title="target.name"
+            :subtitle="outcomes.has(target.id) ? $t(outcomes.get(target.id)!) : undefined"
+            :clickable="!outcomes.has(target.id)"
+            @click="toggle(target.id)"
+          >
+            <template #start>
+              <i-lucide:hash v-if="target.channel" />
+              <DeviceTypeIcon v-else :device-type="target.deviceType" />
+            </template>
+            <template #end>
+              <span :inert="outcomes.has(target.id)">
+                <v-checkbox
+                  :label="target.name"
+                  :checked="selected.has(target.id) || outcomes.has(target.id)"
+                  @click.stop
+                  @update:model-value="toggle(target.id)"
+                />
+              </span>
+            </template>
+          </v-list-item>
+        </ul>
+        <v-text-field v-model="note" type="textarea" variant="filled" :rows="2" :placeholder="$t('forward_note_optional')" />
       </div>
+      <p v-if="hasUnconfirmed" role="alert">{{ $t('forward_unconfirmed_hint') }}</p>
+      <p v-else-if="hasDeliveryFailure" role="alert">{{ $t('forward_failed_hint') }}</p>
     </template>
     <template #actions>
-      <v-outlined-button @click="close">{{ $t('cancel') }}</v-outlined-button>
-      <v-filled-button :disabled="selected.length === 0" @click="doForward">{{ $t('send') }}</v-filled-button>
+      <v-text-button :disabled="submitting" @click="close">{{ $t('cancel') }}</v-text-button>
+      <v-filled-button :loading="submitting" :disabled="submitting || !selectedTargets.length" @click="doForward">
+        {{ selectedTargets.length ? $t('forward_send_count', { count: selectedTargets.length }) : $t('send') }}
+      </v-filled-button>
     </template>
   </v-modal>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import type { PropType } from 'vue'
-import { popModal } from '@/components/modal'
-import { initMutation, forwardChatItemsGQL } from '@/lib/api/mutation'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { closeById, getCurrentModal, modalQueue } from '@/components/modal'
+import DeviceTypeIcon from '@/components/DeviceTypeIcon.vue'
+import { bindGraphqlClient } from '@/lib/api/gql-client'
+import { forwardChatItemsGQL } from '@/lib/api/mutation'
 import { useChatStore } from '@/stores/chat'
 import type { IChatItem } from '@/lib/interfaces'
+import { ChatStatus } from '@/lib/status'
 
-const props = defineProps({
-  message: { type: Object as PropType<IChatItem>, required: true },
-  excludeChatId: { type: String, default: '' },
-})
-
+const props = withDefaults(defineProps<{ modalId: string; message: IChatItem; excludeChatId?: string }>(), { excludeChatId: '' })
+const id = Number(props.modalId.replace(/\D/g, ''))
 const chatStore = useChatStore()
-const selected = ref<string[]>([])
+const selected = reactive(new Set<string>())
+const outcomes = reactive(new Map<string, 'forward_submitted' | 'forward_delivery_failed' | 'forward_unconfirmed'>())
+const note = ref('')
+const submitting = ref(false)
 
-const channelTargets = computed(() => chatStore.joinedChannels.filter((c) => `channel:${c.id}` !== props.excludeChatId))
-const peerTargets = computed(() => chatStore.pairedPeers.filter((p) => `peer:${p.id}` !== props.excludeChatId))
-
-const { mutate } = initMutation({
-  document: forwardChatItemsGQL,
-})
-
-function toggle(id: string) {
-  selected.value = selected.value.includes(id) ? selected.value.filter((s) => s !== id) : [...selected.value, id]
+function preventEscape(event: KeyboardEvent) {
+  if (submitting.value && (event.key === 'Escape' || event.code === 'Escape') && getCurrentModal()?.id === id) {
+    event.stopImmediatePropagation()
+  }
 }
 
-let submitting = false
+// The modal container also closes the top dialog on Escape keyup.
+onMounted(() => document.addEventListener('keyup', preventEscape, true))
+onUnmounted(() => document.removeEventListener('keyup', preventEscape, true))
+
+const targets = computed(() => [
+  ...chatStore.joinedChannels.map(channel => ({ id: `channel:${channel.id}`, name: channel.name, channel: true, deviceType: undefined })),
+  ...chatStore.pairedPeers.map(peer => ({ id: `peer:${peer.id}`, name: peer.name, channel: false, deviceType: peer.deviceType })),
+].filter(target => target.id !== props.excludeChatId))
+
+const selectedTargets = computed(() => targets.value.filter(target => selected.has(target.id)))
+const hasUnconfirmed = computed(() => [...outcomes.values()].includes('forward_unconfirmed'))
+const hasDeliveryFailure = computed(() => [...outcomes.values()].includes('forward_delivery_failed'))
+
+function toggle(id: string) {
+  if (submitting.value || outcomes.has(id)) return
+  if (!selected.delete(id)) selected.add(id)
+}
 
 async function doForward() {
-  if (!selected.value.length || submitting) return
-  submitting = true
-  const targets = [...selected.value]
-  popModal()
-  await mutate({ id: props.message.id, targets })
+  if (submitting.value || !selectedTargets.value.length) return
+  submitting.value = true
+  const recipients = selectedTargets.value.map(target => target.id)
+  const draft = note.value.trim()
+  try {
+    let rows: IChatItem[] = []
+    try {
+      const request = bindGraphqlClient()
+      const result = await request<{ forwardChatItems: IChatItem[] }>(forwardChatItemsGQL, {
+        id: props.message.id, targets: recipients, ...(draft ? { note: draft } : {}),
+      })
+      rows = result.data?.forwardChatItems ?? []
+    } catch {
+      // Transport failure may have followed a committed mutation.
+    }
+    for (const id of recipients) {
+      selected.delete(id)
+      const messages = rows.filter(row => (row.channelId ? `channel:${row.channelId}` : `peer:${row.toId}`) === id)
+      if (messages.length !== (draft ? 2 : 1)) {
+        outcomes.set(id, 'forward_unconfirmed')
+      } else {
+        outcomes.set(id, messages.some(row => row.status === ChatStatus.FAILED || row.status === ChatStatus.PARTIAL)
+          ? 'forward_delivery_failed' : 'forward_submitted')
+      }
+    }
+    if (!hasUnconfirmed.value && !hasDeliveryFailure.value) await dismiss()
+  } finally {
+    submitting.value = false
+  }
+}
+
+function dismiss() {
+  if (modalQueue.value.some(modal => modal.id === id)) return closeById(id)
 }
 
 function close() {
-  popModal()
+  if (!submitting.value) void dismiss()
 }
 </script>
 
-<style lang="scss" scoped>
-.forward-list {
-  max-height: 320px;
+<style scoped>
+.forward-targets {
+  max-block-size: min(320px, 40vh);
   overflow-y: auto;
-}
-
-.forward-section {
-  padding: 8px 4px 4px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--md-sys-color-outline);
-}
-
-.forward-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 4px 4px 4px 16px;
-  border-radius: 8px;
-  cursor: pointer;
-
-  &:hover {
-    background: var(--md-sys-color-surface-container-high);
-  }
-
-  .name {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
 }
 </style>

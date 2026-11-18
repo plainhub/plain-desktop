@@ -99,8 +99,8 @@ export const updateDeviceNameGQL = `
 // --- GraphQL Mutation Definitions ---
 
 export const forwardChatItemsGQL = `
-  mutation forwardChatItems($id: ID!, $targets: [String!]!) {
-    forwardChatItems(id: $id, targets: $targets) {
+  mutation forwardChatItems($id: ID!, $targets: [String!]!, $note: String) {
+    forwardChatItems(id: $id, targets: $targets, note: $note) {
       ...ChatItemFragment
     }
   }

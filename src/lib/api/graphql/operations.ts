@@ -1699,6 +1699,7 @@ export interface GqlOperations {
     variables: {
       id: string
       targets: Array<string>
+      note?: string | null
     }
   }
   GET_QUERY: {
