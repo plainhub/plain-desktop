@@ -169,6 +169,13 @@
 .files-sidebar {
   @include volume-card-shared-structure(10px, 8px);
 
+  @media (hover: hover) {
+    .volume-card:not(:hover) .volume-actions:not(:focus-visible):not([aria-expanded='true']) {
+      opacity: 0;
+      pointer-events: none;
+    }
+  }
+
   .volumes {
     display: flex;
     flex-direction: column;

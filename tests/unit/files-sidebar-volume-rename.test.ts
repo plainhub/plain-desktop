@@ -35,13 +35,16 @@ it('opens volume rename from its menu, sends the stable volume id and refreshes 
   unmount = view.unmount
   const button = nodes(view.root).find(node => node.props.id === 'volume-/media/photos')!
   expect(button.props['aria-label']).toBe('actions: Archive')
+  expect(button.props['aria-expanded']).toBe(false)
   fire(button, 'onClick', { stopPropagation() {}, preventDefault() {} })
   await flush()
+  expect(button.props['aria-expanded']).toBe(true)
   expect(state.navigate).not.toHaveBeenCalled()
   const rename = nodes(view.root).find(node => node.props.class === 'dropdown-item')!
   fire(rename, 'onClick', {})
   await flush()
   expect(nodes(view.root).filter(node => node.tag === 'menu')).toHaveLength(0)
+  expect(button.props['aria-expanded']).toBe(false)
   const options = state.modal.mock.calls[0][1]
   expect(options).toMatchObject({ value: 'Archive', allowEmpty: true, borderless: true })
   expect(options.done).toBeUndefined()

@@ -29,7 +29,8 @@
         >
           <template #actions>
             <v-icon-button
-              :id="'volume-' + item.fullPath" v-tooltip="$t('actions')" :aria-label="`${$t('actions')}: ${item.title}`" class="sm"
+              :id="'volume-' + item.fullPath" v-tooltip="$t('actions')" :aria-label="`${$t('actions')}: ${item.title}`"
+              :aria-expanded="volumeMenuVisible && selectedVolume?.fullPath === item.fullPath" class="sm volume-actions"
               @click.prevent.stop="showVolumeMenu(item)" @keydown.enter.stop @keydown.space.stop
             >
               <i-material-symbols:more-horiz />
