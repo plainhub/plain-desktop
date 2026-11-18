@@ -17,6 +17,16 @@ it('keeps offline chat and management peers in Paired devices and deduplicates d
   expect(result.mine).toEqual([chat, managed])
   expect(result.nearby.map((value) => value.id)).toEqual(['new'])
 })
+
+it('keeps nearby devices in name order when discovery returns a different order', () => {
+  const zebra = { ...device('first'), name: 'Zebra' }
+  const apple = { ...device('second'), name: 'apple' }
+  const mango = { ...device('third'), name: 'Mango' }
+  const sameName = { ...device('fourth'), name: 'Mango' }
+  for (const snapshot of [[zebra, apple, mango, sameName], [mango, sameName, zebra, apple]]) {
+    expect(nearbyGroups([], snapshot).nearby.map(device => device.id)).toEqual(['second', 'fourth', 'third', 'first'])
+  }
+})
 it('sends remote-off and unknown discoveries directly to chat and only offers both modes when explicitly enabled', () => {
   expect(nearbyPairAction(undefined, device('new', false))).toBe('chat')
   expect(nearbyPairAction(undefined, device('new'))).toBe('chat')
