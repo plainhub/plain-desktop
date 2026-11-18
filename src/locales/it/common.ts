@@ -200,8 +200,11 @@ export default {
   browser_warning: "Si consiglia di utilizzare l'ultima versione del browser web Chrome",
   NO_PERMISSION: 'La funzione non è attivata sul telefono. Attivala in APP > "Impostazioni di accesso".',
   clipboard_direction_off: 'Non sincronizzare',
-  clipboard_direction_push: 'Computer → telefono',
-  clipboard_direction_pull: 'Telefono → computer',
+  clipboard_direction_send: "Solo invio",
+  clipboard_direction_receive: "Solo ricezione",
+  clipboard_sync_direction: "Direzione di sincronizzazione",
+  clipboard_disabled_on_device: "La sincronizzazione degli appunti è disattivata su questo dispositivo.",
+  clipboard_direction_save_failed: "Impossibile salvare la direzione di sincronizzazione.",
   clipboard_direction_both: 'Sincronizzazione bidirezionale',
   screen_capture_permission_denied:
     "È richiesta l'autorizzazione di registrazione dello schermo. Consenti PlainApp in Impostazioni di sistema > Privacy e sicurezza > Registrazione schermo e riprova.",

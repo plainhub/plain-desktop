@@ -4,13 +4,15 @@
       <button
         type="button"
         class="v-chip-select"
+        :class="{ 'is-plain': plain }"
         :aria-label="ariaLabel"
         :aria-haspopup="'menu'"
         :aria-expanded="isOpen"
         :disabled="disabled"
       >
+        <component :is="icon" v-if="plain && icon" class="v-chip-select__icon" />
         <span class="v-chip-select__label">{{ selectedOption?.label ?? placeholder }}</span>
-        <component :is="icon" v-if="icon" class="v-chip-select__icon" />
+        <component :is="icon" v-if="!plain && icon" class="v-chip-select__icon" />
         <i-lucide:chevron-down v-else class="v-chip-select__icon" :class="{ 'is-open': isOpen }" />
       </button>
     </template>
@@ -43,6 +45,7 @@ interface Props {
   placeholder?: string
   icon?: Component
   ariaLabel?: string
+  plain?: boolean
   disabled?: boolean
 }
 
@@ -52,6 +55,7 @@ const props = withDefaults(defineProps<Props>(), {
   placeholder: '',
   icon: undefined,
   ariaLabel: '',
+  plain: false,
   disabled: false,
 })
 
@@ -92,6 +96,11 @@ function selectOption(option: VSelectOption) {
   white-space: nowrap;
   user-select: none;
   transition: background-color 150ms ease, color 150ms ease;
+
+  &.is-plain {
+    padding: 0 4px;
+    background-color: transparent;
+  }
 
   &:hover:not(:disabled),
   &[aria-expanded='true'] {

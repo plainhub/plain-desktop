@@ -85,7 +85,8 @@
           <audio-player v-show="store.quick === 'audio'" />
           <p-notifications v-if="!localMode && hasNotifications" v-show="store.quick === 'notification'" />
           <local-notifications v-if="localMode && hasNotifications" v-show="store.quick === 'notification'" />
-          <p-clipboard v-if="hasClipboard" v-show="store.quick === 'clipboard'" />
+          <local-clipboard v-if="localMode && hasClipboard" v-show="store.quick === 'clipboard'" />
+          <p-clipboard v-if="!localMode && hasClipboard" v-show="store.quick === 'clipboard'" />
           <pomodoro-timer v-if="hasPomodoro" v-show="store.quick === 'pomodoro'" />
           <bookmark-list v-show="store.quick === 'bookmark'" />
         </div>
@@ -105,6 +106,7 @@ import BookmarkList from '@/views/bookmarks/BookmarkList.vue'
 import PNotifications from '@/views/notifications/PNotifications.vue'
 import LocalNotifications from '@/views/notifications/LocalNotifications.vue'
 import PClipboard from '@/views/clipboard/PClipboard.vue'
+import LocalClipboard from '@/views/clipboard/LocalClipboard.vue'
 import PomodoroTimer from '@/views/pomodoro/PomodoroTimer.vue'
 import { buildQuickActions } from '@/views/main-view-quick-actions'
 import { useMainView } from '@/hooks/main-view'

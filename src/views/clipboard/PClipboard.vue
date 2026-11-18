@@ -34,18 +34,12 @@
           </v-filled-button>
         </div>
       </template>
-      <section v-if="items.length" class="clip-card">
-        <clipboard-item
-          v-for="item in items"
-          :key="item.id"
-          :item="item"
-          @delete="deleteItem"
-        />
-      </section>
+      <clipboard-history v-if="items.length" :items="items" @delete="deleteItem" />
       <NoDataPlaceholder
         v-if="!items.length"
         :loading="loading"
-        :placeholder-key="clipboardSync ? '' : 'NO_PERMISSION'"
+        :access="clipboardSync ? ['CLIPBOARD'] : []"
+        :placeholder-key="clipboardSync ? '' : 'clipboard_disabled_on_device'"
         feature="CLIPBOARD"
       />
       <v-pagination
@@ -64,7 +58,7 @@
 <script setup lang="ts">
 import { watch } from 'vue'
 import NoDataPlaceholder from '@/components/NoDataPlaceholder.vue'
-import ClipboardItem from '@/components/ClipboardItem.vue'
+import ClipboardHistory from './ClipboardHistory.vue'
 import { useMainStore } from '@/stores/main'
 import { useClipboardData } from './clipboard'
 
@@ -99,10 +93,4 @@ watch(clipboardSync, (enabled) => {
   }
 }
 
-.clip-card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 16px;
-}
 </style>

@@ -60,7 +60,7 @@ declare module 'vue' {
     ChatShare: typeof import('./src/views/chat/ChatShare.vue')['default']
     ChatSidebar: typeof import('./src/views/chat/ChatSidebar.vue')['default']
     ChatView: typeof import('./src/views/chat/ChatView.vue')['default']
-    ClipboardGroup: typeof import('./src/views/clipboard/ClipboardGroup.vue')['default']
+    ClipboardHistory: typeof import('./src/views/clipboard/ClipboardHistory.vue')['default']
     ClipboardItem: typeof import('./src/components/ClipboardItem.vue')['default']
     CodeEditor: typeof import('./src/components/CodeEditor.vue')['default']
     ConfirmModal: typeof import('./src/components/ConfirmModal.vue')['default']

@@ -40,7 +40,7 @@ export function useRemotePrefs(store: ReturnType<typeof useMainStore>) {
 
   async function refresh() {
     try {
-      const result = await gqlFetch<{ prefs: Record<string, unknown> }>(preferencesQuery, { keys: isLocalMode() ? [...preferenceKeys, 'remote_access', 'mdns_hostname'] : preferenceKeys }, { fresh: true })
+      const result = await gqlFetch<{ prefs: Record<string, unknown> }>(preferencesQuery, { keys: isLocalMode() ? [...preferenceKeys, 'clipboard_directions', 'remote_access', 'mdns_hostname'] : preferenceKeys }, { fresh: true })
       if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
       applySnapshot(result.data.prefs)
       applying = true

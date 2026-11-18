@@ -200,8 +200,11 @@ export default {
   browser_warning: "Il est recommandé d'utiliser la dernière version du navigateur web Chrome.",
   NO_PERMISSION: "Cette fonctionnalité n'est pas activée sur le téléphone. Veuillez l'activer dans APP > \"Paramètres d'accès\".",
   clipboard_direction_off: 'Ne pas synchroniser',
-  clipboard_direction_push: 'Ordinateur → téléphone',
-  clipboard_direction_pull: 'Téléphone → ordinateur',
+  clipboard_direction_send: "Envoyer seulement",
+  clipboard_direction_receive: "Recevoir seulement",
+  clipboard_sync_direction: "Sens de synchronisation",
+  clipboard_disabled_on_device: "La synchronisation du presse-papiers est désactivée sur cet appareil.",
+  clipboard_direction_save_failed: "Impossible d’enregistrer le sens de synchronisation.",
   clipboard_direction_both: 'Synchro bidirectionnelle',
   screen_capture_permission_denied:
     "L'autorisation d'enregistrement de l'écran est requise. Autorisez PlainApp dans Réglages système > Confidentialité et sécurité > Enregistrement de l'écran, puis réessayez.",

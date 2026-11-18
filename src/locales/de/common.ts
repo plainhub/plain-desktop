@@ -199,8 +199,11 @@ export default {
   time: 'Zeit',
   NO_PERMISSION: 'Die Funktion ist auf dem Telefon deaktiviert. Bitte aktivieren Sie sie unter APP > "Zugriffseinstellungen".',
   clipboard_direction_off: 'Nicht synchronisieren',
-  clipboard_direction_push: 'Computer → Telefon',
-  clipboard_direction_pull: 'Telefon → Computer',
+  clipboard_direction_send: "Nur senden",
+  clipboard_direction_receive: "Nur empfangen",
+  clipboard_sync_direction: "Synchronisierungsrichtung",
+  clipboard_disabled_on_device: "Die Zwischenablage wird auf diesem Gerät nicht synchronisiert.",
+  clipboard_direction_save_failed: "Die Synchronisierungsrichtung konnte nicht gespeichert werden.",
   clipboard_direction_both: 'Sync in beide Richtungen',
   screen_capture_permission_denied:
     'Die Berechtigung zur Bildschirmaufnahme ist erforderlich. Erlauben Sie PlainApp unter Systemeinstellungen > Datenschutz & Sicherheit > Bildschirmaufnahme und versuchen Sie es erneut.',

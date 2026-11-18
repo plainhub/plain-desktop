@@ -16,13 +16,13 @@ function currentCache(): Map<string, unknown> {
   return cache
 }
 
-export const preferenceKeys = ['locale', 'dark_theme', 'clipboard_directions', 'desktop_home_features', 'desktop_rail_features', 'desktop_upload_dirs', 'media_excluded_dirs']
+export const preferenceKeys = ['locale', 'dark_theme', 'desktop_home_features', 'desktop_rail_features', 'desktop_upload_dirs', 'media_excluded_dirs']
 
 export const preferencesQuery = 'query($keys: [String!]!) { prefs(keys: $keys) }'
 
 export async function preload(): Promise<void> {
   await writes
-  const result = await gqlFetch<{ prefs: Record<string, unknown> }>(preferencesQuery, { keys: isLocalMode() ? [...preferenceKeys, 'remote_access', 'mdns_hostname'] : preferenceKeys }, { fresh: true })
+  const result = await gqlFetch<{ prefs: Record<string, unknown> }>(preferencesQuery, { keys: isLocalMode() ? [...preferenceKeys, 'clipboard_directions', 'remote_access', 'mdns_hostname'] : preferenceKeys }, { fresh: true })
   if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
   const snapshot = result.data.prefs
   if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {

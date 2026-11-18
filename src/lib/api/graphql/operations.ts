@@ -2397,17 +2397,6 @@ export interface GqlOperations {
     }
     variables: undefined
   }
-  PEER_CLIPBOARD_GQL: {
-    result: {
-      clipboardItems: Array<Fragment_ClipboardItemFragment>
-      clipboardItemCount: number
-    }
-    variables: {
-      offset: number
-      limit: number
-      query: string
-    }
-  }
   peersChangedSubscription: {
     result: {
       peersChanged: boolean
