@@ -46,7 +46,7 @@ export type Input_FileIndexVolumeInput = { volumeId: string; indexMode: 'UNCONFI
 
 export type Input_FileTaskOpInput = { src: string; dst: string; overwrite: boolean }
 
-export type Input_ImageEditorProjectInput = { stateB64: string; thumbnail?: string | null; canvasWidth: number; canvasHeight: number; layerCount: number }
+export type Input_ImageEditorProjectInput = { stateB64: string; thumbnail?: string | null; canvasWidth: number; canvasHeight: number }
 
 export type Input_NoteInput = { title: string; content: string }
 
@@ -1709,7 +1709,6 @@ export interface GqlOperations {
         thumbnail?: string
         canvasWidth: number
         canvasHeight: number
-        layerCount: number
         updatedAt: string
       }
     }
@@ -1885,7 +1884,6 @@ export interface GqlOperations {
         thumbnail?: string
         canvasWidth: number
         canvasHeight: number
-        layerCount: number
         updatedAt: string
       }>
     }

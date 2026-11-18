@@ -7,7 +7,6 @@ interface GqlProjectSummary {
   thumbnail: string | null
   canvasWidth: number
   canvasHeight: number
-  layerCount: number
   updatedAt: string
 }
 
@@ -22,7 +21,6 @@ const LIST_QUERY = `
       thumbnail
       canvasWidth
       canvasHeight
-      layerCount
       updatedAt
     }
   }
@@ -36,7 +34,6 @@ const GET_QUERY = `
       thumbnail
       canvasWidth
       canvasHeight
-      layerCount
       updatedAt
     }
   }
@@ -67,7 +64,6 @@ function toSummary(p: GqlProjectSummary): ProjectSummary {
     updatedAt: parseUpdatedAt(p.updatedAt),
     canvasWidth: p.canvasWidth,
     canvasHeight: p.canvasHeight,
-    layerCount: p.layerCount,
     previewDataUrl: p.thumbnail,
   }
 }
@@ -80,7 +76,6 @@ export class PlainAppProjectStore implements ProjectStore {
       thumbnail: data.thumbnail,
       canvasWidth: meta.canvasWidth,
       canvasHeight: meta.canvasHeight,
-      layerCount: meta.layerCount,
     }
     const r = await gqlFetch(SAVE_MUTATION, { id, input })
     if (r.errors?.length) throw new Error(r.errors[0]!.message)
