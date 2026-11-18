@@ -83,10 +83,11 @@ const { isTrashed, canTrash, canDelete, canMove } = useFileTrashState(() => prop
 
 const { trash, trashLoading } = useMediaTrash()
 const { record } = useOrganizeUndo()
-function trashMediaItem() {
+async function trashMediaItem() {
   if (!props.current?.data?.id || !props.current.type) return
-  trash(props.current.type as DataType, `ids:${props.current.data.id}`)
-  record({ kind: 'trash', type: props.current.type as DataType, query: `ids:${props.current.data.id}` })
+  const type = props.current.type as DataType
+  const query = `ids:${props.current.data.id}`
+  if (await trash(type, query)) record({ kind: 'trash', type, query })
 }
 
 const { restore, restoreLoading } = useMediaRestore()

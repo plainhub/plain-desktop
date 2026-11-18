@@ -106,8 +106,8 @@ function onMoved() {
   emit('refetch-info')
 }
 
-function handleKeyDown(event: KeyboardEvent) {
-  if (props.readOnly || inZip.value) return
+async function handleKeyDown(event: KeyboardEvent) {
+  if (props.readOnly || props.current?.isFromChat || inZip.value) return
   if (event.key === 'Delete' || ((event.ctrlKey || event.metaKey) && event.key === 'Backspace')) {
     event.preventDefault()
     
@@ -118,8 +118,9 @@ function handleKeyDown(event: KeyboardEvent) {
       } else {
         // Not in trash, move to trash
         if (props.current?.data?.id && props.current.type) {
-          trash(props.current.type as DataType, `ids:${props.current.data.id}`)
-          record({ kind: 'trash', type: props.current.type as DataType, query: `ids:${props.current.data.id}` })
+          const type = props.current.type as DataType
+          const query = `ids:${props.current.data.id}`
+          if (await trash(type, query)) record({ kind: 'trash', type, query })
         }
       }
     } else {

@@ -41,3 +41,8 @@ fn native_media_catalog_scanning_is_available_to_the_main_schema() {
 fn local_system_notification_management_is_not_advertised() {
     assert!(!desktop_capabilities().contains(&Capability::Notifications));
 }
+
+#[test]
+fn local_image_trash_is_available_to_the_main_schema() {
+    assert!(desktop_capabilities().contains(&Capability::MediaTrash));
+}

@@ -1,6 +1,6 @@
 import { readApiSchema } from '../../../plain-core/scripts/read-api-schema.mjs'
-import { describe, expect, it } from 'vitest'
-import { Capability } from '../../src/lib/data'
+import { describe, expect, it, vi } from 'vitest'
+import { Capability, DataType } from '../../src/lib/data'
 import { hasMediaDelete, hasMediaMove, hasMediaTrash } from '../../src/lib/feature'
 import { parseSchema } from '../../src/lib/api/graphql/parser'
 import { getAvailableFeatures } from '../../src/views/app-rail/features'
@@ -12,15 +12,20 @@ describe('declared capability support', () => {
   })
 
   it('requires each media action capability independently', () => {
-    for (const [capability, supported] of [
-      [Capability.MEDIA_DELETE, hasMediaDelete],
-      [Capability.MEDIA_MOVE, hasMediaMove],
-      [Capability.MEDIA_TRASH, hasMediaTrash],
-    ] as const) {
-      expect(supported(undefined)).toBe(false)
-      expect(supported({ capabilities: [] })).toBe(false)
-      expect(supported({ capabilities: [capability] })).toBe(true)
-      expect(supported({ capabilities: Object.values(Capability).filter((value) => value !== capability) })).toBe(false)
+    vi.stubGlobal('__IS_TAURI__', false)
+    try {
+      for (const [capability, supported] of [
+        [Capability.MEDIA_DELETE, hasMediaDelete],
+        [Capability.MEDIA_MOVE, hasMediaMove],
+        [Capability.MEDIA_TRASH, hasMediaTrash],
+      ] as const) {
+        expect(supported(undefined, DataType.IMAGE)).toBe(false)
+        expect(supported({ capabilities: [] }, DataType.IMAGE)).toBe(false)
+        expect(supported({ capabilities: [capability] }, DataType.IMAGE)).toBe(true)
+        expect(supported({ capabilities: Object.values(Capability).filter((value) => value !== capability) }, DataType.IMAGE)).toBe(false)
+      }
+    } finally {
+      vi.unstubAllGlobals()
     }
   })
 

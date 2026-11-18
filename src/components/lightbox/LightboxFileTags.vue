@@ -14,6 +14,7 @@
 </template>
 
 <script setup lang="ts">
+import { isTrashedMediaPath } from '@/lib/media/trash-path'
 import { computed } from 'vue'
 import type { ISource } from './types'
 import type { ITag } from '@/lib/interfaces'
@@ -34,7 +35,7 @@ const props = defineProps({
 })
 
 const isTrashed = computed(() => {
-  return props.current?.path?.includes('.trashed-') === true
+  return isTrashedMediaPath(props.current?.path)
 })
 
 const tagsForType = computed(() => {

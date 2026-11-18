@@ -13,6 +13,7 @@
 </template>
 
 <script setup lang="ts">
+import { isTrashedMediaPath } from '@/lib/media/trash-path'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { initQuery, mediaBucketsGQL } from '@/lib/api/query'
 import type { IBucket, IMediaItemsActionedEvent } from '@/lib/interfaces'
@@ -43,7 +44,7 @@ const mediaBuckets = ref<IBucket[]>([])
 const showAll = ref(false)
 const foldCount = 8
 
-const isTrashed = computed(() => props.current?.path?.includes('.trashed-') === true)
+const isTrashed = computed(() => isTrashedMediaPath(props.current?.path))
 const inZip = computed(() => isZipPath(props.current?.path ?? ''))
 const currentDir = computed(() => getDirFromPath(props.current?.path ?? ''))
 const currentBucketId = computed(() => props.current?.data?.bucketId as string | undefined)

@@ -2,6 +2,7 @@ use plain_rs::features::capability::Capability;
 
 const DESKTOP: &[Capability] = &[
     Capability::MediaScan,
+    Capability::MediaTrash,
     Capability::Clipboard,
     Capability::AppUpdates,
 ];

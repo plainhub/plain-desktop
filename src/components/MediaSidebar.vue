@@ -15,7 +15,7 @@
           </template>
         </SidebarListItem>
         <SidebarListItem
-          v-if="hasMediaTrash(app)"
+          v-if="hasMediaTrash(app, props.type)"
           :title="$t('trash')"
           :active="trash"
           @click="viewTrash"
@@ -24,7 +24,7 @@
             <i-lucide:trash />
           </template>
           <template #end>
-            <v-icon-button v-tooltip="$t('trash_tips')" class="btn-help sm">
+            <v-icon-button v-if="!isLocalMode()" v-tooltip="$t('trash_tips')" class="btn-help sm">
               <i-material-symbols:help-outline-rounded />
             </v-icon-button>
             <span v-if="totalTrash >= 0" class="count">{{ totalTrash.toLocaleString() }}</span>
@@ -42,6 +42,7 @@
 import type { PropType } from 'vue'
 import { DataType } from '@/lib/data'
 import type { MediaDataType } from '@/lib/media/library-updates'
+import { isLocalMode } from '@/lib/device/local-mode'
 import { hasMediaTrash } from '@/lib/feature'
 import { useMediaSidebar } from '@/hooks/media-sidebar'
 

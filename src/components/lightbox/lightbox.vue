@@ -129,6 +129,7 @@
   </Teleport>
 </template>
 <script setup lang="ts">
+import { isTrashedMediaPath } from '@/lib/media/trash-path'
 import { computed, inject, toRef, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import toast from '@/components/toaster'
@@ -181,7 +182,7 @@ const { closeDialog, changeIndex, onNext, onPrev } =
 const readOnly = computed(() => tempStore.lightbox.readOnly)
 
 const showMoveToFolders = computed(
-  () => !readOnly.value && current.value?.type === DataType.IMAGE && current.value?.path?.includes('.trashed-') !== true,
+  () => !readOnly.value && current.value?.type === DataType.IMAGE && !isTrashedMediaPath(current.value?.path),
 )
 
 const { count: organizeCount, undoLast, undoAll, clear: clearOrganizeUndo } = useOrganizeUndo()

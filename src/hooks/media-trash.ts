@@ -6,79 +6,53 @@ import { reactive, computed, type Ref } from 'vue'
 import { hasMediaTrash, hasMediaDelete, hasMediaMove } from '@/lib/feature'
 import { storeToRefs } from 'pinia'
 import { useTempStore } from '@/stores/temp'
+import { isTrashedMediaPath } from '@/lib/media/trash-path'
 import type { ISource } from '@/components/lightbox/types'
 
-export const useMediaTrash = () => {
-  const { mutate, onDone: onTrashed } = initMutation({
-    document: trashMediaItemsGQL,
-  })
+function useMediaTrashAction(action: 'trash' | 'restore') {
+  const { mutate } = initMutation({ document: action === 'trash' ? trashMediaItemsGQL : restoreMediaItemsGQL })
+  const pending = reactive(new Set<string>())
 
-  const loading = reactive(new Map())
-  const pending: Array<{ type: DataType; query: string }> = []
-
-  onTrashed(() => {
-    const entry = pending.shift()
-    if (!entry) return
-    loading.delete(entry.query)
-    emitter.emit('refetch_tags', entry.type)
-    emitter.emit('media_items_actioned', { type: entry.type, action: 'trash', query: entry.query })
-  })
+  async function apply(type: DataType, query: string) {
+    const key = `${type}:${query}`
+    if (pending.has(key)) return false
+    pending.add(key)
+    try {
+      const result = await mutate({ query, type })
+      const count = (action === 'trash' ? result?.data?.trashMediaItems : result?.data?.restoreMediaItems)?.affectedCount
+      if (!count) return false
+      const partial = query.startsWith('ids:') && count !== query.slice(4).split(',').length
+      emitter.emit('refetch_tags', type)
+      emitter.emit('media_items_actioned', { type, action, query: partial ? '' : query })
+      return true
+    } finally {
+      pending.delete(key)
+    }
+  }
 
   return {
-    trashLoading(query: string) {
-      return loading.get(query) ?? false
-    },
-    trash(type: DataType, query: string) {
-      pending.push({ type, query })
-      loading.set(query, true)
-      mutate({ query, type })
-    },
+    apply,
+    isPending: (query: string) => [...pending].some((key) => key.slice(key.indexOf(':') + 1) === query),
   }
 }
 
-export const useMediaRestore = () => {
-  const { mutate, onDone: onRestored } = initMutation({
-    document: restoreMediaItemsGQL,
-  })
+export function useMediaTrash() {
+  const { apply, isPending } = useMediaTrashAction('trash')
+  return { trash: apply, trashLoading: isPending }
+}
 
-  const loading = reactive(new Map())
-  const pending: Array<{ type: DataType; query: string }> = []
-
-  onRestored(() => {
-    const entry = pending.shift()
-    if (!entry) return
-    loading.delete(entry.query)
-    emitter.emit('refetch_tags', entry.type)
-    emitter.emit('media_items_actioned', { type: entry.type, action: 'restore', query: entry.query })
-  })
-
-  return {
-    restoreLoading(query: string) {
-      return loading.get(query) ?? false
-    },
-    restore(type: DataType, query: string) {
-      pending.push({ type, query })
-      loading.set(query, true)
-      mutate({ query, type })
-    },
-  }
+export function useMediaRestore() {
+  const { apply, isPending } = useMediaTrashAction('restore')
+  return { restore: apply, restoreLoading: isPending }
 }
 
 export function useFileTrashState(current: (() => ISource | undefined) | Ref<ISource | undefined>) {
   const { app } = storeToRefs(useTempStore())
-  const isTrashed = computed(() => {
-    const currentValue = typeof current === 'function' ? current() : current.value
-    const path = currentValue?.path ?? ''
-    // Phones trash via MediaStore (files renamed with a `.trashed-` prefix);
-    // a NAS moves files into its `.plain-trash` tree. Either marker means trash.
-    return path.includes('.trashed-') || path.includes('/.plain-trash/')
-  })
-
-  const isMedia = computed(() => {
-    const value = typeof current === 'function' ? current() : current.value
-    return !!value?.type && [DataType.VIDEO, DataType.AUDIO, DataType.IMAGE, DataType.DOC].includes(value.type as DataType)
-  })
-  const canTrash = computed(() => isMedia.value && hasMediaTrash(app.value))
+  const source = computed(() => typeof current === 'function' ? current() : current.value)
+  const type = computed(() => source.value?.type as DataType | undefined)
+  const isTrashed = computed(() => isTrashedMediaPath(source.value?.path))
+  const isMedia = computed(() => !!type.value && [DataType.VIDEO, DataType.AUDIO, DataType.IMAGE, DataType.DOC].includes(type.value))
+  const canTrash = computed(() => isMedia.value && hasMediaTrash(app.value, type.value))
   const canDelete = computed(() => !isMedia.value || hasMediaDelete(app.value))
   const canMove = computed(() => !isMedia.value || hasMediaMove(app.value))
 

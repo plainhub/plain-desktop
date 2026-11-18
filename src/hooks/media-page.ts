@@ -125,7 +125,7 @@ export function useMediaPage(options: MediaPageOptions) {
     ? selectAllQuery(q.value)
     : `ids:${sel.selectedIds.value.join(',')}`
   const trashInEditMode = () => {
-    hasMediaTrash(app.value)
+    hasMediaTrash(app.value, dataType)
       ? trash(dataType, getQuery())
       : deleteItems(dataType, sel.selectedIds.value, sel.realAllChecked.value, sel.total.value, q.value)
   }

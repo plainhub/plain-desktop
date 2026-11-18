@@ -1,12 +1,13 @@
-import { Capability } from '@/lib/data'
+import { Capability, DataType } from '@/lib/data'
+import { isLocalMode } from '@/lib/device/local-mode'
 
 // `capabilities` is undefined until the app query resolves (the temp store boots
 // with a partial app object), so treat that as "nothing declared".
 export const hasFeature = (feature: Capability, features: string[] | undefined) =>
   !!features?.includes(feature)
 
-export const hasMediaTrash = (app: { capabilities?: string[] } | undefined) =>
-  hasFeature(Capability.MEDIA_TRASH, app?.capabilities)
+export const hasMediaTrash = (app: { capabilities?: string[] } | undefined, type: DataType | undefined) =>
+  hasFeature(Capability.MEDIA_TRASH, app?.capabilities) && (!isLocalMode() || type === DataType.IMAGE)
 
 export const hasMediaDelete = (app: { capabilities?: string[] } | undefined) =>
   hasFeature(Capability.MEDIA_DELETE, app?.capabilities)
