@@ -121,7 +121,6 @@ async function advance(media, timeout = 12000, observation = {}, original = medi
   const started = performance.now(), trace = observeMedia(media);
   observation.initial = mediaState(media, original);
   observation.play_promise = 'not-called';
-  const observeWhilePending = video && afterSeek;
   let pausedPendingPlay = false, playError;
   const checkPlay = () => { if (observation.play_promise === 'rejected') throw playError; };
   let first = null, last = null, callbacks = 0, callbackId = null, running = true;
@@ -154,7 +153,7 @@ async function advance(media, timeout = 12000, observation = {}, original = medi
       observation.promise_settled_ms = Math.round(performance.now() - started);
       observation.at_promise_settlement = mediaState(media, original);
     });
-    if (!observeWhilePending) await within(promise, 'Media play', timeout);
+    if (!afterSeek) await within(promise, 'Media play', timeout);
     await waitFor(() => {
       checkPlay();
       return media.currentTime >= before + .3 && (!video ||
@@ -162,8 +161,8 @@ async function advance(media, timeout = 12000, observation = {}, original = medi
     }, 'Playback time or actual video frames did not advance', timeout);
     observation.before_pause = mediaState(media, original);
     check(!media.paused && !media.ended, 'Media is not playing before pause');
-    // WebKitGTK can present post-seek frames before it settles play(); pause() then aborts the pending promise.
-    pausedPendingPlay = observeWhilePending && observation.play_promise === 'pending';
+    // WebKitGTK can advance post-seek playback before it settles play(); pause() then aborts the pending promise.
+    pausedPendingPlay = afterSeek && observation.play_promise === 'pending';
     media.pause();
     const paused = media.currentTime;
     await Promise.all([delay(250), within(promise, 'Media play', timeout)]);

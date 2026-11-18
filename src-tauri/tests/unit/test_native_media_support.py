@@ -299,6 +299,43 @@ function video(deliverFrames = true, distinct = true) {
     assert.equal(afterSeek.final.paused, true);
     assert.equal(afterSeek.final.ended, false);
   }
+  let rejectControlPlay, stopControlClock;
+  const control = { ...emptyMedia(), currentTime: 3.68,
+    play() {
+      this.paused = false;
+      const start = performance.now();
+      return new Promise((resolve, reject) => {
+        rejectControlPlay = reject;
+        stopControlClock = setInterval(() => {
+          this.currentTime = Math.min(4, 3.68 + (performance.now() - start) / 1000);
+          if (this.currentTime === 4) {
+            clearInterval(stopControlClock);
+            this.ended = true;
+            this.paused = true;
+            resolve();
+          }
+        }, 1);
+      });
+    },
+    pause() {
+      this.paused = true;
+      clearInterval(stopControlClock);
+      rejectControlPlay(new DOMException('Playback was interrupted by pause()', 'AbortError'));
+    },
+  };
+  const resumedAudio = await api.advance(control, 600, {}, control.currentSrc, true);
+  assert.equal(resumedAudio.play_promise, 'aborted-by-pause');
+  assert.ok(resumedAudio.before_pause.current_time >= 3.98 && resumedAudio.before_pause.current_time < 4);
+  assert.equal(resumedAudio.before_pause.paused, false);
+  assert.equal(resumedAudio.before_pause.ended, false);
+  assert.equal(resumedAudio.final.paused, true);
+  assert.equal(resumedAudio.final.ended, false);
+  assert.equal(resumedAudio.final.current_time, resumedAudio.before_pause.current_time);
+  const stalledAudio = { ...emptyMedia(), currentTime: 3.68,
+    play() { this.paused = false; return new Promise(() => {}); },
+    pause() { assert.fail('Pending play without audio clock progress must not count'); },
+  };
+  await assert.rejects(api.advance(stalledAudio, 40, {}, stalledAudio.currentSrc, true), /did not advance/);
   const prematureAbort = video();
   prematureAbort.play = () => Promise.reject(new DOMException('Interrupted before pause', 'AbortError'));
   prematureAbort.pause = () => assert.fail('A rejected play must not trigger pause');
