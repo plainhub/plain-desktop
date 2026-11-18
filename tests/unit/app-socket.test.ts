@@ -5,6 +5,9 @@ const mock = vi.hoisted(() => ({
   unmounted: [] as Array<() => void>,
   listeners: new Map<string, (value: any) => void>(),
   emit: vi.fn(),
+  changeColor: vi.fn(),
+  getCurrentMode: vi.fn(),
+  addMediaListener: vi.fn(),
 }))
 vi.mock('vue', async original => ({
   ...await original<typeof import('vue')>(),
@@ -20,7 +23,7 @@ vi.mock('@/plugins/eventbus', () => ({ default: { emit: mock.emit, on: vi.fn() }
 vi.mock('@/components/toaster', () => ({ default: vi.fn() }))
 vi.mock('@/lib/api/api', () => ({ getUrlToken: () => 'fixture', setLocalServerPort: vi.fn(), setLocalServerHttpsPort: vi.fn() }))
 vi.mock('@/lib/device/login-peers', () => ({ subscribeLoginPeerUpdates: vi.fn() }))
-vi.mock('@/lib/theme', () => ({ changeColor: vi.fn(), getCurrentMode: () => 'light' }))
+vi.mock('@/lib/theme', () => ({ changeColor: mock.changeColor, getCurrentMode: mock.getCurrentMode }))
 vi.mock('@/lib/api/file', () => ({ tokenToKey: () => new Uint8Array(32) }))
 vi.mock('@/lib/prefs/core', () => ({ preload: vi.fn() }))
 vi.mock('@/lib/prefs/appearance', () => ({ apply: vi.fn() }))
@@ -33,9 +36,12 @@ beforeEach(() => {
   mock.unmounted.length = 0
   mock.listeners.clear()
   mock.emit.mockClear()
+  mock.changeColor.mockClear()
+  mock.getCurrentMode.mockReturnValue('OFF')
+  mock.addMediaListener.mockClear()
   vi.useFakeTimers()
   vi.stubGlobal('document', { title: '' })
-  vi.stubGlobal('window', { matchMedia: () => ({ addEventListener: vi.fn() }) })
+  vi.stubGlobal('window', { matchMedia: () => ({ addEventListener: mock.addMediaListener }) })
   vi.stubGlobal('__IS_TAURI__', false)
 })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
@@ -63,4 +69,21 @@ it('projects authenticated pairing subscriptions to the existing UI handlers', (
   expect(mock.emit).toHaveBeenCalledWith('PAIRING_COMPLETED', { deviceId: 'peer', deviceName: 'Peer', ip: 'host', error: '' })
   mock.listeners.get('pairingFailed')!({ deviceId: 'peer', deviceName: 'Peer', error: 'FAILED' })
   expect(mock.emit).toHaveBeenCalledWith('PAIRING_FAILED', { deviceId: 'peer', deviceName: 'Peer', error: 'FAILED' })
+})
+
+it('follows system theme changes only in the stored device-theme mode', () => {
+  useAppSocket()
+  mock.mounted.forEach(fn => fn())
+  const [[event, update]] = mock.addMediaListener.mock.calls
+  expect(event).toBe('change')
+  mock.changeColor.mockClear()
+
+  update()
+  mock.getCurrentMode.mockReturnValue('ON')
+  update()
+  expect(mock.changeColor).not.toHaveBeenCalled()
+
+  mock.getCurrentMode.mockReturnValue('USE_DEVICE_THEME')
+  update()
+  expect(mock.changeColor).toHaveBeenCalledOnce()
 })
