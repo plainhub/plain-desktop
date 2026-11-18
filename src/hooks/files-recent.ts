@@ -16,7 +16,6 @@ import { useFilesKeyEvents } from '@/hooks/key-events'
 import { initLazyQuery, recentFilesGQL } from '@/lib/api/query'
 import emitter from '@/plugins/eventbus'
 import type { IFileDeletedEvent, IFileRenamedEvent } from '@/lib/interfaces'
-import { arrayRemove } from '@/lib/array'
 import { createRefreshScheduler } from '@/lib/refresh-scheduler'
 import { getIsPhone } from '@/hooks/device'
 import { useOpenMedia } from '@/hooks/open-media'
@@ -31,7 +30,7 @@ export function useFilesRecent() {
   const { app, urlTokenKey } = storeToRefs(tempStore)
   const items = ref<IFile[]>([])
 
-  const { selectedIds, allChecked, realAllChecked, clearSelection, toggleAllChecked, toggleSelect, total, checked, shiftEffectingIds, handleItemClick, handleMouseOver, selectAll, shouldSelect } =
+  const { selectedIds, allChecked, realAllChecked, clearSelection, retainSelection, toggleAllChecked, toggleSelect, total, checked, shiftEffectingIds, handleItemClick, handleMouseOver, selectAll, shouldSelect } =
     useSelectable(items)
   const { downloadFile, downloadFiles, downloadDir } = useDownload(urlTokenKey)
   const { open: openMedia } = useOpenMedia()
@@ -105,7 +104,14 @@ export function useFilesRecent() {
 
   const uploadRefresh = createRefreshScheduler(() => fetch())
   const uploadTaskDoneHandler = (r: IUploadItem) => { if (r.status === 'done') uploadRefresh.schedule() }
-  const fileDeletedHandler = (event: IFileDeletedEvent) => { arrayRemove(items.value, (it: IFile) => it.id === event.item.id); clearSelection() }
+  const fileDeletedHandler = (event: IFileDeletedEvent) => {
+    const previous = items.value
+    const remaining = previous.filter((item) => item.id !== event.item.id)
+    if (remaining.length === previous.length) return
+    items.value = remaining
+    total.value = remaining.length
+    retainSelection(previous)
+  }
   const fileRenamedHandler = (_event: IFileRenamedEvent) => fetch()
   const accessUpdatedHandler = () => fetch()
   let stopPermissionsUpdated: (() => void) | undefined

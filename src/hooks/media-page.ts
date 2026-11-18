@@ -38,7 +38,6 @@ export interface MediaPageOptions {
   getScrollMode: () => boolean
   setupScroll?: () => void
   teardownScroll?: () => void
-  onBeforeFetch?: () => void
   onSort?: () => void
 }
 
@@ -68,6 +67,9 @@ export function useMediaPage(options: MediaPageOptions) {
   const { view: viewBucket } = useBuckets(dataType)
 
   const sel = useSelectable(items)
+  watch(items, (_, previous) => {
+    if (sel.retainSelection(previous) && confirmingDelete.value) cancelDeleteItems()
+  }, { flush: 'sync' })
   const { downloadItems: downloadItemsZip } = useDownloadItems(
     urlTokenKey,
     dataType,
@@ -144,11 +146,11 @@ export function useMediaPage(options: MediaPageOptions) {
     items.value = []
     options.onSort?.()
     sortByRef.value = value
-    doFetch()
+    refreshItems()
   }
 
-  const itemsTagsUpdatedHandler = (e: IItemsTagsUpdatedEvent) => { if (e.type === dataType) { doFetch() } }
-  const itemTagsUpdatedHandler = (e: IItemTagsUpdatedEvent) => { if (e.type === dataType) doFetch() }
+  const itemsTagsUpdatedHandler = (e: IItemsTagsUpdatedEvent) => { if (e.type === dataType) refreshItems() }
+  const itemTagsUpdatedHandler = (e: IItemTagsUpdatedEvent) => { if (e.type === dataType) refreshItems() }
   function getActionedItemIds(e: IMediaItemsActionedEvent): Set<string> | null {
     if (e.id) return new Set([e.id])
     if (e.query?.startsWith('ids:')) {
@@ -158,37 +160,49 @@ export function useMediaPage(options: MediaPageOptions) {
     return null
   }
 
-  const REMOVE_ACTIONS = new Set(['delete', 'trash', 'restore'])
+  const REMOVE_ACTIONS = new Set(['DELETE', 'trash', 'restore'])
+
+  function invalidateQuerySelection() {
+    if (!sel.realAllChecked.value) return
+    sel.realAllChecked.value = false
+    if (confirmingDelete.value) cancelDeleteItems()
+  }
+
+  function refreshItems() {
+    invalidateQuerySelection()
+    doFetch({ force: true, latest: true })
+  }
 
   const mediaItemsActionedHandler = (e: IMediaItemsActionedEvent) => {
     if (e.type !== dataType) return
+    if (e.action === 'upload') {
+      refreshItems()
+      return
+    }
     if (REMOVE_ACTIONS.has(e.action)) {
       const idsToRemove = getActionedItemIds(e)
       if (idsToRemove) {
-        const before = items.value.length
-        items.value = items.value.filter((it) => !idsToRemove.has(it.id))
-        const removed = before - items.value.length
-        if (removed > 0) sel.total.value = Math.max(0, sel.total.value - removed)
-        sel.clearSelection()
+        invalidateQuerySelection()
+        const remaining = items.value.filter((it) => !idsToRemove.has(it.id))
+        const removed = items.value.length - remaining.length
+        if (removed) {
+          items.value = remaining
+          sel.total.value = Math.max(0, sel.total.value - removed)
+        }
         return
       }
     }
     sel.clearSelection()
-    options.onBeforeFetch?.()
-    doFetch()
+    refreshItems()
   }
-  const refreshItems = () => doFetch({ force: true, latest: true })
   let stopLibraryUpdates: (() => void) | undefined
   const libraryUpdated = () => {
-    sel.clearSelection()
-    options.onBeforeFetch?.()
     fetchBucketsTags(undefined, { force: true, latest: true })
     refreshItems()
   }
   const refetchTagsHandler = (type: string) => { if (type === dataType) fetchBucketsTags() }
-  const accessUpdatedHandler = () => doFetch()
+  const accessUpdatedHandler = refreshItems
   const uploadRefresh = createRefreshScheduler(() => {
-    doFetch()
     emitter.emit('media_items_actioned', { type: dataType, action: 'upload', query: '' })
   })
   const uploadTaskDoneHandler = (r: IUploadItem) => {
@@ -201,11 +215,16 @@ export function useMediaPage(options: MediaPageOptions) {
 
   function applyRouteQuery() {
     const nextPage = parseInt(route.query.page?.toString() ?? '1')
-    page.value = Number.isFinite(nextPage) && nextPage > 0 ? nextPage : 1
-    q.value = decodeBase64(route.query.q?.toString() ?? '')
+    const nextQuery = decodeBase64(route.query.q?.toString() ?? '')
+    const requestedPage = Number.isFinite(nextPage) && nextPage > 0 ? nextPage : 1
+    if (requestedPage !== page.value || nextQuery !== q.value) {
+      sel.clearSelection()
+      if (confirmingDelete.value) cancelDeleteItems()
+    }
+    page.value = requestedPage
+    q.value = nextQuery
     parseQ(filter, q.value)
-    options.onBeforeFetch?.()
-    doFetch()
+    refreshItems()
   }
   watch(() => route.path === `/${routePath}` ? route.fullPath : null, (path) => {
     if (isActive.value && path !== null) applyRouteQuery()

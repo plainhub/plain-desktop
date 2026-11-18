@@ -1,7 +1,6 @@
 <template>
   <LeftSidebar v-model:collapsed="collapsed">
     <template #body>
-      <div class="section-title">{{ $t('type') }}</div>
       <ul class="nav">
         <SidebarListItem :title="$t('all')" :active="domain === 'all'" tabindex="0" @keydown.enter="selectType()" @click="selectType()">
           <template #start><i-lucide:layout-grid /></template>

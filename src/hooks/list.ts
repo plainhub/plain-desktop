@@ -108,6 +108,25 @@ export const useSelectable = (items: Ref<IData[]>) => {
     setGroupChecked(groupItems, (event.target as HTMLInputElement).checked)
   }
 
+  function retainSelection(previousItems: IData[]) {
+    if (lastCheckedIndex.value !== null) {
+      const anchor = previousItems[lastCheckedIndex.value]?.id
+      const index = items.value.findIndex((item) => item.id === anchor)
+      lastCheckedIndex.value = index < 0 ? null : index
+    }
+    shiftEffectingIds.value = []
+    if (!selectedIds.value.length) return false
+    const available = new Set(items.value.map((item) => item.id))
+    const retained = selectedIds.value.filter((id) => available.has(id))
+    const changed = retained.length !== selectedIds.value.length
+    if (changed) {
+      selectedIds.value = retained
+      realAllChecked.value = false
+    }
+    allChecked.value = retained.length > 0 && retained.length === available.size
+    return changed
+  }
+
   return {
     realAllChecked,
     allChecked,
@@ -124,6 +143,7 @@ export const useSelectable = (items: Ref<IData[]>) => {
     groupSelectionState,
     setGroupChecked,
     toggleGroupChecked,
+    retainSelection,
     allCheckedAlertVisible: computed<boolean>(() => {
       return allChecked.value && !realAllChecked.value && selectedIds.value.length < total.value
     }),

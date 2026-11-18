@@ -118,6 +118,7 @@ import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
 import { useGroupedScroll, type MediaGroup } from '@/hooks/grouped-scroll'
 import { useMediaPage } from '@/hooks/media-page'
+import { mediaListPage } from '@/lib/media/list-page'
 import { useMediaPageActions } from '@/hooks/media-page-actions'
 import ImageListItem from '@/views/images/ImageListItem.vue'
 import MediaPageActions from '@/components/media/MediaPageActions.vue'
@@ -137,10 +138,9 @@ const mp = useMediaPage({
   dataType: DataType.IMAGE, routePath: 'images',
   items, sortByRef: imageSortBy, fileFilter: isImage,
   downloadName: 'images', uploadModalId: 'upload-directory-picker-images', uploadStorageKey: 'images',
-  doFetch: (options) => fetch(undefined, options), getScrollMode: () => scrollMode.value,
+  doFetch: (options) => fetch(options?.force ? queryVariables(true) : undefined, options), getScrollMode: () => scrollMode.value,
   setupScroll: () => setTimeout(setupSentinelObserver, 100), teardownScroll: () => teardownObserver(),
   onSort: () => { noMore.value = false },
-  onBeforeFetch: () => { if (scrollMode.value) { mp.page.value = 1; noMore.value = false; items.value = [] } },
 })
 const {
   isPhone, mainStore, tempStore, app, urlTokenKey,
@@ -173,21 +173,27 @@ watch(() => mainStore.imagesScrollPaging, () => { page.value = 1; items.value = 
 
 const effectiveQ = computed(() => q.value)
 
+const queryVariables = (refresh = false) => ({
+  ...mediaListPage(page.value, limit.value, refresh && scrollMode.value),
+  query: effectiveQ.value,
+  sortBy: effectiveIsGroupMode.value ? 'TAKEN_AT_DESC' : imageSortBy.value,
+})
+
 const { loading, fetch } = initLazyQuery({
-  handle: async (data: { images: IImage[]; imageCount: number }, error: string) => {
+  handle: async (data: { images: IImage[]; imageCount: number }, error: string, context) => {
     mp.sorting.value = false
     if (error) { toast(error, 'error') } else if (data) {
       const list = data.images.map((it) => ({ ...it, fileId: getFileId(urlTokenKey.value, it.path, it.id) }))
-      if (scrollMode.value && page.value > 1) {
+      if (scrollMode.value && Number(context?.variables?.offset ?? 0) > 0) {
         const existingIds = new Set(items.value.map((i) => i.id))
         items.value = items.value.concat(list.filter((i) => !existingIds.has(i.id)))
       } else { items.value = list }
       total.value = data.imageCount
-      if (scrollMode.value) { noMore.value = list.length < limit.value; prefetchNext() }
+      if (scrollMode.value) { noMore.value = list.length < Number(context?.variables?.limit ?? limit.value); prefetchNext() }
     }
   },
   document: imagesGQL,
-  variables: () => ({ offset: (page.value - 1) * limit.value, limit: limit.value, query: effectiveQ.value, sortBy: effectiveIsGroupMode.value ? 'TAKEN_AT_DESC' : imageSortBy.value }),
+  variables: queryVariables,
 })
 
 const { moveLoading, onMoveClick } = useMoveToFolder('move-images-picker')

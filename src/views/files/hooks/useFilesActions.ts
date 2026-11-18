@@ -9,14 +9,15 @@ import { initMutation, setTempValueGQL, addFavoriteFolderGQL, deleteFilesGQL } f
 import { useFilesDelete } from './useFilesDelete'
 import emitter from '@/plugins/eventbus'
 import toast from '@/components/toaster'
-import { arrayRemove } from '@/lib/array'
 import { copyTextToClipboard } from '@/lib/clipboard'
 
 interface UseFilesActionsOptions {
   items: Ref<IFile[]>
+  visibleItems: ComputedRef<IFile[]>
   total: Ref<number>
   selectedIds: Ref<string[]>
   clearSelection: () => void
+  retainSelection: (previousItems: IFile[]) => boolean
   filter: IFileFilter
   rootDir: ComputedRef<string>
   urlTokenKey: Ref<Uint8Array | null>
@@ -40,7 +41,7 @@ interface UseFilesActionsOptions {
 
 export function useFilesActions(opts: UseFilesActionsOptions) {
   const {
-    items, total, selectedIds, clearSelection, filter, rootDir, urlTokenKey,
+    items, visibleItems, total, selectedIds, clearSelection, retainSelection, filter, rootDir, urlTokenKey,
     t, fetch, refetchMounts, copy, cut, paste,
     downloadFile, downloadDir, downloadFiles,
     createPath, createVariables, createMutation,
@@ -56,10 +57,16 @@ export function useFilesActions(opts: UseFilesActionsOptions) {
   addFavDone(() => emitter.emit('refetch_favorite_folders'))
 
   const onDeleted = (files: IFile[]) => {
-    const previousCount = items.value.length
-    files.forEach((f) => { arrayRemove(items.value, (it: IFile) => it.id === f.id) })
-    total.value -= previousCount - items.value.length
-    clearSelection()
+    const removedIds = new Set(files.map((file) => file.id))
+    const remaining = items.value.filter((item) => !removedIds.has(item.id))
+    const removed = items.value.length - remaining.length
+    if (removed) {
+      const previous = visibleItems.value
+      items.value = remaining
+      total.value -= removed
+      retainSelection(previous)
+    }
+    if (pendingDeleteFiles.value.some((file) => removedIds.has(file.id))) cancelDeleteItems()
     refetchMounts()
   }
 
