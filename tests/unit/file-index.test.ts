@@ -19,11 +19,9 @@ it('saves both lists and the selected mode in one main-schema mutation', async (
   request.mockResolvedValue({ data: { setFileIndexVolume: true } })
   await saveFileIndexVolume(volume)
   expect(request).toHaveBeenCalledOnce()
-  expect(request.mock.calls[0][1]).toEqual({
-    input: { volumeId: volume.id,
-    indexMode: 'BLOCKLIST',
-    includedDirs: ['/disk/Photos'],
-    excludedDirs: ['/disk/Cache'] },
+  expect(request).toHaveBeenCalledWith(expect.stringContaining('setFileIndexVolume(volumeId: $volumeId, input: $input)'), {
+    volumeId: volume.id,
+    input: { indexMode: 'BLOCKLIST', includedDirs: ['/disk/Photos'], excludedDirs: ['/disk/Cache'] },
   })
 })
 

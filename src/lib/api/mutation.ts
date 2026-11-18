@@ -919,8 +919,8 @@ export const stopDiscoveryGQL = `
 `
 
 export const pairPeerGQL = `
-  mutation PairDevice($input: PairPeerInput!) {
-    pairPeer(input: $input)
+  mutation PairDevice($peerId: ID!, $input: PairPeerInput!) {
+    pairPeer(peerId: $peerId, input: $input)
   }
 `
 

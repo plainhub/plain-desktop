@@ -70,8 +70,8 @@ it('adds excluded folders only to the copy and saves the existing mutation', asy
     expect(view.volume.excludedDirs).toEqual(['/fixture/ignored'])
     click(button(view.root, 'save'))
     await flush()
-    expect(mocks.request).toHaveBeenCalledWith(expect.stringContaining('setFileIndexVolume(input: $input)'), {
-      input: { volumeId: 'fixture', indexMode: 'BLOCKLIST', includedDirs: [], excludedDirs: ['/fixture/ignored', '/fixture/private'] },
+    expect(mocks.request).toHaveBeenCalledWith(expect.stringContaining('setFileIndexVolume(volumeId: $volumeId, input: $input)'), {
+      volumeId: 'fixture', input: { indexMode: 'BLOCKLIST', includedDirs: [], excludedDirs: ['/fixture/ignored', '/fixture/private'] },
     })
     expect(view.onSaved).toHaveBeenCalledOnce()
     expect(mocks.close).toHaveBeenCalledWith(7)
@@ -97,7 +97,7 @@ it('does not enable a disabled volume or save an empty selection; retains the dr
     click(button(view.root, 'save'))
     await flush()
     expect(mocks.request).toHaveBeenCalledWith(expect.any(String), {
-      input: { volumeId: 'fixture', indexMode: 'ALLOWLIST', includedDirs: ['/fixture/photos'], excludedDirs: ['/fixture/ignored'] },
+      volumeId: 'fixture', input: { indexMode: 'ALLOWLIST', includedDirs: ['/fixture/photos'], excludedDirs: ['/fixture/ignored'] },
     })
     expect(content(view.root)).toContain('Could not save scope')
     expect(mocks.close).not.toHaveBeenCalled()
@@ -134,7 +134,7 @@ it('turns off only the selected volume from settings without saving draft folder
     click(button(view.root, 'file_index.disable'))
     await flush()
     expect(mocks.request).toHaveBeenCalledExactlyOnceWith(expect.any(String), {
-      input: { volumeId: 'fixture', indexMode: 'DISABLED', includedDirs: [], excludedDirs: ['/fixture/ignored'] },
+      volumeId: 'fixture', input: { indexMode: 'DISABLED', includedDirs: [], excludedDirs: ['/fixture/ignored'] },
     })
     expect(mocks.stop).not.toHaveBeenCalled()
     expect(view.onSaved).toHaveBeenCalledOnce()

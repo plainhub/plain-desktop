@@ -16,7 +16,10 @@ beforeEach(() => {
 it('sends the peer and required mode and uses notifications instead of state queries', async () => {
   const pairing = createPairing()
   await pairing.start({ peerId: 'peer', mode: 'MANAGE' })
-  expect(mock.native.mock.lastCall?.[0].variables).toEqual({ input: { peerId: 'peer', mode: 'MANAGE' } })
+  expect(mock.native.mock.lastCall?.[0]).toMatchObject({
+    query: expect.stringContaining('pairPeer(peerId: $peerId, input: $input)'),
+    variables: { peerId: 'peer', input: { mode: 'MANAGE' } },
+  })
   mock.listeners.get('pairingStarted')!({ deviceId: 'peer', verificationCode: '01234567' })
   expect(pairing.state.value?.verificationCode).toBe('01234567')
   mock.listeners.get('pairingCompleted')!({ deviceId: 'peer' })
@@ -31,7 +34,7 @@ it('retries password login for the same peer and reports failure through local d
   mock.listeners.get('pairingFailed')!({ deviceId: 'peer', error: 'PASSWORD_REQUIRED' })
   expect(pairing.state.value?.phase).toBe('PASSWORD_REQUIRED')
   await pairing.submit('fixture-password')
-  expect(mock.native.mock.lastCall?.[0].variables).toEqual({ input: { peerId: 'peer', mode: 'MANAGE', password: 'fixture-password' } })
+  expect(mock.native.mock.lastCall?.[0].variables).toEqual({ peerId: 'peer', input: { mode: 'MANAGE', password: 'fixture-password' } })
   mock.listeners.get('pairingFailed')!({ deviceId: 'peer', error: 'REJECTED' })
   expect(pairing.state.value?.error).toBe('REJECTED')
   pairing.dispose()

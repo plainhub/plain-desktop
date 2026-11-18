@@ -1,5 +1,6 @@
 import { PairingErrorCode, parsePairingErrorCode } from '@/lib/api/pairing-error-code'
 import { GqlError } from '@/lib/api/gql-error'
+import { pairPeerGQL } from '@/lib/api/mutation'
 import { computed, reactive, ref } from 'vue'
 import { nativeGraphql } from '@/lib/api/native-client'
 import type { bindGraphqlClient, GqlResult } from '@/lib/api/gql-client'
@@ -68,7 +69,8 @@ export function createPairing(subscriptions = graphqlSubscriptions, request?: Re
       deviceId: value.peerId, phase: value.mode === 'MANAGE' ? 'CONNECTING' : 'PAIRING', error: null,
     })
     try {
-      await execute('mutation($input: PairPeerInput!) { pairPeer(input: $input) }', { input: value })
+      const { peerId, ...input } = value
+      await execute(pairPeerGQL, { peerId, input })
       if (disposed) await cancel(value.peerId)
     } catch (error) {
       update(value.peerId, { phase: 'FAILED', error: parsePairingErrorCode(error instanceof GqlError ? error.code : error) ?? PairingErrorCode.InternalError })

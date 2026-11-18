@@ -42,7 +42,7 @@ export type Input_ContactWebsiteInput = { value: string; type: 'CUSTOM' | 'HOMEP
 
 export type Input_DownloadInput = { resources: Input_ResourceDownloadInput; chat?: never } | { resources?: never; chat: Input_ChatDownloadInput }
 
-export type Input_FileIndexVolumeInput = { volumeId: string; indexMode: 'UNCONFIGURED' | 'DISABLED' | 'ALLOWLIST' | 'BLOCKLIST'; includedDirs: Array<string>; excludedDirs: Array<string> }
+export type Input_FileIndexVolumeInput = { indexMode: 'UNCONFIGURED' | 'DISABLED' | 'ALLOWLIST' | 'BLOCKLIST'; includedDirs: Array<string>; excludedDirs: Array<string> }
 
 export type Input_FileTaskOpInput = { src: string; dst: string; overwrite: boolean }
 
@@ -50,7 +50,7 @@ export type Input_ImageEditorProjectInput = { stateB64: string; thumbnail?: stri
 
 export type Input_NoteInput = { title: string; content: string }
 
-export type Input_PairPeerInput = { peerId: string; mode: 'CHAT' | 'MANAGE'; password?: string | null }
+export type Input_PairPeerInput = { mode: 'CHAT' | 'MANAGE'; password?: string | null }
 
 export type Input_ResourceDownloadInput = { urls: Array<string>; targetDir: string; zipName?: string | null }
 
@@ -2362,6 +2362,7 @@ export interface GqlOperations {
       pairPeer: boolean
     }
     variables: {
+      peerId: string
       input: Input_PairPeerInput
     }
   }
@@ -2903,6 +2904,7 @@ export interface GqlOperations {
       setFileIndexVolume: boolean
     }
     variables: {
+      volumeId: string
       input: Input_FileIndexVolumeInput
     }
   }

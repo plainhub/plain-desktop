@@ -36,13 +36,13 @@ export const fileIndexVolumesGQL = `query {
   fileIndexDefaults { excludedDirs excludedNames excludedProfileDirs { profilesDir excludedDir exceptDirs } mediaExcludedDirSuffixes }
 }`
 
-const setFileIndexVolumeGQL = `mutation($input: FileIndexVolumeInput!) {
-  setFileIndexVolume(input: $input)
+const setFileIndexVolumeGQL = `mutation($volumeId: ID!, $input: FileIndexVolumeInput!) {
+  setFileIndexVolume(volumeId: $volumeId, input: $input)
 }`
 
 export async function saveFileIndexVolume(volume: FileIndexVolume, request = bindGraphqlClient()): Promise<void> {
   const { id, indexMode, includedDirs, excludedDirs } = volume
-  const result = await request<{ setFileIndexVolume: boolean }>(setFileIndexVolumeGQL, { input: { volumeId: id, indexMode, includedDirs, excludedDirs } })
+  const result = await request<{ setFileIndexVolume: boolean }>(setFileIndexVolumeGQL, { volumeId: id, input: { indexMode, includedDirs, excludedDirs } })
   if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
   if (!result.data.setFileIndexVolume) throw new Error('Index configuration write refused')
 }

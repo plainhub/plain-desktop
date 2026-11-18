@@ -89,7 +89,7 @@ it('configures the primary volume with the default blocklist only after continua
   await setup.show()
   expect(mock.fetch).not.toHaveBeenCalled()
   await mock.modal.mock.calls[0][1].onContinue()
-  expect(mock.fetch.mock.calls[1][1]).toEqual({ input: { volumeId: 'root', indexMode: 'BLOCKLIST', includedDirs: [], excludedDirs: [] } })
+  expect(mock.fetch.mock.calls[1][1]).toEqual({ volumeId: 'root', input: { indexMode: 'BLOCKLIST', includedDirs: [], excludedDirs: [] } })
   expect(mock.write).not.toHaveBeenCalled()
 })
 
@@ -111,7 +111,7 @@ it('remembers do not show again through the existing disabled volume mode', asyn
   await useFileIndexSetup().show()
   expect(mock.fetch).not.toHaveBeenCalled()
   await mock.modal.mock.calls[0][1].onDismiss()
-  expect(mock.fetch.mock.calls[1][1]).toEqual({ input: { volumeId: 'root', indexMode: 'DISABLED', includedDirs: ['/kept'], excludedDirs: ['/skipped'] } })
+  expect(mock.fetch.mock.calls[1][1]).toEqual({ volumeId: 'root', input: { indexMode: 'DISABLED', includedDirs: ['/kept'], excludedDirs: ['/skipped'] } })
   expect(mock.fetch).toHaveBeenCalledTimes(2)
   expect(mock.write).not.toHaveBeenCalled()
 })
