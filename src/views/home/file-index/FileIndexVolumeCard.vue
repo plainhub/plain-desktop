@@ -39,18 +39,17 @@
         </p>
       </div>
       <div class="scan-actions">
-        <v-text-button v-if="volume.indexMode === 'UNCONFIGURED'" :disabled="scanDisabled || !volume.isAvailable" @click="$emit('create')">
+        <template v-if="scanActive && scanProgress">
+          <v-text-button disabled>{{ $t(scanProgress.state === 'QUEUED' ? 'waiting' : scanProgress.state === 'PAUSED' ? 'paused' : 'file_index.scanning') }}</v-text-button>
+          <v-icon-button v-if="scanProgress.state === 'RUNNING' || scanProgress.state === 'QUEUED'" v-tooltip="$t('pause')" :aria-label="$t('pause')" :disabled="scanDisabled" @click="$emit('pause')"><i-material-symbols:pause-rounded /></v-icon-button>
+          <v-icon-button v-if="scanProgress.state === 'PAUSED'" v-tooltip="$t('resume')" :aria-label="$t('resume')" :disabled="scanDisabled" @click="$emit('resume')"><i-material-symbols:play-arrow-rounded /></v-icon-button>
+          <v-icon-button v-tooltip="$t('stop')" :aria-label="$t('stop')" :disabled="scanDisabled" @click="$emit('stop')"><i-material-symbols:stop-rounded /></v-icon-button>
+        </template>
+        <v-text-button v-else-if="volume.indexMode === 'UNCONFIGURED'" :disabled="scanDisabled || !volume.isAvailable" @click="$emit('create')">
           {{ $t('file_index.create') }}
         </v-text-button>
         <template v-else>
-          <template v-if="scanActive && scanProgress">
-            <v-icon-button v-if="scanProgress.state === 'RUNNING' || scanProgress.state === 'QUEUED'" v-tooltip="$t('pause')" :aria-label="$t('pause')" :disabled="scanDisabled" @click="$emit('pause')"><i-material-symbols:pause-rounded /></v-icon-button>
-            <v-icon-button v-if="scanProgress.state === 'PAUSED'" v-tooltip="$t('resume')" :aria-label="$t('resume')" :disabled="scanDisabled" @click="$emit('resume')"><i-material-symbols:play-arrow-rounded /></v-icon-button>
-            <v-icon-button v-tooltip="$t('stop')" :aria-label="$t('stop')" :disabled="scanDisabled" @click="$emit('stop')"><i-material-symbols:stop-rounded /></v-icon-button>
-          </template>
-          <template v-else>
-            <v-text-button :disabled="scanDisabled || !canScanVolume(volume)" @click="$emit('scan')">{{ $t('rebuild_index') }}</v-text-button>
-          </template>
+          <v-text-button :disabled="scanDisabled || !canScanVolume(volume)" @click="$emit('scan')">{{ $t('rebuild_index') }}</v-text-button>
         </template>
       </div>
     </footer>

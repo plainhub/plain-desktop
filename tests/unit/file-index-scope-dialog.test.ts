@@ -141,3 +141,20 @@ it('turns off only the selected volume from settings without saving draft folder
     expect(mocks.close).toHaveBeenCalledWith(7)
   } finally { view.unmount() }
 })
+
+it.each([
+  ['RUNNING', 'file_index.scanning', 'pause'],
+  ['QUEUED', 'waiting', 'pause'],
+  ['PAUSED', 'paused', 'resume'],
+] as const)('shows %s scan controls before stale unconfigured volume actions', (state, label, action) => {
+  const view = renderView(VolumeCard, {
+    volume: volume('UNCONFIGURED'), title: 'Fixture volume', scanDisabled: false,
+    scanProgress: { volumeId: 'fixture', state, indexed: 76846, pending: 1, total: null },
+  }, components)
+  try {
+    expect(button(view.root, 'file_index.create')).toBeUndefined()
+    expect(button(view.root, label)?.props.disabled).toBe(true)
+    expect(button(view.root, action)).toBeDefined()
+    expect(button(view.root, 'stop')).toBeDefined()
+  } finally { view.unmount() }
+})
