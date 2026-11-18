@@ -20,7 +20,7 @@
     <v-dropdown v-model="menuVisible" :class="{ 'menu-open': menuVisible }" @click.stop>
       <template #trigger>
         <v-icon-button class="icon more-trigger">
-          <i-material-symbols:more-vert />
+          <i-material-symbols:more-horiz />
         </v-icon-button>
       </template>
       <div

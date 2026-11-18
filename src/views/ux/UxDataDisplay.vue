@@ -39,7 +39,7 @@
         <div class="title">Page Title</div>
         <div class="actions">
           <v-icon-button><i-material-symbols:search-rounded /></v-icon-button>
-          <v-icon-button><i-material-symbols:more-vert /></v-icon-button>
+          <v-icon-button><i-material-symbols:more-horiz /></v-icon-button>
         </div>
       </div>
     </ux-code-block>

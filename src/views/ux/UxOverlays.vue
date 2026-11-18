@@ -29,10 +29,10 @@
       </v-dropdown>
     </ux-code-block>
 
-    <ux-code-block code="<!-- Dropdown with icon button trigger -->&#10;<v-dropdown v-model=&quot;open&quot;>&#10;  <template #trigger>&#10;    <v-icon-button>&#10;      <i-material-symbols:more-vert />&#10;    </v-icon-button>&#10;  </template>&#10;  <div class=&quot;dropdown-item&quot;>Edit</div>&#10;  <div class=&quot;dropdown-item danger&quot;>Delete</div>&#10;</v-dropdown>">
+    <ux-code-block code="<!-- Dropdown with icon button trigger -->&#10;<v-dropdown v-model=&quot;open&quot;>&#10;  <template #trigger>&#10;    <v-icon-button>&#10;      <i-material-symbols:more-horiz />&#10;    </v-icon-button>&#10;  </template>&#10;  <div class=&quot;dropdown-item&quot;>Edit</div>&#10;  <div class=&quot;dropdown-item danger&quot;>Delete</div>&#10;</v-dropdown>">
       <v-dropdown v-model="dropdown2Open">
         <template #trigger>
-          <v-icon-button><i-material-symbols:more-vert /></v-icon-button>
+          <v-icon-button><i-material-symbols:more-horiz /></v-icon-button>
         </template>
         <div class="dropdown-item" @click="dropdown2Open = false">Edit</div>
         <div class="dropdown-item danger" @click="dropdown2Open = false">Delete</div>

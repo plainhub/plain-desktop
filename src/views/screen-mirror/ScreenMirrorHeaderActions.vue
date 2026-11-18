@@ -45,7 +45,7 @@
       <!-- More Menu -->
       <v-dropdown v-model="moreMenuVisible">
         <template #trigger>
-          <v-icon-button><i-material-symbols:more-vert /></v-icon-button>
+          <v-icon-button><i-material-symbols:more-horiz /></v-icon-button>
         </template>
         <div class="dropdown-item" :class="{ active: qualityMode === 'HD' }" @click="setQuality('HD')">
           {{ $t('mirror_hd') }}<i-material-symbols:check-rounded v-if="qualityMode === 'HD'" />

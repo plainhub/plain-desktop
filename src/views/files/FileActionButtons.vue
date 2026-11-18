@@ -50,7 +50,7 @@
     <v-dropdown v-if="!inZip" v-model="actionsMenuVisible">
       <template #trigger>
         <v-icon-button v-tooltip="$t('actions')" class="sm">
-          <i-material-symbols:more-vert />
+          <i-material-symbols:more-horiz />
         </v-icon-button>
       </template>
       <div class="dropdown-item" @click.stop="duplicateItem(item); actionsMenuVisible = false">

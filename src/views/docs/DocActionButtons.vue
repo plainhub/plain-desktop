@@ -55,7 +55,7 @@
       <v-dropdown v-model="moreVisible">
         <template #trigger>
           <v-icon-button v-tooltip="$t('actions')" class="sm">
-            <i-material-symbols:more-vert />
+            <i-material-symbols:more-horiz />
           </v-icon-button>
         </template>
         <div class="dropdown-item" @click.stop="$emit('open-file', item); moreVisible = false">

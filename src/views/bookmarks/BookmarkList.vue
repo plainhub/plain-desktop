@@ -91,7 +91,7 @@
             <v-dropdown v-model="groupMenus[group.id]" @click.stop>
               <template #trigger>
                 <v-icon-button class="icon more-trigger">
-                  <i-material-symbols:more-vert />
+                  <i-material-symbols:more-horiz />
                 </v-icon-button>
               </template>
               <div class="dropdown-item" @click="openAddDialog(group.id); groupMenus[group.id] = false">

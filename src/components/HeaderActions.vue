@@ -3,7 +3,7 @@
     <v-dropdown v-model="menuVisible">
       <template #trigger>
         <v-icon-button id="menu-ref" v-tooltip="t('settings')">
-          <i-lucide:ellipsis-vertical />
+          <i-material-symbols:more-horiz />
         </v-icon-button>
       </template>
 

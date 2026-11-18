@@ -32,7 +32,7 @@
               :id="'volume-' + item.fullPath" v-tooltip="$t('actions')" :aria-label="`${$t('actions')}: ${item.title}`" class="sm"
               @click.prevent.stop="showVolumeMenu(item)" @keydown.enter.stop @keydown.space.stop
             >
-              <i-material-symbols:more-vert />
+              <i-material-symbols:more-horiz />
             </v-icon-button>
           </template>
         </VolumeCard>
@@ -53,7 +53,7 @@
                 :id="'favorite-' + item.fullPath" v-tooltip="$t('actions')" class="sm"
                 @click.prevent.stop="showFavoriteMenu(item)"
               >
-                <i-material-symbols:more-vert />
+                <i-material-symbols:more-horiz />
               </v-icon-button>
             </template>
           </SidebarListItem>

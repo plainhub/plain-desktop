@@ -18,7 +18,7 @@
       </template>
       <template #actions>
         <v-icon-button :id="'tag-' + item.id" v-tooltip="$t('actions')" class="sm" @click.prevent.stop="showMenu(item)">
-          <i-material-symbols:more-vert />
+          <i-material-symbols:more-horiz />
         </v-icon-button>
       </template>
     </SidebarListItem>

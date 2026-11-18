@@ -20,7 +20,7 @@
         <v-icon-button
           :id="'bucket-' + item.id" v-tooltip="$t('actions')" :aria-label="`${$t('actions')}: ${item.name}`" class="sm"
           @click.prevent.stop="showMenu(item)" @keydown.enter.stop @keydown.space.stop>
-          <i-material-symbols:more-vert />
+          <i-material-symbols:more-horiz />
         </v-icon-button>
       </template>
     </SidebarListItem>

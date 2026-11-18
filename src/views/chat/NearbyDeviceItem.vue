@@ -25,7 +25,7 @@
     <template v-if="peer" #actions>
       <v-text-button v-if="switchOnly" :disabled="disabled" @click.stop="emit('remove')">{{ $t('unpair') }}</v-text-button>
       <template v-else>
-        <v-icon-button :id="menuId" :aria-label="$t('actions')" @click.stop="menuOpen = true"><i-material-symbols:more-vert /></v-icon-button>
+        <v-icon-button :id="menuId" :aria-label="$t('actions')" @click.stop="menuOpen = true"><i-material-symbols:more-horiz /></v-icon-button>
         <v-dropdown-menu v-model="menuOpen" :anchor="menuId">
           <div class="dropdown-item" @click="remove">{{ $t('unpair') }}</div>
         </v-dropdown-menu>

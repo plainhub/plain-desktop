@@ -11,7 +11,7 @@
     </template>
     <template #actions>
       <v-icon-button :id="anchorId" v-tooltip="$t('actions')" class="sm" @click.prevent.stop="showMenu">
-        <i-material-symbols:more-vert />
+        <i-material-symbols:more-horiz />
       </v-icon-button>
       <v-dropdown-menu v-model="menuVisible" :anchor="anchorId">
         <template v-if="!confirmingClear">
