@@ -1,5 +1,7 @@
 use objc2::{AllocAnyThread, rc::autoreleasepool, runtime::ProtocolObject};
-use objc2_app_kit::{NSImage, NSPasteboard, NSPasteboardTypeString, NSPasteboardWriting};
+use objc2_app_kit::{
+    NSImage, NSPasteboard, NSPasteboardItem, NSPasteboardTypeString, NSPasteboardWriting,
+};
 use objc2_foundation::{NSArray, NSData, NSString};
 
 use super::Sample;
@@ -24,11 +26,24 @@ fn read_from(pasteboard: &NSPasteboard) -> Option<Sample> {
     (pasteboard.changeCount() == change).then_some(Sample { text, sensitive })
 }
 
-pub(super) fn write_text(text: &str) -> Result<(), String> {
-    autoreleasepool(|_| {
-        let string = ProtocolObject::from_retained(NSString::from_str(text));
-        write_object(&NSPasteboard::generalPasteboard(), string)
-    })
+pub(super) fn write_text(text: &str, sensitive: bool) -> Result<(), String> {
+    autoreleasepool(|_| write_text_to(&NSPasteboard::generalPasteboard(), text, sensitive))
+}
+
+fn write_text_to(pasteboard: &NSPasteboard, text: &str, sensitive: bool) -> Result<(), String> {
+    let item = NSPasteboardItem::new();
+    // SAFETY: AppKit provides this immutable process-lifetime type constant.
+    let text_type = unsafe { NSPasteboardTypeString };
+    if !item.setString_forType(&NSString::from_str(text), text_type)
+        || (sensitive
+            && !item.setString_forType(
+                &NSString::from_str(""),
+                &NSString::from_str("org.nspasteboard.ConcealedType"),
+            ))
+    {
+        return Err("AppKit refused the clipboard data".to_string());
+    }
+    write_object(pasteboard, ProtocolObject::from_retained(item))
 }
 
 pub(super) fn write_png(png: &[u8]) -> Result<(), String> {

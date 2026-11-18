@@ -29,6 +29,7 @@ impl Runtime {
             | "systemWebLoginSnapshot"
             | "peerNotificationsChanged"
             | "peerClipboardChanged"
+            | "clipboardHistoryRefresh"
             | "networkInterfacesChanged"
             | "httpServerStatusChanged"
             | "onlineClientsChanged" => {
@@ -38,7 +39,6 @@ impl Runtime {
                 Ok(Value::Null)
             }
             "systemWebLoginCompleted"
-            | "clipboardHistoryRefresh"
             | "dlnaRendererChanged"
             | "dlnaRendererRefresh"
             | "downloadsRefresh"
@@ -63,7 +63,8 @@ impl Runtime {
                 let request: ClipboardText =
                     plain_libs::serde_json::from_value(params).map_err(|error| error.to_string())?;
                 let app = self.app.clone();
-                tokio::task::spawn_blocking(move || super::clipboard::write_text(&app, &request.text))
+                let ClipboardText { text, label: _label, sensitive } = request;
+                tokio::task::spawn_blocking(move || super::clipboard::write_text(&app, &text, sensitive))
                     .await
                     .map_err(|error| error.to_string())??;
                 Ok(Value::Bool(true))
@@ -185,4 +186,8 @@ impl Runtime {
 #[serde(deny_unknown_fields)]
 struct ClipboardText {
     text: String,
+    #[serde(default)]
+    label: String,
+    #[serde(default)]
+    sensitive: bool,
 }

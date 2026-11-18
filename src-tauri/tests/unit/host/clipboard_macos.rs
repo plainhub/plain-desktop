@@ -6,18 +6,11 @@ fn named_pasteboard_preserves_unicode_concealment_and_image() {
     autoreleasepool(|_| {
         let pasteboard = NSPasteboard::pasteboardWithUniqueName();
         let text = "Clipboard fixture 文档 😀";
-        write_object(
-            &pasteboard,
-            ProtocolObject::from_retained(NSString::from_str(text)),
-        )
-        .unwrap();
+        write_text_to(&pasteboard, text, false).unwrap();
         let sample = read_from(&pasteboard).unwrap();
         assert_eq!(sample.text, text);
         assert!(!sample.sensitive);
-        assert!(pasteboard.setString_forType(
-            &NSString::from_str(""),
-            &NSString::from_str("org.nspasteboard.ConcealedType"),
-        ));
+        write_text_to(&pasteboard, text, true).unwrap();
         assert!(read_from(&pasteboard).unwrap().sensitive);
 
         assert!(write_png_to(&pasteboard, b"invalid PNG").is_err());

@@ -41,9 +41,9 @@ pub(super) fn read<R: tauri::Runtime>(_app: &AppHandle<R>) -> Result<Option<Samp
     }))
 }
 
-pub(super) fn write_text<R: tauri::Runtime>(_app: &AppHandle<R>, text: &str) -> Result<(), String> {
+pub(super) fn write_text<R: tauri::Runtime>(_app: &AppHandle<R>, text: &str, _sensitive: bool) -> Result<(), String> {
     #[cfg(target_os = "macos")]
-    return macos::write_text(text);
+    return macos::write_text(text, _sensitive);
     #[cfg(target_os = "linux")]
     return _app.state::<LinuxClipboard>().write_text(text);
     #[cfg(target_os = "windows")]

@@ -112,11 +112,14 @@ impl HostCallbacks {
                     .unwrap()
                     .retain(|_, (_, channel)| send(channel, params));
             }
-            "peerClipboardChanged" => {
+            "clipboardHistoryRefresh" | "peerClipboardChanged" => {
+                let local = (method == "clipboardHistoryRefresh")
+                    .then(|| plain_libs::serde_json::json!({ "local": true }));
+                let notice = local.as_ref().unwrap_or(params);
                 self.clipboard
                     .lock()
                     .unwrap()
-                    .retain(|_, (_, channel)| send(channel, params));
+                    .retain(|_, (_, channel)| send(channel, notice));
             }
             "httpServerStatusChanged" => {
                 self.http_status
