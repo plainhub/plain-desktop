@@ -1,5 +1,6 @@
 export default {
   bookmarks: 'Bookmarks',
+  add_to_bookmarks: 'Add to Bookmarks',
   add_bookmarks: 'Add Bookmarks',
   add_bookmarks_hint: 'Enter one URL per line. Only http:// and https:// URLs are supported.',
   add_bookmarks_placeholder: 'https://example.com\nhttps://another.com',

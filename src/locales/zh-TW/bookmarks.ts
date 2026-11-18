@@ -1,5 +1,6 @@
 export default {
   bookmarks: '書籤',
+  add_to_bookmarks: '加入書籤',
   add_bookmarks: '新增書籤',
   add_bookmarks_hint: '每行輸入一個 URL。僅支援 http:// 和 https:// URL。',
   add_bookmarks_placeholder: 'https://example.com\nhttps://another.com',

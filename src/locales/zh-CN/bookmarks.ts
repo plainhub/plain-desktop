@@ -1,5 +1,6 @@
 export default {
   bookmarks: '书签',
+  add_to_bookmarks: '加入书签',
   add_bookmarks: '添加书签',
   add_bookmarks_hint: '每行输入一个链接，仅支持 http:// 和 https:// 链接。',
   add_bookmarks_placeholder: 'https://example.com\nhttps://another.com',

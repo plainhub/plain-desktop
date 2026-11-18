@@ -1,6 +1,20 @@
 <template>
   <div class="link-previews">
     <div v-for="preview in linkPreviews" :key="preview.url" class="link-preview-item" @click="openLink(preview.url)">
+      <v-dropdown
+        class="preview-actions"
+        :model-value="openMenu === preview.url"
+        @update:model-value="openMenu = $event ? preview.url : ''"
+      >
+        <template #trigger>
+          <v-icon-button type="button" :aria-label="$t('actions')" :aria-expanded="openMenu === preview.url" :loading="saving">
+            <i-material-symbols:more-horiz aria-hidden="true" />
+          </v-icon-button>
+        </template>
+        <button type="button" class="dropdown-item bookmark-action" :disabled="saving" @click.stop="addBookmark(preview.url)">
+          {{ $t('add_to_bookmarks') }}
+        </button>
+      </v-dropdown>
       <div v-if="preview.src && preview.large" class="preview-image">
         <img 
           :src="preview.src"
@@ -33,8 +47,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { getChatFileId, getFileUrl } from '@/lib/api/file'
+import { addBookmarksGQL, initMutation } from '@/lib/api/mutation'
 import { openUrl } from '@/lib/browser'
 import type { IChatItem } from '@/lib/interfaces'
 import { useTempStore } from '@/stores/temp'
@@ -42,6 +57,13 @@ import { useTempStore } from '@/stores/temp'
 const props = defineProps<{ data: IChatItem }>()
 const tempStore = useTempStore()
 const failed = reactive(new Set<string>())
+const openMenu = ref('')
+const { mutate: saveBookmark, loading: saving } = initMutation({ document: addBookmarksGQL })
+
+function addBookmark(url: string) {
+  openMenu.value = ''
+  return saveBookmark({ urls: [url], groupId: '' })
+}
 
 const linkPreviews = computed(() => {
   if (props.data.content.__typename !== 'ChatMessageContent') return []
@@ -69,11 +91,19 @@ function openLink(url: string) {
 </script>
 
 <style lang="scss" scoped>
+.bookmark-action {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  width: 100%;
+}
+
 .link-previews {
   margin-top: 6px;
   max-width: 600px;
   
   .link-preview-item {
+    position: relative;
     border-radius: 12px;
     overflow: hidden;
     cursor: pointer;
@@ -108,6 +138,15 @@ function openLink(url: string) {
   
   .preview-content {
     padding: 16px;
+    padding-inline-end: 48px;
+  }
+
+  .preview-actions {
+    position: absolute;
+    inset-block-start: 8px;
+    inset-inline-end: 8px;
+    border-radius: 8px;
+    background: var(--md-sys-color-surface-container);
   }
   
   .preview-domain {
@@ -188,4 +227,4 @@ function openLink(url: string) {
     }
   }
 }
-</style> 
+</style>
