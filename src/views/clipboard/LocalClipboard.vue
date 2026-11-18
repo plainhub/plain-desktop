@@ -4,16 +4,27 @@
       <button v-tooltip="$t('close')" class="btn-icon" @click.prevent="store.quick = ''">
         <i-material-symbols:arrow-back-rounded />
       </button>
-      <div class="title">{{ $t('header_actions.clipboard') }}</div>
+      <div class="title">
+        {{ $t('header_actions.clipboard') }}
+        <v-switch
+          v-if="!peerId"
+          :checked="clipboardEnabled === true"
+          :disabled="savingMaster || clipboardEnabled === undefined"
+          :label="$t('header_actions.clipboard')"
+          defer-change
+          @change="setMaster"
+        />
+      </div>
       <div class="actions">
         <v-chip-select
           v-if="peerId"
           :model-value="direction"
           :options="directionOptions"
           :icon="IconSync"
-          :aria-label="$t('clipboard_sync_direction')"
+          :aria-label="`${$t('clipboard_sync_direction')}: ${directionLabel}`"
           :disabled="savingDirection"
           plain
+          icon-only
           @update:model-value="pickDirection"
         />
         <v-chip-select
@@ -57,6 +68,7 @@ import { isClipboardDirection, peerClipboardDirection, setPeerClipboardDirection
 import { useMainStore } from '@/stores/main'
 import ClipboardHistory from './ClipboardHistory.vue'
 import { useLocalClipboard } from './local-clipboard'
+import { useClipboardMasterSwitch } from './master-switch'
 
 const store = useMainStore()
 const { t } = useI18n()
@@ -72,6 +84,12 @@ const directionOptions = computed(() => [
   { value: 'BOTH', label: t('clipboard_direction_both') },
 ])
 const direction = computed(() => peerClipboardDirection(peerId.value))
+const directionLabel = computed(() => directionOptions.value.find(option => option.value === direction.value)!.label)
+const { enabled: clipboardEnabled, saving: savingMaster, setEnabled } = useClipboardMasterSwitch(() => !peerId.value && store.quick === 'clipboard')
+
+async function setMaster(checked: boolean) {
+  try { await setEnabled(checked) } catch { toast(t('FAILED'), 'error') }
+}
 const savingDirection = ref(false)
 
 function selectPeer(value: string | number) {

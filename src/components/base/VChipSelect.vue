@@ -6,12 +6,13 @@
         class="v-chip-select"
         :class="{ 'is-plain': plain }"
         :aria-label="ariaLabel"
+        :title="iconOnly ? selectedOption?.label : undefined"
         :aria-haspopup="'menu'"
         :aria-expanded="isOpen"
         :disabled="disabled"
       >
         <component :is="icon" v-if="plain && icon" class="v-chip-select__icon" />
-        <span class="v-chip-select__label">{{ selectedOption?.label ?? placeholder }}</span>
+        <span v-if="!iconOnly" class="v-chip-select__label">{{ selectedOption?.label ?? placeholder }}</span>
         <component :is="icon" v-if="!plain && icon" class="v-chip-select__icon" />
         <i-lucide:chevron-down v-else class="v-chip-select__icon" :class="{ 'is-open': isOpen }" />
       </button>
@@ -46,6 +47,7 @@ interface Props {
   icon?: Component
   ariaLabel?: string
   plain?: boolean
+  iconOnly?: boolean
   disabled?: boolean
 }
 
@@ -56,6 +58,7 @@ const props = withDefaults(defineProps<Props>(), {
   icon: undefined,
   ariaLabel: '',
   plain: false,
+  iconOnly: false,
   disabled: false,
 })
 

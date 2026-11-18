@@ -1,12 +1,16 @@
 import { computed } from 'vue'
 import { loginPeers } from '@/lib/device/login-peers'
 import { PeerStatus } from '@/lib/status'
+import { Capability } from '@/lib/data'
+import { managedPeerCapabilities } from './local-peer-data'
 import { isLocalMode } from '@/lib/device/local-mode'
 import { Channel, invoke } from '@/lib/api/native-invoke'
 import { get as prefsGet, set as prefsSet } from '@/lib/prefs/core'
 
 const DIRECTIONS_PREF_KEY = 'clipboard_directions'
-export const clipboardPeers = computed(() => loginPeers.value.filter(peer => peer.status === PeerStatus.PAIRED))
+export const clipboardPeers = computed(() => loginPeers.value.filter(peer =>
+  peer.status === PeerStatus.PAIRED && managedPeerCapabilities.value.get(peer.id)?.includes(Capability.CLIPBOARD),
+))
 export const findClipboardPeer = (peerId: string) => clipboardPeers.value.find(peer => peer.id === peerId)
 
 export const clipboardDirections = ['OFF', 'SEND', 'RECEIVE', 'BOTH'] as const

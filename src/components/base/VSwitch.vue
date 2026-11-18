@@ -1,13 +1,20 @@
 <template>
   <label class="feat-switch" :class="{ disabled }">
-    <input type="checkbox" role="switch" :aria-label="label" :checked="checked" :disabled="disabled" @change="$emit('change', ($event.target as HTMLInputElement).checked)" />
+    <input type="checkbox" role="switch" :aria-label="label" :checked="checked" :disabled="disabled" @change="change" />
     <span class="switch-track"></span>
   </label>
 </template>
 
 <script setup lang="ts">
-defineProps<{ checked: boolean; disabled?: boolean; label: string }>()
-defineEmits<{ change: [checked: boolean] }>()
+const props = defineProps<{ checked: boolean; disabled?: boolean; label: string; deferChange?: boolean }>()
+const emit = defineEmits<{ change: [checked: boolean] }>()
+
+function change(event: Event) {
+  const input = event.target as HTMLInputElement
+  const checked = input.checked
+  if (props.deferChange) input.checked = props.checked
+  emit('change', checked)
+}
 </script>
 
 <style lang="scss" scoped>

@@ -36,6 +36,7 @@ export type PeerNotificationUpdate = {
 }
 
 const groups = ref<PeerNotificationGroup[]>([])
+export const managedPeerCapabilities = computed(() => new Map(groups.value.map(group => [group.peerId, group.capabilities])))
 export const peerNotificationGroups = computed(() => groups.value.filter((group) => group.capabilities === null || group.capabilities.includes('NOTIFICATIONS')))
 let revision = -1
 let alertsRevision = -1

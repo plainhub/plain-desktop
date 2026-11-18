@@ -10,6 +10,7 @@ vi.mock('@tauri-apps/api/core', () => ({
   Channel: class { onmessage = (_value: unknown) => {}; constructor() { mock.channels.push(this) } },
   invoke: mock.invoke,
 }))
+vi.mock('@/lib/peer/local-peer-data', () => ({ managedPeerCapabilities: { get value() { return capabilities.value } } }))
 vi.mock('@/lib/api/peer-client', () => ({ gqlFetchPeer: mock.remote }))
 vi.mock('@/lib/api/gql-client', () => ({ bindGraphqlClient: () => mock.local }))
 vi.mock('@/lib/api/query', () => ({ clipboardItemsGQL: 'history' }))
@@ -24,6 +25,7 @@ vi.mock('@/stores/main', () => ({ useMainStore: () => store }))
 
 const store = reactive({ pageSize: 25, quick: '' })
 const loginPeers = ref([{ id: 'a', name: 'Phone', status: PeerStatus.PAIRED }, { id: 'b', name: 'Other device', status: PeerStatus.PAIRED }])
+const capabilities = ref(new Map<string, string[] | null>([['a', ['CLIPBOARD']], ['b', ['CLIPBOARD']]]))
 const entry = (id: string) => ({ data: { clipboardItems: [{ id, text: id }], clipboardItemCount: 1 } })
 
 beforeEach(() => {
@@ -31,6 +33,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   store.quick = ''
   loginPeers.value = [{ id: 'a', name: 'Phone', status: PeerStatus.PAIRED }, { id: 'b', name: 'Other device', status: PeerStatus.PAIRED }]
+  capabilities.value = new Map([['a', ['CLIPBOARD']], ['b', ['CLIPBOARD']]])
   mock.channels.length = 0
   mock.invoke.mockResolvedValue(1)
   mock.get.mockReturnValue({})
@@ -138,4 +141,17 @@ it('deletes a row only from the selected device and reloads the same list', asyn
     expect(mock.local).not.toHaveBeenCalled()
     expect(clipboard.items.value).toEqual([])
   } finally { scope.stop() }
+})
+
+it('shows only paired managed peers with confirmed clipboard capability, even when a supported peer is offline', async () => {
+  const data = await import('@/lib/peer/local-clipboard-data')
+  loginPeers.value.push(
+    { id: 'nas', name: 'SmartBox', status: PeerStatus.PAIRED },
+    { id: 'unknown', name: 'Unknown capability', status: PeerStatus.PAIRED },
+  )
+  capabilities.value = new Map([['a', ['CLIPBOARD']], ['b', ['CLIPBOARD']], ['nas', []], ['unknown', null]])
+  expect(data.clipboardPeers.value.map(peer => peer.id)).toEqual(['a', 'b'])
+  expect(data.findClipboardPeer('nas')).toBeUndefined()
+  await expect(data.setPeerClipboardDirection('nas', 'BOTH')).rejects.toThrow('no longer managed')
+  expect(mock.save).not.toHaveBeenCalled()
 })
