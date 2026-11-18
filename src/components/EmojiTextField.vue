@@ -1,6 +1,6 @@
 <template>
   <div class="emoji-text-field">
-    <v-dropdown :model-value="menuOpen" strategy="below" full-width @update:model-value="menuOpen = $event">
+    <v-dropdown :model-value="menuOpen" full-width @update:model-value="menuOpen = $event">
       <div
         ref="menuRef"
         class="emoji-suggestion-list"

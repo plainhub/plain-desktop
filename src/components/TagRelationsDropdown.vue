@@ -1,5 +1,5 @@
 <template>
-  <v-dropdown v-model="visible" strategy="below" align="end" @click.stop>
+  <v-dropdown v-model="visible" @click.stop>
     <template #trigger>
       <v-icon-button v-tooltip="$t('add_to_tags')" class="sm">
         <i-material-symbols:label-outline-rounded />

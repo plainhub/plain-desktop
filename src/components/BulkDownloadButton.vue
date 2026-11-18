@@ -2,7 +2,7 @@
   <v-icon-button v-if="single" v-tooltip="$t('download')" :loading="loading" @click.stop="$emit('download')">
     <i-material-symbols:download-rounded />
   </v-icon-button>
-  <v-dropdown v-else v-model="menuVisible" strategy="below">
+  <v-dropdown v-else v-model="menuVisible">
     <template #trigger>
       <v-icon-button v-tooltip="$t('download')" :loading="loading">
         <i-material-symbols:download-rounded />

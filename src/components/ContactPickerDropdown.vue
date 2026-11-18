@@ -5,7 +5,7 @@
     @click.stop on the inner wrapper prevents field clicks from toggling.
     The toggle function is exposed via slot props for the icon button.
   -->
-  <v-dropdown :model-value="modelValue" strategy="below" :full-width="true" :max-height="280" @update:model-value="$emit('update:modelValue', $event)">
+  <v-dropdown :model-value="modelValue" :full-width="true" :max-height="280" @update:model-value="$emit('update:modelValue', $event)">
     <template #trigger>
       <div @click.stop>
         <slot :toggle="toggle" />

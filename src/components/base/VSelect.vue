@@ -1,5 +1,5 @@
 <template>
-  <v-dropdown v-model="isOpen" strategy="below" :full-width="fullWidth">
+  <v-dropdown v-model="isOpen" :full-width="fullWidth">
     <template #trigger>
       <button
         :class="['v-select-trigger', `v-select-trigger--${size}`, { 'v-select-trigger--full-width': fullWidth }]"
@@ -237,4 +237,4 @@ function selectOption(option: VSelectOption) {
     background: var(--md-sys-color-surface-container-high);
   }
 }
-</style> 
+</style>

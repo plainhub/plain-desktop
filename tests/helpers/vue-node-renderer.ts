@@ -28,10 +28,15 @@ export function fire(element: Node, eventName: string, event: unknown) {
 export function click(element: Node) { fire(element, 'onClick', { stopPropagation() {}, preventDefault() {} }) }
 export async function flush() { for (let i = 0; i < 6; i++) { await Vue.nextTick(); await Promise.resolve() } }
 
-export function renderView(component: any, props: Record<string, unknown> = {}, components: Record<string, any> = {}) {
+export function renderView(component: any, props: Record<string, unknown> = {}, components: Record<string, any> = {}, prepareElement?: (element: Node) => void) {
   const header = node('header')
   const renderer = Vue.createRenderer<Node, Node>({
-    createElement: node, createText: text => ({ ...node('#text'), text }), createComment: () => node('#comment'),
+    createElement(tag) {
+      const element = node(tag)
+      prepareElement?.(element)
+      return element
+    },
+    createText: text => ({ ...node('#text'), text }), createComment: () => node('#comment'),
     insert(child, parent, anchor) {
       if (child.parent) child.parent.children.splice(child.parent.children.indexOf(child), 1)
       child.parent = parent
@@ -51,5 +56,5 @@ export function renderView(component: any, props: Record<string, unknown> = {}, 
   app.config.warnHandler = message => { throw new Error(message) }
   const root = node('root')
   app.mount(root)
-  return { root, unmount: () => app.unmount() }
+  return { root, portal: header, unmount: () => app.unmount() }
 }

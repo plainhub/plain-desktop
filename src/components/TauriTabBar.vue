@@ -24,7 +24,7 @@
       <template v-if="tab.id === 'home'">
         <span class="tab-title">{{ homeTabTitle }}</span>
         <span class="tab-switch-divider" />
-        <v-dropdown v-model="homeDeviceMenuOpen" strategy="below">
+        <v-dropdown v-model="homeDeviceMenuOpen">
           <template #trigger>
             <button class="tab-switch" :title="$t('device_discovery.change_device')">
               <i-material-symbols:keyboard-arrow-down-rounded />

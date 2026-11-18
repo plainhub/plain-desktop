@@ -25,10 +25,6 @@ const props = defineProps({
   modelValue: { type: Boolean, default: false },
   borderless: { type: Boolean, default: false },
   maxHeight: { type: Number, default: 400 },
-  // Kept for backward compatibility — positioning is now fully automatic.
-  align: { type: String, default: '' },
-  // 'auto': prefer beside trigger; 'below': always place below/above
-  strategy: { type: String, default: 'auto' },
   // Make the container block-level (full parent width)
   fullWidth: { type: Boolean, default: false },
 })
@@ -41,91 +37,29 @@ const containerRef = ref<HTMLElement | null>(null)
 const menuRef = ref<HTMLElement | null>(null)
 const style = ref<CSSProperties>({ position: 'fixed', visibility: 'hidden' })
 
-/**
- * Compute the optimal position for the dropdown menu.
- *
- * Strategy:
- *   1. Prefer placing the menu BESIDE the trigger (left or right) when there
- *      is enough horizontal room for the menu width.
- *   2. In horizontal placement the vertical anchor is chosen independently:
- *      - Enough space below trigger → open DOWNWARD (top = trigger.bottom)
- *      - Enough space above trigger → open UPWARD  (bottom = trigger.top)
- *      - Else use whichever side has more room.
- *      This gives true diagonal alignment in all four corners with obstacle
- *      detection, e.g. a trigger at the bottom of the viewport correctly
- *      opens upward even when placed horizontally.
- *   3. If neither horizontal side has room, fall back to VERTICAL placement
- *      (below or above the trigger, left-aligned with the trigger).
- *   4. All positions are clamped to the viewport with EDGE_MARGIN clearance.
- */
 function computePosition() {
   const container = containerRef.value
   const menu = menuRef.value
   if (!container || !menu) return
 
-  const t = container.getBoundingClientRect()
-  const m = menu.getBoundingClientRect()
-  const ww = window.innerWidth
-  const wh = window.innerHeight
-  const mw = m.width || 200
-  const mh = Math.min(m.height || 100, props.maxHeight)
+  const trigger = container.getBoundingClientRect()
+  const { width } = menu.getBoundingClientRect()
+  const { innerWidth, innerHeight } = window
+  const spaceBelow = innerHeight - trigger.bottom - TRIGGER_GAP - EDGE_MARGIN
+  const spaceAbove = trigger.top - TRIGGER_GAP - EDGE_MARGIN
+  const menuHeight = Math.min(menu.scrollHeight + menu.offsetHeight - menu.clientHeight, props.maxHeight)
+  const openBelow = spaceBelow >= menuHeight || spaceBelow >= spaceAbove
+  const left = Math.max(EDGE_MARGIN, Math.min(trigger.right - width, innerWidth - width - EDGE_MARGIN))
 
-  // Available space on each side, after accounting for trigger gap and edge margin.
-  const spaceRight = ww - t.right - TRIGGER_GAP - EDGE_MARGIN
-  const spaceLeft = t.left - TRIGGER_GAP - EDGE_MARGIN
-  const spaceBelow = wh - t.bottom - TRIGGER_GAP - EDGE_MARGIN
-  const spaceAbove = t.top - TRIGGER_GAP - EDGE_MARGIN
-
-  const s: CSSProperties = {
+  style.value = {
     position: 'fixed',
     overflowY: 'auto',
     zIndex: '9999',
     visibility: 'visible',
+    left: `${left}px`,
+    maxHeight: `${Math.max(0, Math.min(props.maxHeight, openBelow ? spaceBelow : spaceAbove))}px`,
+    ...(openBelow ? { top: `${trigger.bottom + TRIGGER_GAP}px` } : { bottom: `${innerHeight - trigger.top + TRIGGER_GAP}px` }),
   }
-
-  const fitsRight = spaceRight >= mw
-  const fitsLeft = spaceLeft >= mw
-
-  if (props.strategy !== 'below' && (fitsRight || fitsLeft)) {
-    // ── Horizontal placement (beside the trigger) ──────────────────────────
-    // Choose the side with more available space, prefer right when equal.
-    if (fitsRight && spaceRight >= spaceLeft) {
-      s.left = `${t.right + TRIGGER_GAP}px`
-    } else {
-      s.right = `${ww - t.left + TRIGGER_GAP}px`
-    }
-
-    // Vertical anchor: prefer downward; fall back to upward; best-effort last.
-    if (spaceBelow >= mh) {
-      s.top = `${t.bottom}px`
-      s.maxHeight = `${Math.min(props.maxHeight, wh - EDGE_MARGIN - t.bottom)}px`
-    } else if (spaceAbove >= mh) {
-      s.bottom = `${wh - t.top}px`
-      s.maxHeight = `${Math.min(props.maxHeight, t.top - EDGE_MARGIN)}px`
-    } else {
-      if (spaceBelow >= spaceAbove) {
-        s.top = `${t.bottom}px`
-        s.maxHeight = `${Math.max(wh - EDGE_MARGIN - t.bottom, 80)}px`
-      } else {
-        s.bottom = `${wh - t.top}px`
-        s.maxHeight = `${Math.max(t.top - EDGE_MARGIN, 80)}px`
-      }
-    }
-  } else {
-    // ── Vertical placement (below or above the trigger) ────────────────────
-    if (spaceBelow >= spaceAbove) {
-      s.top = `${t.bottom + TRIGGER_GAP}px`
-      s.maxHeight = `${Math.max(wh - EDGE_MARGIN - t.bottom - TRIGGER_GAP, 80)}px`
-    } else {
-      s.bottom = `${wh - t.top + TRIGGER_GAP}px`
-      s.maxHeight = `${Math.max(t.top - TRIGGER_GAP - EDGE_MARGIN, 80)}px`
-    }
-    // Horizontal: left-align with trigger; clamp to viewport.
-    const maxLeft = ww - mw - EDGE_MARGIN
-    s.left = `${Math.max(EDGE_MARGIN, Math.min(t.left, maxLeft))}px`
-  }
-
-  style.value = s
 }
 
 watch(
@@ -203,6 +137,9 @@ onUnmounted(() => {
 <style lang="scss">
 .v-dropdown-portal {
   display: none;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: calc(100vw - 32px);
   background-color: var(--md-sys-color-surface-container);
   border-radius: 4px;
   box-shadow: rgba(0, 0, 0, 0.2) 0px 2px 6px 0px;

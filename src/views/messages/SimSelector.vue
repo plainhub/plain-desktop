@@ -1,5 +1,5 @@
 <template>
-  <v-dropdown v-model="dropdownOpen" strategy="auto">
+  <v-dropdown v-model="dropdownOpen">
     <template #trigger>
       <button class="sim-btn" :aria-label="'SIM ' + currentSlot" @click.stop="dropdownOpen = !dropdownOpen">
         {{ currentSlot }}

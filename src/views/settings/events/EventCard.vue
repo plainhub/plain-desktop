@@ -3,7 +3,7 @@
     <time class="subtle nowrap" :datetime="entry.createdAt"><span v-tooltip="formatDateTimeFull(entry.createdAt)">{{ formatTime(entry.createdAt) }}</span></time>
     <span class="event-dot subtle" :class="{ 'event-error': failed }" aria-hidden="true" />
     <div class="event-content">
-      <v-dropdown v-model="rawOpen" strategy="below" @opened="focusRaw">
+      <v-dropdown v-model="rawOpen" @opened="focusRaw">
         <template #trigger>
           <h2><span ref="titleElement" role="button" tabindex="0" :aria-expanded="rawOpen" aria-haspopup="dialog" @keydown.enter.prevent="titleElement?.click()" @keydown.space.prevent="titleElement?.click()">{{ $t(`event_type.${entry.type}`) }}</span></h2>
         </template>

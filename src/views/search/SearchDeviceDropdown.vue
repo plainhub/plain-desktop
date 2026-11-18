@@ -1,5 +1,5 @@
 <template>
-  <v-dropdown v-if="devices.length > 1" v-model="open" class="leading" strategy="below" @mousedown.stop>
+  <v-dropdown v-if="devices.length > 1" v-model="open" class="leading" @mousedown.stop>
     <template #trigger>
       <v-text-button
         :aria-label="`${$t('devices')}: ${label}`"

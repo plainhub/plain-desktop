@@ -1,5 +1,5 @@
 <template>
-  <v-dropdown v-model="open" strategy="below" align="end">
+  <v-dropdown v-model="open">
     <template #trigger>
       <button v-tooltip="tooltip" class="btn-icon" @click.prevent>
         <i-material-symbols:volume-off-rounded v-if="modelValue === 0" />

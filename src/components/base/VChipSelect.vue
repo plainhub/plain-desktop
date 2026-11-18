@@ -1,5 +1,5 @@
 <template>
-  <v-dropdown v-model="isOpen" strategy="below">
+  <v-dropdown v-model="isOpen">
     <template #trigger>
       <button
         type="button"
