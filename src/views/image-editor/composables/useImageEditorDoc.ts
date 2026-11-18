@@ -2,7 +2,7 @@ import * as Y from 'yjs'
 import type { EditorLayer, CanvasSize, EditorTextLayer } from '../utils/types'
 import {
   Y_META_KEY, Y_LAYERS_KEY, Y_IMAGES_KEY, DOCUMENT_FORMAT_VERSION, type MetaKey,
-  createYLayer, readYLayer, moveYLayer, appendFreehandPoint,
+  createYLayer, readYLayer, moveYLayer, appendFreehandPoint, setYLayerProp,
 } from '../doc/schema'
 
 export interface ImageEditorDocOptions {
@@ -157,7 +157,7 @@ export function useImageEditorDoc(options: ImageEditorDocOptions = {}) {
       }
       yMap.set(key, newYMap)
     } else {
-      yMap.set(key, value)
+      setYLayerProp(yMap, key, value)
     }
   }
 
@@ -165,7 +165,7 @@ export function useImageEditorDoc(options: ImageEditorDocOptions = {}) {
     const yMap = getLayerYMap(id)
     if (!yMap) return
     ydoc.transact(() => {
-      for (const [k, v] of Object.entries(props)) yMap.set(k, v)
+      for (const [k, v] of Object.entries(props)) setYLayerProp(yMap, k, v)
     })
   }
 

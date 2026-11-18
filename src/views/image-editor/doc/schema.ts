@@ -22,10 +22,41 @@ type PointTuple = [number, number]
 
 const LAYER_COMMON_KEYS = ['id', 'type', 'visible', 'name'] as const
 
+const LAYER_ENUMS: Record<string, Record<string, string>> = {
+  type: {
+    arrow: 'ARROW', rect: 'RECT', ellipse: 'ELLIPSE', highlight: 'HIGHLIGHT', mosaic: 'MOSAIC',
+    text: 'TEXT', image: 'IMAGE', freehand: 'FREEHAND', sticker: 'STICKER',
+  } satisfies Record<EditorLayerType, string>,
+  fontWeight: { normal: 'NORMAL', '600': 'SEMIBOLD', bold: 'BOLD' },
+  fontStyle: { normal: 'NORMAL', italic: 'ITALIC' },
+  textAlign: { left: 'LEFT', center: 'CENTER', right: 'RIGHT' },
+  textDecoration: { none: 'NONE', underline: 'UNDERLINE' },
+}
+
+const LAYER_ENUM_READERS = Object.fromEntries(Object.entries(LAYER_ENUMS).map(([key, values]) => [
+  key, Object.fromEntries(Object.entries(values).map(([local, stored]) => [stored, local])),
+]))
+
+function enumValue(key: string, value: unknown, values: Record<string, string>): string {
+  if (typeof value !== 'string' || !Object.hasOwn(values, value)) {
+    throw new Error(`Unsupported image editor ${key === 'type' ? 'layer type' : key}`)
+  }
+  return values[value]
+}
+
+export function setYLayerProp(yMap: Y.Map<unknown>, key: string, value: unknown): void {
+  if (Object.hasOwn(LAYER_ENUMS, key)) value = enumValue(key, value, LAYER_ENUMS[key])
+  yMap.set(key, value)
+}
+
+function readYEnum(yMap: Y.Map<unknown>, key: string): string {
+  return enumValue(key, yMap.get(key), LAYER_ENUM_READERS[key])
+}
+
 export function createYLayer(layer: EditorLayer): Y.Map<unknown> {
   const yMap = new Y.Map<unknown>()
   yMap.set('id', layer.id)
-  yMap.set('type', layer.type)
+  setYLayerProp(yMap, 'type', layer.type)
   yMap.set('visible', layer.visible)
   yMap.set('name', layer.name)
 
@@ -72,9 +103,9 @@ export function createYLayer(layer: EditorLayer): Y.Map<unknown> {
       yMap.set('text', l.text)
       yMap.set('fontSize', l.fontSize); yMap.set('color', l.color)
       yMap.set('fontFamily', l.fontFamily)
-      yMap.set('fontWeight', l.fontWeight); yMap.set('fontStyle', l.fontStyle)
-      yMap.set('textAlign', l.textAlign); yMap.set('letterSpacing', l.letterSpacing)
-      yMap.set('textDecoration', l.textDecoration)
+      setYLayerProp(yMap, 'fontWeight', l.fontWeight); setYLayerProp(yMap, 'fontStyle', l.fontStyle)
+      setYLayerProp(yMap, 'textAlign', l.textAlign); yMap.set('letterSpacing', l.letterSpacing)
+      setYLayerProp(yMap, 'textDecoration', l.textDecoration)
       yMap.set('textStroke', createYTextStroke(l.textStroke))
       yMap.set('textShadow', createYTextShadow(l.textShadow))
       yMap.set('glow', l.glow); yMap.set('rotation', l.rotation)
@@ -102,7 +133,7 @@ export function createYLayer(layer: EditorLayer): Y.Map<unknown> {
       yMap.set('w', l.w); yMap.set('h', l.h)
       yMap.set('color', l.color); yMap.set('text', l.text)
       yMap.set('fontSize', l.fontSize)
-      yMap.set('fontWeight', l.fontWeight); yMap.set('fontStyle', l.fontStyle)
+      setYLayerProp(yMap, 'fontWeight', l.fontWeight); setYLayerProp(yMap, 'fontStyle', l.fontStyle)
       yMap.set('rotation', l.rotation)
       break
     }
@@ -140,7 +171,7 @@ function readYTextShadow(m: Y.Map<unknown>): TextShadow {
 }
 
 export function readYLayer(yMap: Y.Map<unknown>): EditorLayer {
-  const type = yMap.get('type') as EditorLayerType
+  const type = readYEnum(yMap, 'type') as EditorLayerType
   const id = yMap.get('id') as string
   const visible = yMap.get('visible') as boolean
   const name = yMap.get('name') as string
@@ -193,11 +224,11 @@ export function readYLayer(yMap: Y.Map<unknown>): EditorLayer {
         fontSize: yMap.get('fontSize') as number,
         color: yMap.get('color') as string,
         fontFamily: yMap.get('fontFamily') as string,
-        fontWeight: yMap.get('fontWeight') as string,
-        fontStyle: yMap.get('fontStyle') as string,
-        textAlign: yMap.get('textAlign') as 'left' | 'center' | 'right',
+        fontWeight: readYEnum(yMap, 'fontWeight'),
+        fontStyle: readYEnum(yMap, 'fontStyle'),
+        textAlign: readYEnum(yMap, 'textAlign') as EditorTextLayer['textAlign'],
         letterSpacing: yMap.get('letterSpacing') as number,
-        textDecoration: yMap.get('textDecoration') as string,
+        textDecoration: readYEnum(yMap, 'textDecoration'),
         textStroke: readYTextStroke(yMap.get('textStroke') as Y.Map<unknown>),
         textShadow: readYTextShadow(yMap.get('textShadow') as Y.Map<unknown>),
         glow: yMap.get('glow') as boolean,
@@ -230,8 +261,8 @@ export function readYLayer(yMap: Y.Map<unknown>): EditorLayer {
         color: yMap.get('color') as string,
         text: yMap.get('text') as string,
         fontSize: yMap.get('fontSize') as number,
-        fontWeight: yMap.get('fontWeight') as string,
-        fontStyle: yMap.get('fontStyle') as string,
+        fontWeight: readYEnum(yMap, 'fontWeight'),
+        fontStyle: readYEnum(yMap, 'fontStyle'),
         rotation: yMap.get('rotation') as number,
       }
     default:
@@ -240,7 +271,7 @@ export function readYLayer(yMap: Y.Map<unknown>): EditorLayer {
 }
 
 export function moveYLayer(yMap: Y.Map<unknown>, dx: number, dy: number): void {
-  const type = yMap.get('type') as EditorLayerType
+  const type = readYEnum(yMap, 'type') as EditorLayerType
   switch (type) {
     case 'arrow':
       yMap.set('x1', (yMap.get('x1') as number) + dx)
