@@ -120,7 +120,7 @@ export function useLogin(options: UseLoginOptions = {}) {
       lastInitSignaturePublicKey = initData.signaturePublicKey
     }
     if (result.status !== 200 || !initData || typeof initData.authenticated !== 'boolean' || typeof initData.passwordRequired !== 'boolean') {
-      showError.value = true; webAccessDisabled.value = true; error.value = 'login.FAILED'; return false
+      showError.value = true; webAccessDisabled.value = true; error.value = loginErrorMessage(AuthErrorCode.InternalError); return false
     }
     showPasswordInput.value = initData.passwordRequired
     try {

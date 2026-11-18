@@ -1,6 +1,9 @@
 import { computed, ref, watch, type WatchHandle } from 'vue'
-import type { EditorLayer, EditorRasterSource, EditorTextLayer, EditorTool, FreehandLayer } from '@/views/image-editor/utils/types'
-import { getEditorLayerBounds, getEditorRasterSize, hitTestLayer, isEditorTextLayer, LINE_WIDTHS, TOOL_COLORS } from '@/views/image-editor/utils/types'
+import {
+  EditorLayerType, type EditorLayer, type EditorRasterSource, type EditorTextLayer, type EditorTool,
+  type FreehandLayer, getEditorLayerBounds, getEditorRasterSize, hitTestLayer, isEditorTextLayer,
+  LINE_WIDTHS, TOOL_COLORS,
+} from '@/views/image-editor/utils/types'
 import { drawHoverRect, drawSelectionRect } from '@/views/image-editor/utils/renderer'
 import { updateLayerFromDrag } from '@/views/image-editor/utils/drag-helpers'
 import { drawCenterCrosshair, drawDistanceGuides } from '@/views/image-editor/utils/overlay-guides'
@@ -379,7 +382,7 @@ export function useAnnotationSession(options: AnnotationSessionOptions = {}) {
       drawStart.value = position
       previewLayer.value = {
         id: generateRecordId(),
-        type: 'freehand',
+        type: EditorLayerType.FREEHAND,
         visible: true,
         name: nextLayerName('Brush'),
         points: [{ x: position.x, y: position.y }],
@@ -438,7 +441,7 @@ export function useAnnotationSession(options: AnnotationSessionOptions = {}) {
     if (crop.cropPointerMove(position, isDrawing, drawStart)) return
     if (!isDrawing.value || !drawStart.value || !previewLayer.value) return
 
-    if (previewLayer.value.type === 'freehand') {
+    if (previewLayer.value.type === EditorLayerType.FREEHAND) {
       ;(previewLayer.value as FreehandLayer).points.push({ x: position.x, y: position.y })
       requestRender()
     } else {
@@ -504,7 +507,7 @@ export function useAnnotationSession(options: AnnotationSessionOptions = {}) {
     if (crop.onDoubleClickCrop(position)) return null
     for (let index = layers.length - 1; index >= 0; index--) {
       const layer = layers[index]!
-      if (layer.visible && hitTestLayer(layer, position.x, position.y) && (isEditorTextLayer(layer) || layer.type === 'sticker')) {
+      if (layer.visible && hitTestLayer(layer, position.x, position.y) && (isEditorTextLayer(layer) || layer.type === EditorLayerType.STICKER)) {
         return layer.id
       }
     }

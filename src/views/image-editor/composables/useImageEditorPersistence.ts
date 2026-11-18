@@ -64,7 +64,7 @@ export function useImageEditorPersistence(
       await store.save(
         id,
         { state, thumbnail: cachedThumbnail },
-        { canvasWidth: width, canvasHeight: height, layerCount: doc.getLayerCount() },
+        { canvasWidth: width, canvasHeight: height },
       )
     } catch (e) {
       console.warn('[ImageEditor] Failed to save project', e)

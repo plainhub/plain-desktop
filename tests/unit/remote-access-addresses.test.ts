@@ -12,6 +12,7 @@ const ButtonStub: FunctionalComponent<{ text?: string }> = (props, { slots }) =>
 ButtonStub.props = { text: String }
 
 const addressProps = {
+  hostname: '',
   httpPort: 8280,
   httpsPort: 8643,
   httpAddresses: ['http://192.0.2.1:8280', 'http://192.0.2.2:8280', 'http://192.0.2.3:8280'],
@@ -92,4 +93,30 @@ it('explains disabled remote access while preserving port editing and both proto
   expect(html).toContain('8280')
   expect(html).not.toContain('http://192.0.2.1:8280')
   expect(mock.modal).not.toHaveBeenCalled()
+})
+
+it('shows the hostname inside other addresses with diagnostics, edit, copy and a live protocol QR', async () => {
+  const component = clientTemplate({ ...RemoteAccessAddresses }, 'src/views/home/remote-access/RemoteAccessAddresses.vue')
+  const diagnostics = vi.fn()
+  const edit = vi.fn()
+  const view = renderView(component, { ...addressProps, hostname: 'fixture.local', enabled: true, httpAddresses: [addressProps.httpAddresses[0]], onDiagnostics: diagnostics, onEditHostname: edit }, {
+    VTextButton: ButtonStub, VIconButton: ButtonStub, VCopyButton: ButtonStub,
+  })
+  try {
+    expect(content(view.root)).not.toContain('fixture.local')
+    click(nodes(view.root).find(node => node.props.class === 'other-addresses')!)
+    await nextTick()
+    const row = nodes(view.root).find(node => node.props.class === 'address-row' && content(node).includes('fixture.local'))!
+    expect(content(row)).toContain('fixture.local:8280')
+    const buttons = nodes(row).filter(node => node.tag === 'button')
+    expect(buttons.map(node => node.props['aria-label'] ?? content(node))).toEqual(['mdns_debug', 'edit: mdns_hostname', 'http://fixture.local:8280', 'remote_access_qr'])
+    click(buttons[0]); click(buttons[1]); click(buttons[3])
+    expect(diagnostics).toHaveBeenCalledOnce()
+    expect(edit).toHaveBeenCalledOnce()
+    const qr = mock.modal.mock.calls[0][1].address
+    expect(qr()).toBe('http://fixture.local:8280')
+    click(nodes(view.root).find(node => node.props.id === 'remote-https-tab')!)
+    await nextTick()
+    expect(qr()).toBe('https://fixture.local:8643')
+  } finally { view.unmount() }
 })

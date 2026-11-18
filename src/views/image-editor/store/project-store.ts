@@ -12,7 +12,6 @@
 export interface ProjectMeta {
   canvasWidth: number
   canvasHeight: number
-  layerCount: number
 }
 
 export interface ProjectSummary {
@@ -20,7 +19,6 @@ export interface ProjectSummary {
   updatedAt: number
   canvasWidth: number
   canvasHeight: number
-  layerCount: number
   previewDataUrl: string | null
 }
 

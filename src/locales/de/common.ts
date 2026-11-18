@@ -88,7 +88,6 @@ export default {
   troubleshoot: 'Fehlerbehebung',
   fix_disconnect_tips:
     'Die Verbindung wurde getrennt. Versuchen Sie, den Bildschirm Ihres Telefons eingeschaltet zu lassen oder Ihr Telefon über USB aufzuladen. Alternativ die Anwendung neu öffnen und die Seite aktualisieren.',
-  FAILED_CONNECT_WS: 'Die Verbindung wurde getrennt. Bitte starten Sie die Anwendung neu und versuchen Sie es erneut.',
   desktop_notification_need_https: 'Desktop-Benachrichtigungen benötigen einen sicheren Link (HTTPS).',
   use_https_link: 'HTTPS-Link verwenden',
   send: 'Senden',
@@ -206,6 +205,7 @@ export default {
   screen_capture_permission_denied:
     'Die Berechtigung zur Bildschirmaufnahme ist erforderlich. Erlauben Sie PlainApp unter Systemeinstellungen > Datenschutz & Sicherheit > Bildschirmaufnahme und versuchen Sie es erneut.',
   check_phone: 'Bitte überprüfen Sie Ihr Telefon.',
+  login_confirmation_hint: 'Wenn diese Option aktiviert ist, musst du neue Anmeldungen in PlainApp bestätigen.',
   open_access_settings: 'Zugriffseinstellungen öffnen',
   no_data: 'Keine Daten.',
   show_more: 'Mehr anzeigen',

@@ -43,14 +43,14 @@ it('rejects replacement identities, client ids and repeated acceptance', () => {
   expect(() => startLoginKeyExchange('other-client').accept(vector.response, vector.serverIdentity)).toThrow()
   const client = start()
   client.accept(vector.response, vector.serverIdentity).dispose()
-  expect(() => client.accept(vector.response, vector.serverIdentity)).toThrow('INVALID_AUTH_RESPONSE')
+  expect(() => client.accept(vector.response, vector.serverIdentity)).toThrow('INTERNAL_ERROR')
 })
 
 it('expires at the boundary without extending an already accepted channel', () => {
   const channel = start().accept(vector.response, vector.serverIdentity)
   vi.mocked(getSyncedTimestamp).mockReturnValue(vector.response.expiresAt)
-  expect(() => start().accept(vector.response, vector.serverIdentity)).toThrow('LOGIN_EXPIRED')
-  expect(() => channel.encryptRequest(new Uint8Array())).toThrow('LOGIN_EXPIRED')
+  expect(() => start().accept(vector.response, vector.serverIdentity)).toThrow('TIMEOUT')
+  expect(() => channel.encryptRequest(new Uint8Array())).toThrow('TIMEOUT')
   channel.dispose()
 })
 
@@ -60,7 +60,7 @@ it('caps the local lifetime when page time trails the server', () => {
   vi.mocked(getSyncedTimestamp).mockReturnValue(vector.response.expiresAt - 101)
   expect(channel.encryptRequest(new TextEncoder().encode('request'))).toBeDefined()
   vi.mocked(getSyncedTimestamp).mockReturnValue(vector.response.expiresAt - 100)
-  expect(() => channel.encryptRequest(new Uint8Array())).toThrow('LOGIN_EXPIRED')
+  expect(() => channel.encryptRequest(new Uint8Array())).toThrow('TIMEOUT')
   channel.dispose()
 })
 
@@ -68,13 +68,13 @@ it('binds the signed expiry and sends no commitment, reveal or nonce fields', ()
   const client = start()
   expect(client.hello).toEqual(vector.request)
   expect(Object.keys(client.hello)).toEqual(['publicKey'])
-  expect(() => client.accept({ ...vector.response, expiresAt: vector.response.expiresAt + 1 }, vector.serverIdentity)).toThrow('SIGNATURE_VERIFICATION_FAILED')
+  expect(() => client.accept({ ...vector.response, expiresAt: vector.response.expiresAt + 1 }, vector.serverIdentity)).toThrow('INTERNAL_ERROR')
 })
 
 it('clears a canceled exchange and refuses to reuse it', () => {
   const client = start()
   client.dispose()
-  expect(() => client.accept(vector.response, vector.serverIdentity)).toThrow('INVALID_AUTH_RESPONSE')
+  expect(() => client.accept(vector.response, vector.serverIdentity)).toThrow('INTERNAL_ERROR')
 })
 
 it('uses exactly the Rust signature bytes with a leading purpose', () => {

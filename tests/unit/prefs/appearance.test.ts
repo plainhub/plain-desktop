@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import * as browser from '@/lib/prefs/browser'
 import * as appearance from '@/lib/prefs/appearance'
-import { getCurrentMode, changeColor } from '@/lib/theme'
+import { getCurrentMode, changeColor, changeColorMode } from '@/lib/theme'
 
 const mock = vi.hoisted(() => ({ get: vi.fn(), set: vi.fn(), load: vi.fn(), sync: vi.fn() }))
 vi.mock('@/lib/prefs/core', () => ({ get: mock.get, set: mock.set }))
@@ -24,14 +24,14 @@ beforeEach(() => {
 })
 afterEach(() => vi.unstubAllGlobals())
 
-it.each([['USE_DEVICE_THEME', 'auto'], ['ON', 'dark'], ['OFF', 'light']] as const)('keeps browser theme %s and language independent of Core preferences', async (value, mode) => {
+it.each(['USE_DEVICE_THEME', 'ON', 'OFF'] as const)('keeps browser theme %s and language independent of Core preferences', async (value) => {
   mock.get.mockReturnValue('ON')
-  await appearance.set('dark_theme', value)
+  changeColorMode(value)
   await appearance.set('locale', 'fr')
   expect(storage.get('dark_theme')).toBe(value)
   await appearance.apply()
-  expect(getCurrentMode()).toBe(mode)
-  expect(mode === 'dark' ? document.documentElement.classList.add : document.documentElement.classList.remove).toHaveBeenCalledWith('dark')
+  expect(getCurrentMode()).toBe(value)
+  expect(value === 'ON' ? document.documentElement.classList.add : document.documentElement.classList.remove).toHaveBeenCalledWith('dark')
   expect(mock.load).toHaveBeenCalledWith('fr')
   expect(mock.get).not.toHaveBeenCalled()
   expect(mock.set).not.toHaveBeenCalled()
@@ -44,7 +44,10 @@ it('uses Desktop Core preferences without reading browser appearance values', as
   storage.set('dark_theme', 'OFF')
   mock.get.mockReturnValue('ON')
   mock.set.mockResolvedValue(undefined)
-  expect(getCurrentMode()).toBe('dark')
+  expect(getCurrentMode()).toBe('ON')
+  changeColorMode('USE_DEVICE_THEME')
+  expect(mock.set).toHaveBeenCalledWith('dark_theme', 'USE_DEVICE_THEME')
+  expect(storage.get('dark_theme')).toBe('OFF')
   await appearance.set('locale', 'ja')
   expect(mock.set).toHaveBeenCalledWith('locale', 'ja')
   expect(storage.has('locale')).toBe(false)
@@ -62,4 +65,11 @@ it('recomputes automatic theme from the system without persisting its resolved c
   expect(document.documentElement.classList.add).toHaveBeenCalledWith('dark')
   expect([...storage]).toEqual(saved)
   expect(mock.set).not.toHaveBeenCalled()
+})
+
+it('falls back to the system theme for missing or unknown stored values without rewriting them', () => {
+  expect(getCurrentMode()).toBe('USE_DEVICE_THEME')
+  storage.set('dark_theme', 'unknown')
+  expect(getCurrentMode()).toBe('USE_DEVICE_THEME')
+  expect(storage.get('dark_theme')).toBe('unknown')
 })

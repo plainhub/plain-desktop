@@ -23,12 +23,12 @@
         <div class="toggles">
           <button
             class="toggle-btn bold"
-            :class="{ active: layer.fontWeight === 'bold' }"
+            :class="{ active: layer.fontWeight === EditorFontWeight.BOLD }"
             @click="toggleBold"
           >B</button>
           <button
             class="toggle-btn italic"
-            :class="{ active: layer.fontStyle === 'italic' }"
+            :class="{ active: layer.fontStyle === EditorFontStyle.ITALIC }"
             @click="toggleItalic"
           >I</button>
           <div class="divider" />
@@ -48,7 +48,7 @@
 
 <script setup lang="ts">
 import { useEditorPopup } from '../composables/useEditorPopup'
-import type { StickerLayer } from '@/views/image-editor/utils/types'
+import { EditorFontWeight, EditorFontStyle, type StickerLayer } from '@/views/image-editor/utils/types'
 import { measureStickerSize } from '@/views/image-editor/utils/editor-draw-layers'
 import type { ImageEditorDoc } from '@/views/image-editor/composables/useImageEditorDoc'
 
@@ -86,7 +86,7 @@ function onColor(c: string) {
 
 function toggleBold() {
   if (!props.layer) return
-  const next = props.layer.fontWeight === 'bold' ? '600' : 'bold'
+  const next = props.layer.fontWeight === EditorFontWeight.BOLD ? EditorFontWeight.SEMIBOLD : EditorFontWeight.BOLD
   const updated = { ...props.layer, fontWeight: next }
   props.doc.setLayerProp(props.layer.id, 'fontWeight', next)
   resizeFor(updated)
@@ -94,7 +94,7 @@ function toggleBold() {
 
 function toggleItalic() {
   if (!props.layer) return
-  const next = props.layer.fontStyle === 'italic' ? 'normal' : 'italic'
+  const next = props.layer.fontStyle === EditorFontStyle.ITALIC ? EditorFontStyle.NORMAL : EditorFontStyle.ITALIC
   props.doc.setLayerProp(props.layer.id, 'fontStyle', next)
 }
 

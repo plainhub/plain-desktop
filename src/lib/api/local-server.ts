@@ -3,6 +3,8 @@ import { GqlError } from '@/lib/api/gql-error'
 import { nativeGraphql } from '@/lib/api/native-client'
 import { invoke } from '@/lib/api/native-invoke'
 import { httpRequest } from '@/lib/api/http'
+import { setPrefGQL } from '@/lib/api/mutation'
+import { isLocalMode } from '@/lib/device/local-mode'
 
 export interface LocalServer {
   httpPort: number
@@ -29,6 +31,26 @@ async function localData<T>(query: string, variables?: Record<string, unknown>, 
   if (response.errors?.length) throw GqlError.fromGraphql(response.errors[0])
   if (!response.data) throw new Error('Missing server response')
   return response.data
+}
+
+export async function readLocalAccessSettings(): Promise<{ passwordType: 'NONE' | 'FIXED'; requireApproval: boolean; passwordConfigured: boolean }> {
+  if (!isLocalMode()) throw new Error('Local access settings required')
+  const [{ prefs }, passwordConfigured] = await Promise.all([
+    localData<{ prefs: Record<string, unknown> }>(
+      'query($keys: [String!]!) { prefs(keys: $keys) }',
+      { keys: ['password_type', 'login_require_approval'] },
+    ),
+    invoke<boolean>('native_password_configured'),
+  ])
+  const { password_type: passwordType, login_require_approval: requireApproval } = prefs
+  if ((passwordType !== 'NONE' && passwordType !== 'FIXED') || typeof requireApproval !== 'boolean' || typeof passwordConfigured !== 'boolean') throw new Error('Invalid access settings')
+  return { passwordType, requireApproval, passwordConfigured }
+}
+
+export async function writeLocalAccessSetting(...[key, value]: ['password', string] | ['password_type', 'FIXED' | 'NONE'] | ['login_require_approval', boolean]): Promise<void> {
+  if (!isLocalMode()) throw new Error('Local access settings required')
+  const { setPref } = await localData<{ setPref: boolean }>(setPrefGQL, { key, value })
+  if (!setPref) throw new Error('Access setting write refused')
 }
 
 export async function readLocalServer(): Promise<LocalServer> {

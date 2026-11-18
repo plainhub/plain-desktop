@@ -88,7 +88,6 @@ export default {
   troubleshoot: 'Dépannage',
   fix_disconnect_tips:
     "La connexion a été interrompue. Veuillez essayer de laisser l'écran de votre téléphone allumé ou de connecter votre téléphone via un chargement USB. Sinon, rouvrez l'application et actualisez la page.",
-  FAILED_CONNECT_WS: "La connexion a été interrompue. Veuillez redémarrer l'application et réessayer.",
   desktop_notification_need_https: 'Les notifications de bureau nécessitent un lien sécurisé (HTTPS).',
   use_https_link: 'Utiliser le lien HTTPS',
   send: 'Envoyer',
@@ -207,6 +206,7 @@ export default {
   screen_capture_permission_denied:
     "L'autorisation d'enregistrement de l'écran est requise. Autorisez PlainApp dans Réglages système > Confidentialité et sécurité > Enregistrement de l'écran, puis réessayez.",
   check_phone: 'Veuillez vérifier votre téléphone.',
+  login_confirmation_hint: 'Si cette option est activée, vous devrez approuver les nouvelles connexions dans PlainApp.',
   open_access_settings: "Ouvrir les paramètres d'accès",
   no_data: 'Pas de données.',
   show_more: 'Afficher plus',

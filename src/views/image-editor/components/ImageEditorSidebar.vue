@@ -109,7 +109,7 @@
               </label>
             </template>
 
-            <template v-else-if="layer.type === 'sticker'">
+            <template v-else-if="layer.type === EditorLayerType.STICKER">
               <div
                 class="sticker-dot"
                 :style="{ backgroundColor: (layer as any).color }"
@@ -155,8 +155,7 @@ import Type from '~icons/lucide/type'
 import Image from '~icons/lucide/image'
 import Paintbrush from '~icons/lucide/paintbrush'
 import StickyNote from '~icons/lucide/sticky-note'
-import type { EditorLayer, EditorLayerType } from '@/views/image-editor/utils/types'
-import { SIZE_PRESETS, isEditorTextLayer, isEditorImageLayer } from '@/views/image-editor/utils/types'
+import { EditorLayerType, type EditorLayer, SIZE_PRESETS, isEditorTextLayer, isEditorImageLayer } from '@/views/image-editor/utils/types'
 import { useDragSort } from '@/hooks/use-drag-sort'
 
 const props = defineProps<{
@@ -179,15 +178,15 @@ const emit = defineEmits<{
 }>()
 
 const LAYER_ICONS: Record<EditorLayerType, any> = {
-  arrow: MoveUpRight,
-  rect: Square,
-  ellipse: Circle,
-  highlight: Highlighter,
-  mosaic: Grid3x3,
-  text: Type,
-  image: Image,
-  freehand: Paintbrush,
-  sticker: StickyNote,
+  [EditorLayerType.ARROW]: MoveUpRight,
+  [EditorLayerType.RECT]: Square,
+  [EditorLayerType.ELLIPSE]: Circle,
+  [EditorLayerType.HIGHLIGHT]: Highlighter,
+  [EditorLayerType.MOSAIC]: Grid3x3,
+  [EditorLayerType.TEXT]: Type,
+  [EditorLayerType.IMAGE]: Image,
+  [EditorLayerType.FREEHAND]: Paintbrush,
+  [EditorLayerType.STICKER]: StickyNote,
 }
 
 function layerIcon(type: EditorLayerType) {

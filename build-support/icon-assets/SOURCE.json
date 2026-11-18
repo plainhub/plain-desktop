@@ -20,7 +20,7 @@
     "upstream": "https://github.com/google/material-design-icons",
     "license": "Apache-2.0",
     "license-blob": "https://api.github.com/repos/google/material-design-icons/git/blobs/7a4a3ea2424c09fbe48d455aed1eaa94d9124835",
-    "icons": 129,
+    "icons": 131,
     "license-file": "public/licenses/material-symbols.txt"
   }
 ]

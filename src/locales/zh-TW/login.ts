@@ -8,12 +8,10 @@ export default {
     identity_changed_hint: '與上次連線時儲存的簽章不同。確認後，請重新登入。',
     confirm_identity_change: '確認變更，重新登入',
     INTERNAL_ERROR: '裝置無法完成登入，請重試。',
-    SECURE_LOGIN_UNAVAILABLE: '目前瀏覽器無法安全登入，請更新瀏覽器。',
+    browser_unsupported: '目前瀏覽器無法安全登入，請更新瀏覽器。',
     to_continue: '在手機上點擊接受按鈕以繼續。',
-    FAILED: '登入失敗，請確保手機未處於睡眠模式。',
     REJECTED: '登入請求被拒絕。',
     INVALID_PASSWORD: '密碼錯誤。',
-    CHAT_PAIRING_UNAVAILABLE: '請更新手機上的 PlainApp，再同時配對聊天與完全控制。',
     TOO_MANY_LOGIN_ATTEMPTS: '登入嘗試次數過多，請在 1 分鐘後再試。',
   },
   device_discovery: {

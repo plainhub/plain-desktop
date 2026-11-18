@@ -8,6 +8,7 @@
       <v-switch :label="$t('remote_access')" :checked="enabled" :disabled="saving || !localMode" @change="save" />
     </header>
     <RemoteAccessAddresses
+      :hostname="hostname"
       :http-port="httpPort"
       :https-port="httpsPort"
       :http-addresses="httpAddresses"
@@ -17,22 +18,13 @@
       :address-error="addressError"
       @edit-port="editPort"
       @retry="loadIps"
+      @edit-hostname="editHostname"
+      @diagnostics="showDiagnostics"
     />
-    <div class="remote-access-hostname">
-      <div class="hostname-value">
-        <div>
-          <span class="hostname-label">{{ $t('mdns_hostname') }}</span
-          ><span>{{ hostname || '—' }}</span>
-        </div>
-        <v-icon-button v-tooltip="$t('edit')" :aria-label="$t('edit') + ': ' + $t('mdns_hostname')" @click="editHostname"><i-material-symbols:edit-rounded /></v-icon-button>
-      </div>
-      <v-text-button @click="showDiagnostics"
-        ><template #icon><i-material-symbols:bug-report-rounded /></template>{{ $t('mdns_debug') }}</v-text-button
-      >
-    </div>
     <footer class="remote-access-footer" :class="{ online: count !== null && count > 0 }" aria-live="polite">
       <span v-if="count !== null" class="online-dot" aria-hidden="true"></span>
       <span>{{ clientsFailed ? $t('remote_access_clients_unavailable') : count === null ? $t('loading') : $t('remote_access_clients_online', { count }) }}</span>
+      <v-text-button v-if="localMode" class="access-settings-action" @click="openModal(AccessSettingsDialog)">{{ $t('access_settings') }}</v-text-button>
     </footer>
   </section>
 </template>
@@ -47,6 +39,7 @@ import RemoteAccessAddresses from './RemoteAccessAddresses.vue'
 import MdnsDebugModal from './MdnsDebugModal.vue'
 import MdnsHostnameDialog from './MdnsHostnameDialog.vue'
 import PortEditDialog from './PortEditDialog.vue'
+import AccessSettingsDialog from './AccessSettingsDialog.vue'
 
 const localMode = isLocalMode()
 const { enabled, hostname, saving, save } = useRemoteAccess()
@@ -92,33 +85,6 @@ function showDiagnostics() {
 .remote-access-header :deep(.feat-switch) {
   margin-top: 4px;
 }
-.remote-access-hostname {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-  margin-top: 16px;
-}
-.hostname-value {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  gap: 8px;
-}
-.hostname-value > div {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  overflow-wrap: anywhere;
-}
-.hostname-value .btn-icon {
-  flex-shrink: 0;
-}
-.hostname-label {
-  font-size: 0.75rem;
-  color: var(--md-sys-color-on-surface-variant);
-}
 .remote-access-footer {
   display: flex;
   align-items: center;
@@ -126,6 +92,9 @@ function showDiagnostics() {
   margin-top: 16px;
   color: var(--md-sys-color-on-surface-variant);
   font-size: 0.875rem;
+}
+.access-settings-action {
+  margin-inline-start: auto;
 }
 .remote-access-footer.online {
   color: #247444;

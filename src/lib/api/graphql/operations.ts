@@ -46,7 +46,7 @@ export type Input_FileIndexVolumeInput = { volumeId: string; indexMode: 'UNCONFI
 
 export type Input_FileTaskOpInput = { src: string; dst: string; overwrite: boolean }
 
-export type Input_ImageEditorProjectInput = { stateB64: string; thumbnail?: string | null; canvasWidth: number; canvasHeight: number; layerCount: number }
+export type Input_ImageEditorProjectInput = { stateB64: string; thumbnail?: string | null; canvasWidth: number; canvasHeight: number }
 
 export type Input_NoteInput = { title: string; content: string }
 
@@ -1408,7 +1408,7 @@ export interface GqlOperations {
           sessionType: 'LOGIN' | 'API_TOKEN'
         } | {
           __typename: "LoginFailedEventData"
-          reason: 'CANCELED' | 'EVENT_STORAGE_FAILED' | 'INTERNAL_ERROR' | 'INVALID_AUTH_RESPONSE' | 'INVALID_IDENTITY' | 'INVALID_LOGIN_IDENTITY' | 'INVALID_LOGIN_KEY' | 'INVALID_LOGIN_REQUEST' | 'INVALID_PASSWORD' | 'LOGIN_EXPIRED' | 'PASSWORD_SETUP_REQUIRED' | 'PEER_IDENTITY_CHANGED' | 'REJECTED' | 'REMOTE_ACCESS_DISABLED' | 'TOO_MANY_LOGIN_ATTEMPTS' | 'TOO_MANY_LOGIN_CONNECTIONS' | 'TIMEOUT' | 'SECURE_LOGIN_UNAVAILABLE' | 'SIGNATURE_VERIFICATION_FAILED' | 'FAILED_CONNECT_WS' | 'PROXY_AUTH_FAILED' | 'FAILED' | 'UNAUTHORIZED' | 'CHAT_PAIRING_UNAVAILABLE'
+          reason: 'CANCELED' | 'INTERNAL_ERROR' | 'INVALID_LOGIN_REQUEST' | 'INVALID_PASSWORD' | 'PASSWORD_SETUP_REQUIRED' | 'PEER_IDENTITY_CHANGED' | 'REJECTED' | 'REMOTE_ACCESS_DISABLED' | 'TOO_MANY_LOGIN_ATTEMPTS' | 'TIMEOUT'
         } | {
           __typename: "SessionEventData"
           session: {
@@ -1709,7 +1709,6 @@ export interface GqlOperations {
         thumbnail?: string
         canvasWidth: number
         canvasHeight: number
-        layerCount: number
         updatedAt: string
       }
     }
@@ -1885,7 +1884,6 @@ export interface GqlOperations {
         thumbnail?: string
         canvasWidth: number
         canvasHeight: number
-        layerCount: number
         updatedAt: string
       }>
     }
@@ -2307,7 +2305,7 @@ export interface GqlOperations {
       pairingCanceled: {
         deviceId: string
         deviceName: string
-        error?: 'CANCELED' | 'TIMEOUT' | 'INTERNAL_ERROR' | 'REJECTED' | 'BLE_CONNECTION_CLOSING' | 'BLE_PAIRING_CAPACITY_EXCEEDED' | 'FAILED_CONNECT' | 'PAIRING_TRANSPORT_UNAVAILABLE' | 'PAIRING_ADDRESS_UNAVAILABLE' | 'FAILED_CONNECT_WS' | 'INVALID_AUTH_RESPONSE' | 'INVALID_SESSION' | 'PASSWORD_REQUIRED' | 'PEER_IDENTITY_CHANGED' | 'REMOTE_ACCESS_DISABLED' | 'SIGNATURE_VERIFICATION_FAILED' | 'CHAT_PAIRING_UNAVAILABLE' | 'INVALID_PASSWORD' | 'LOGIN_EXPIRED' | 'TOO_MANY_LOGIN_ATTEMPTS' | 'PASSWORD_SETUP_REQUIRED' | 'SECURE_LOGIN_UNAVAILABLE' | 'INVALID_LOGIN_REQUEST' | 'TOO_MANY_LOGIN_CONNECTIONS'
+        error?: 'TIMEOUT' | 'REJECTED' | 'PASSWORD_REQUIRED' | 'INVALID_PASSWORD' | 'PEER_IDENTITY_CHANGED' | 'TOO_MANY_LOGIN_ATTEMPTS' | 'INTERNAL_ERROR'
       }
     }
     variables: undefined
@@ -2330,7 +2328,7 @@ export interface GqlOperations {
       pairingFailed: {
         deviceId: string
         deviceName: string
-        error?: 'CANCELED' | 'TIMEOUT' | 'INTERNAL_ERROR' | 'REJECTED' | 'BLE_CONNECTION_CLOSING' | 'BLE_PAIRING_CAPACITY_EXCEEDED' | 'FAILED_CONNECT' | 'PAIRING_TRANSPORT_UNAVAILABLE' | 'PAIRING_ADDRESS_UNAVAILABLE' | 'FAILED_CONNECT_WS' | 'INVALID_AUTH_RESPONSE' | 'INVALID_SESSION' | 'PASSWORD_REQUIRED' | 'PEER_IDENTITY_CHANGED' | 'REMOTE_ACCESS_DISABLED' | 'SIGNATURE_VERIFICATION_FAILED' | 'CHAT_PAIRING_UNAVAILABLE' | 'INVALID_PASSWORD' | 'LOGIN_EXPIRED' | 'TOO_MANY_LOGIN_ATTEMPTS' | 'PASSWORD_SETUP_REQUIRED' | 'SECURE_LOGIN_UNAVAILABLE' | 'INVALID_LOGIN_REQUEST' | 'TOO_MANY_LOGIN_CONNECTIONS'
+        error?: 'TIMEOUT' | 'REJECTED' | 'PASSWORD_REQUIRED' | 'INVALID_PASSWORD' | 'PEER_IDENTITY_CHANGED' | 'TOO_MANY_LOGIN_ATTEMPTS' | 'INTERNAL_ERROR'
       }
     }
     variables: undefined
@@ -2353,7 +2351,7 @@ export interface GqlOperations {
       pairingStarted: {
         deviceId: string
         deviceName: string
-        error?: 'CANCELED' | 'TIMEOUT' | 'INTERNAL_ERROR' | 'REJECTED' | 'BLE_CONNECTION_CLOSING' | 'BLE_PAIRING_CAPACITY_EXCEEDED' | 'FAILED_CONNECT' | 'PAIRING_TRANSPORT_UNAVAILABLE' | 'PAIRING_ADDRESS_UNAVAILABLE' | 'FAILED_CONNECT_WS' | 'INVALID_AUTH_RESPONSE' | 'INVALID_SESSION' | 'PASSWORD_REQUIRED' | 'PEER_IDENTITY_CHANGED' | 'REMOTE_ACCESS_DISABLED' | 'SIGNATURE_VERIFICATION_FAILED' | 'CHAT_PAIRING_UNAVAILABLE' | 'INVALID_PASSWORD' | 'LOGIN_EXPIRED' | 'TOO_MANY_LOGIN_ATTEMPTS' | 'PASSWORD_SETUP_REQUIRED' | 'SECURE_LOGIN_UNAVAILABLE' | 'INVALID_LOGIN_REQUEST' | 'TOO_MANY_LOGIN_CONNECTIONS'
+        error?: 'TIMEOUT' | 'REJECTED' | 'PASSWORD_REQUIRED' | 'INVALID_PASSWORD' | 'PEER_IDENTITY_CHANGED' | 'TOO_MANY_LOGIN_ATTEMPTS' | 'INTERNAL_ERROR'
         verificationCode?: string
       }
     }

@@ -55,7 +55,7 @@
               v-if="inlineEditLayerId && inlineEditLayer"
               ref="inlineEditRef"
               :value="inlineEditLayer.text"
-              :class="inlineEditLayer.type === 'sticker' ? 'inline-edit-sticker' : 'inline-edit-text'"
+              :class="inlineEditLayer.type === EditorLayerType.STICKER ? 'inline-edit-sticker' : 'inline-edit-text'"
               :style="inlineEditPositionStyle"
               spellcheck="false"
               @input="handleInlineInput"
@@ -169,6 +169,7 @@
 </template>
 
 <script setup lang="ts">
+import { EditorLayerType } from '@/views/image-editor/utils/types'
 import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useImageEditorCore } from '@/views/image-editor/composables/useImageEditorCore'
@@ -264,7 +265,7 @@ async function onBgPhotoSelect(e: Event) {
 
 watch(activeColor, (c) => {
   const sel = layers.find(l => l.id === selectedLayerId.value)
-  if (sel && 'color' in sel && sel.type !== 'text' && sel.type !== 'sticker') {
+  if (sel && 'color' in sel && sel.type !== EditorLayerType.TEXT && sel.type !== EditorLayerType.STICKER) {
     pushUndo()
     doc.setLayerProp(sel.id, 'color', c)
   }
@@ -287,7 +288,7 @@ const {
 
 function onInlineEnter(e: KeyboardEvent) {
   const layer = inlineEditLayer.value
-  if (layer && layer.type === 'sticker') {
+  if (layer && layer.type === EditorLayerType.STICKER) {
     return
   }
   e.preventDefault()
@@ -297,7 +298,7 @@ function onInlineEnter(e: KeyboardEvent) {
 function handleInlineInput(e: Event) {
   onInlineEditInput(e)
   const layer = inlineEditLayer.value
-  if (layer && layer.type === 'sticker') {
+  if (layer && layer.type === EditorLayerType.STICKER) {
     autoResizeSticker(layer as any)
     const wrap = wrapRef.value
     if (wrap) {

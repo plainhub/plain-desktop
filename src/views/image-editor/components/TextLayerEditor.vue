@@ -26,7 +26,7 @@
 
         <div class="toggles">
           <button
-            v-for="a in (['left', 'center', 'right'] as const)"
+            v-for="a in Object.values(EditorTextAlign)"
             :key="a"
             class="toggle-btn"
             :class="{ active: layer.textAlign === a }"
@@ -37,18 +37,18 @@
           <div class="divider" />
           <button
             class="toggle-btn bold"
-            :class="{ active: layer.fontWeight === 'bold' }"
-            @click="setProperty('fontWeight', layer.fontWeight === 'bold' ? 'normal' : 'bold')"
+            :class="{ active: layer.fontWeight === EditorFontWeight.BOLD }"
+            @click="setProperty('fontWeight', layer.fontWeight === EditorFontWeight.BOLD ? EditorFontWeight.NORMAL : EditorFontWeight.BOLD)"
           >B</button>
           <button
             class="toggle-btn italic"
-            :class="{ active: layer.fontStyle === 'italic' }"
-            @click="setProperty('fontStyle', layer.fontStyle === 'italic' ? 'normal' : 'italic')"
+            :class="{ active: layer.fontStyle === EditorFontStyle.ITALIC }"
+            @click="setProperty('fontStyle', layer.fontStyle === EditorFontStyle.ITALIC ? EditorFontStyle.NORMAL : EditorFontStyle.ITALIC)"
           >I</button>
           <button
             class="toggle-btn underline"
-            :class="{ active: layer.textDecoration === 'underline' }"
-            @click="setProperty('textDecoration', layer.textDecoration === 'underline' ? 'none' : 'underline')"
+            :class="{ active: layer.textDecoration === EditorTextDecoration.UNDERLINE }"
+            @click="setProperty('textDecoration', layer.textDecoration === EditorTextDecoration.UNDERLINE ? EditorTextDecoration.NONE : EditorTextDecoration.UNDERLINE)"
           >U</button>
         </div>
 
@@ -148,10 +148,10 @@ import AlignCenter from '~icons/lucide/align-center'
 import AlignRight from '~icons/lucide/align-right'
 import { FONT_FAMILIES } from '@/views/image-editor/data/font-families'
 import { useTextLayerEditor } from '@/views/image-editor/composables/useTextLayerEditor'
-import type { EditorTextLayer } from '@/views/image-editor/utils/types'
+import { EditorFontWeight, EditorFontStyle, EditorTextAlign, EditorTextDecoration, type EditorTextLayer } from '@/views/image-editor/utils/types'
 import type { ImageEditorDoc } from '@/views/image-editor/composables/useImageEditorDoc'
 
-const ALIGN_ICONS = { left: AlignLeft, center: AlignCenter, right: AlignRight }
+const ALIGN_ICONS = { [EditorTextAlign.LEFT]: AlignLeft, [EditorTextAlign.CENTER]: AlignCenter, [EditorTextAlign.RIGHT]: AlignRight }
 
 const props = defineProps<{
   layer: EditorTextLayer | null

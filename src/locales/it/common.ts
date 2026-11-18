@@ -88,7 +88,6 @@ export default {
   troubleshoot: 'Risoluzione dei problemi',
   fix_disconnect_tips:
     "La connessione è stata interrotta. Prova a mantenere acceso lo schermo del telefono o collega il telefono tramite USB. In alternativa, riapri l'applicazione e aggiorna la pagina.",
-  FAILED_CONNECT_WS: "La connessione è stata interrotta. Riavvia l'applicazione e riprova.",
   desktop_notification_need_https: 'Le notifiche desktop richiedono un collegamento sicuro (HTTPS).',
   use_https_link: 'Usa il collegamento HTTPS',
   send: 'Invia',
@@ -207,6 +206,7 @@ export default {
   screen_capture_permission_denied:
     "È richiesta l'autorizzazione di registrazione dello schermo. Consenti PlainApp in Impostazioni di sistema > Privacy e sicurezza > Registrazione schermo e riprova.",
   check_phone: 'Si prega di controllare il telefono.',
+  login_confirmation_hint: 'Se attivi questa opzione, dovrai approvare i nuovi accessi in PlainApp.',
   open_access_settings: 'Apri Impostazioni di accesso',
   no_data: 'Nessun dato.',
   show_more: 'Mostra altro',

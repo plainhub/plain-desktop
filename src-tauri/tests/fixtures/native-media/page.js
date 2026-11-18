@@ -114,13 +114,15 @@ function observeMedia(media) {
       records_truncated: eventCount > events.length || sampleCount > samples.length };
   } };
 }
-async function advance(media, timeout = 12000, observation = {}, original = media.currentSrc) {
+async function advance(media, timeout = 12000, observation = {}, original = media.currentSrc, afterSeek = false) {
   const before = media.currentTime;
   const video = media.tagName === 'VIDEO';
   const qualityBefore = video ? media.getVideoPlaybackQuality().totalVideoFrames : null;
   const started = performance.now(), trace = observeMedia(media);
   observation.initial = mediaState(media, original);
   observation.play_promise = 'not-called';
+  let pausedPendingPlay = false, playError;
+  const checkPlay = () => { if (observation.play_promise === 'rejected') throw playError; };
   let first = null, last = null, callbacks = 0, callbackId = null, running = true;
   try {
     if (video) {
@@ -143,20 +145,29 @@ async function advance(media, timeout = 12000, observation = {}, original = medi
         observation.at_promise_settlement = mediaState(media, original);
       }
     }, error => {
-      if (running) {
-        observation.play_promise = 'rejected';
-        observation.promise_error = errorText(error);
-      }
-      throw error;
+      if (!running) return;
+      playError = error;
+      observation.play_promise = pausedPendingPlay && error instanceof DOMException && error.name === 'AbortError'
+        ? 'aborted-by-pause' : 'rejected';
+      observation.promise_error = errorText(error);
+      observation.promise_settled_ms = Math.round(performance.now() - started);
+      observation.at_promise_settlement = mediaState(media, original);
     });
-    await within(promise, 'Media play', timeout);
-    await waitFor(() => media.currentTime >= before + .3 && (!video ||
-      (callbacks >= 2 && last.media_time > first.media_time && last.media_time >= before + .2)),
-      'Playback time or actual video frames did not advance', timeout);
+    if (!afterSeek) await within(promise, 'Media play', timeout);
+    await waitFor(() => {
+      checkPlay();
+      return media.currentTime >= before + .3 && (!video ||
+        (callbacks >= 2 && last.media_time > first.media_time && last.media_time >= before + .2));
+    }, 'Playback time or actual video frames did not advance', timeout);
+    observation.before_pause = mediaState(media, original);
+    check(!media.paused && !media.ended, 'Media is not playing before pause');
+    // WebKitGTK can advance post-seek playback before it settles play(); pause() then aborts the pending promise.
+    pausedPendingPlay = afterSeek && observation.play_promise === 'pending';
     media.pause();
     const paused = media.currentTime;
-    await delay(250);
-    check(media.paused && Math.abs(media.currentTime - paused) < .1, 'Pause did not hold position');
+    await Promise.all([delay(250), within(promise, 'Media play', timeout)]);
+    check(media.paused && !media.ended && Math.abs(media.currentTime - paused) < .1, 'Pause did not hold position');
+    checkPlay();
   } finally {
     running = false;
     if (callbackId !== null) media.cancelVideoFrameCallback(callbackId);
@@ -206,9 +217,9 @@ async function playback(fixture) {
   document.body.append(media);
   const result = { kind, fixture: name, route, verification_method: 'real-webview-media-events', status: 'failed', stages: [], playback_evidence: [] };
   diagnostic('media-started', { fixture: name, route });
-  const play = async phase => {
+  const play = async (phase, afterSeek = false) => {
     const observation = {};
-    try { await advance(media, 12000, observation, url); }
+    try { await advance(media, 12000, observation, url, afterSeek); }
     finally {
       const { trace, ...summary } = observation;
       result.playback_evidence.push({ phase, ...summary });
@@ -230,7 +241,7 @@ async function playback(fixture) {
           after: mediaState(media, url), trace: seeking.stop() }), 'Seek diagnostic acknowledgement failed');
       }
       check(Math.abs(media.currentTime - target) < .3, 'Wrong seek position');
-      await play('seek:' + target);
+      await play('seek:' + target, true);
       mediaStage(result, 'seek-play-pause:' + target);
     }
     media.pause();

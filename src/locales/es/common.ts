@@ -88,7 +88,6 @@ export default {
   troubleshoot: 'Solución de problemas',
   fix_disconnect_tips:
     'La conexión se ha desconectado. Intente mantener la pantalla del teléfono encendida o conectar el teléfono mediante carga USB. O bien, vuelva a abrir la aplicación y actualice la página.',
-  FAILED_CONNECT_WS: 'La conexión se ha desconectado. Reinicie la aplicación e inténtelo de nuevo.',
   desktop_notification_need_https: 'Las notificaciones de escritorio necesitan un enlace seguro (HTTPS).',
   use_https_link: 'Usar enlace HTTPS',
   send: 'Enviar',
@@ -205,6 +204,7 @@ export default {
   clipboard_direction_both: 'Sincronización bidireccional',
   screen_capture_permission_denied: 'Se necesita el permiso de grabación de pantalla. Permita PlainApp en Ajustes del sistema > Privacidad y seguridad > Grabación de pantalla e inténtelo de nuevo.',
   check_phone: 'Por favor, comprueba tu teléfono.',
+  login_confirmation_hint: 'Si activas esta opción, tendrás que aprobar los nuevos inicios de sesión en PlainApp.',
   open_access_settings: 'Abrir Configuración de acceso',
   no_data: 'No hay datos.',
   show_more: 'Mostrar más',

@@ -52,7 +52,7 @@ function verifyDeviceIdentity(params: LoginHandshakeParams): string {
     throw AuthErrorCode.PeerIdentityChanged
   }
   const signatureKey = params.storedSignaturePublicKey || params.initSignaturePublicKey
-  if (!signatureKey) throw AuthErrorCode.SignatureVerificationFailed
+  if (!signatureKey) throw AuthErrorCode.InternalError
 
   return signatureKey
 }

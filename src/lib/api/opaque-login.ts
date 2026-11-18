@@ -10,9 +10,9 @@ import type { LoginHandshakeParams, LoginHandshakeResult } from './login-handsha
 const utf8 = new TextEncoder()
 
 function publicKey(value: string | undefined): Uint8Array {
-  if (!value) throw AuthErrorCode.InvalidAuthResponse
+  if (!value) throw AuthErrorCode.InternalError
   const bytes = base64ToArrayBuffer(value)
-  if (bytes.length !== 32 || bitArrayToBase64(bytes) !== value) throw AuthErrorCode.InvalidAuthResponse
+  if (bytes.length !== 32 || bitArrayToBase64(bytes) !== value) throw AuthErrorCode.InternalError
   return bytes
 }
 

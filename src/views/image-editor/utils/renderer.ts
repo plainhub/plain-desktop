@@ -1,7 +1,7 @@
-import type {
-  EditorLayer, MosaicLayer, CanvasSize, EditorRasterSource,
+import {
+  EditorLayerType, type EditorLayer, type MosaicLayer, type CanvasSize, type EditorRasterSource,
+  getEditorLayerBounds, getEditorRasterSize,
 } from '@/views/image-editor/utils/types'
-import { getEditorLayerBounds, getEditorRasterSize } from '@/views/image-editor/utils/types'
 import { drawSelectionBorder, drawHoverBorder, SELECTION } from '@/views/image-editor/utils/selection-border'
 import { drawLayer } from '@/views/image-editor/utils/editor-draw-layers'
 
@@ -90,7 +90,7 @@ export function renderEditorCanvas(
   const allLayers = previewLayer ? [...layers, previewLayer] : layers
 
   for (const l of allLayers) {
-    if (l.type === 'mosaic') {
+    if (l.type === EditorLayerType.MOSAIC) {
       if (l.visible) applyMosaic(ctx, l as MosaicLayer)
     } else {
       drawLayer(ctx, l, layerImages, hideLayerId)
@@ -149,11 +149,11 @@ export function getSelectionLayout(layer: EditorLayer, displayScale: number): Se
   const bounds = getEditorLayerBounds(layer)
   const rot = ('rotation' in layer) ? (layer as any).rotation ?? 0 : 0
   let cx: number, cy: number
-  if (layer.type === 'text' || layer.type === 'image' || layer.type === 'sticker') {
+  if (layer.type === EditorLayerType.TEXT || layer.type === EditorLayerType.IMAGE || layer.type === EditorLayerType.STICKER) {
     cx = (layer as any).x; cy = (layer as any).y
-  } else if (layer.type === 'arrow') {
+  } else if (layer.type === EditorLayerType.ARROW) {
     cx = (layer.x1 + layer.x2) / 2; cy = (layer.y1 + layer.y2) / 2
-  } else if (layer.type === 'ellipse') {
+  } else if (layer.type === EditorLayerType.ELLIPSE) {
     cx = layer.cx; cy = layer.cy
   } else {
     cx = bounds.x + bounds.w / 2; cy = bounds.y + bounds.h / 2
@@ -167,7 +167,7 @@ export function drawSelectionRect(
   displayScale: number,
 ) {
   const { bounds, pad, cx, cy, rotation } = getSelectionLayout(layer, displayScale)
-  const hasHandles = layer.type === 'text' || layer.type === 'image' || layer.type === 'arrow' || layer.type === 'sticker'
+  const hasHandles = layer.type === EditorLayerType.TEXT || layer.type === EditorLayerType.IMAGE || layer.type === EditorLayerType.ARROW || layer.type === EditorLayerType.STICKER
   ctx.save()
   ctx.scale(1 / displayScale, 1 / displayScale)
   drawSelectionBorder(ctx, {
@@ -176,7 +176,7 @@ export function drawSelectionRect(
   }, {
     color: '#3b82f6',
     pad: pad * displayScale,
-    showEdgeHandles: layer.type === 'text' || layer.type === 'image',
+    showEdgeHandles: layer.type === EditorLayerType.TEXT || layer.type === EditorLayerType.IMAGE,
     showRotationHandle: hasHandles,
   })
   ctx.restore()

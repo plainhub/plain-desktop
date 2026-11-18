@@ -2,18 +2,18 @@
   <div class="theme-changer">
     <div class="button-group">
       <button 
-        :class="{ 'selected': selectedColorMode === 'dark' }"
-        @click="selectColorMode('dark')">
+        :class="{ 'selected': selectedColorMode === 'ON' }"
+        @click="selectColorMode('ON')">
         <i-material-symbols:dark-mode-outline-rounded />
       </button>
       <button 
-        :class="{ 'selected': selectedColorMode === 'auto' }"
-        @click="selectColorMode('auto')">
+        :class="{ 'selected': selectedColorMode === 'USE_DEVICE_THEME' }"
+        @click="selectColorMode('USE_DEVICE_THEME')">
         <i-material-symbols:brightness-6-outline-rounded />
       </button>
       <button 
-        :class="{ 'selected': selectedColorMode === 'light' }"
-        @click="selectColorMode('light')">
+        :class="{ 'selected': selectedColorMode === 'OFF' }"
+        @click="selectColorMode('OFF')">
         <i-material-symbols:sunny-outline-rounded />
       </button>
     </div>
@@ -21,11 +21,10 @@
 </template>
 
 <script setup lang="ts">
-import { changeColorMode, getCurrentMode } from '@/lib/theme'
-import type { ColorMode } from '@/lib/theme'
+import { changeColorMode, getCurrentMode, type ColorMode } from '@/lib/theme'
 import { ref } from 'vue'
 
-const selectedColorMode = ref(getCurrentMode() || 'auto')
+const selectedColorMode = ref(getCurrentMode())
 
 function selectColorMode(value: ColorMode) {
   selectedColorMode.value = value

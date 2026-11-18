@@ -1,5 +1,5 @@
 import { ref, computed, watch, nextTick, type Ref } from 'vue'
-import { isEditorTextLayer, type EditorTextLayer, type EditorLayer, type StickerLayer } from '@/views/image-editor/utils/types'
+import { EditorLayerType, isEditorTextLayer, type EditorTextLayer, type EditorLayer, type StickerLayer } from '@/views/image-editor/utils/types'
 
 /**
  * Manages text and sticker style popup editors in the image editor.
@@ -37,13 +37,13 @@ export function useEditorPopups(
 
   const stickerPopupLayer = computed(() => {
     if (!stickerPopupId.value) return null
-    const l = layers.find(l => l.id === stickerPopupId.value && l.type === 'sticker')
+    const l = layers.find(l => l.id === stickerPopupId.value && l.type === EditorLayerType.STICKER)
     return (l as StickerLayer) ?? null
   })
 
   function openStickerEditor(id: string) {
     const layer = layers.find(l => l.id === id)
-    if (!layer || layer.type !== 'sticker') return
+    if (!layer || layer.type !== EditorLayerType.STICKER) return
     selectedLayerId.value = id
     stickerPopupId.value = id
     nextTick(() => {
@@ -63,7 +63,7 @@ export function useEditorPopups(
     if (isEditorTextLayer(layer)) {
       stickerPopupId.value = null
       openTextEditor(id)
-    } else if (layer.type === 'sticker') {
+    } else if (layer.type === EditorLayerType.STICKER) {
       popupLayerId.value = null
       openStickerEditor(id)
     } else {

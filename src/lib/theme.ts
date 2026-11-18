@@ -1,19 +1,19 @@
 import emitter from '@/plugins/eventbus.js'
 import { get as prefsGet, set as prefsSet } from '@/lib/prefs/appearance'
 
-export type ColorMode = 'light' | 'dark' | 'auto'
+export type ColorMode = ReturnType<typeof prefsGet<'dark_theme'>>
 
 export function isModeDark(mode: ColorMode): boolean {
-  return mode === 'auto' ? window.matchMedia('(prefers-color-scheme: dark)').matches : mode === 'dark'
+  return mode === 'USE_DEVICE_THEME' ? window.matchMedia('(prefers-color-scheme: dark)').matches : mode === 'ON'
 }
 
 export function getCurrentMode(): ColorMode {
   const value = prefsGet('dark_theme', 'USE_DEVICE_THEME')
-  return value === 'ON' ? 'dark' : value === 'OFF' ? 'light' : 'auto'
+  return value === 'ON' || value === 'OFF' ? value : 'USE_DEVICE_THEME'
 }
 
 export function saveColorMode(mode: ColorMode) {
-  void prefsSet('dark_theme', mode === 'dark' ? 'ON' : mode === 'light' ? 'OFF' : 'USE_DEVICE_THEME').catch(console.error)
+  void prefsSet('dark_theme', mode).catch(console.error)
 }
 
 export function changeColor() {

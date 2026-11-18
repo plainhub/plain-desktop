@@ -66,7 +66,7 @@ export function useAppSocket() {
     stopSubscriptions.push(graphqlSubscriptions.subscribe('pairingFailed', (result) => emitter.emit('PAIRING_FAILED', { ...result, error: result.error ?? '' })))
     stopSubscriptions.push(graphqlSubscriptions.subscribe('pairingCanceled', (result) => emitter.emit('PAIRING_CANCELED', { ...result, error: result.error ?? '' })))
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-      if (getCurrentMode() !== 'auto') return
+      if (getCurrentMode() !== 'USE_DEVICE_THEME') return
       changeColor()
     })
     try {

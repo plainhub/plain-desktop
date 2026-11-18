@@ -344,6 +344,7 @@ pub fn run() {
             crate::commands::native::sockets::native_socket_read,
             crate::commands::native::sockets::native_socket_send,
             crate::commands::native::sockets::native_socket_close,
+            crate::commands::native::management::native_password_configured,
             crate::commands::native::management::native_restart_http_server,
             crate::commands::native::management::native_lan_ipv4_addresses,
             crate::commands::native::management::native_confirm_web_login,
