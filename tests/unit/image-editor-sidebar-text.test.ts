@@ -1,3 +1,4 @@
+import { EditorLayerType, EditorFontWeight, EditorFontStyle, EditorTextAlign, EditorTextDecoration } from '@/views/image-editor/utils/types'
 import { afterEach, expect, it, vi } from 'vitest'
 import { defineComponent, h, reactive } from 'vue'
 import Sidebar from '@/views/image-editor/components/ImageEditorSidebar.vue'
@@ -15,7 +16,7 @@ afterEach(() => view?.unmount())
 
 it('writes sidebar text edits into the document instead of only mutating a display copy', async () => {
   const doc = useImageEditorDoc()
-  doc.addLayer({ id: 'text', type: 'text', name: 'Text', visible: true, x: 10, y: 10, text: 'Before', fontSize: 24, color: '#000000', fontFamily: 'sans-serif', fontWeight: 'normal', fontStyle: 'normal', textAlign: 'left', letterSpacing: 0, textDecoration: 'none', textStroke: { width: 0, color: '#000000' }, textShadow: { offsetX: 0, offsetY: 0, blur: 0, color: '#000000' }, glow: false, rotation: 0, maxWidth: 100 })
+  doc.addLayer({ id: 'text', type: EditorLayerType.TEXT, name: 'Text', visible: true, x: 10, y: 10, text: 'Before', fontSize: 24, color: '#000000', fontFamily: 'sans-serif', fontWeight: EditorFontWeight.NORMAL, fontStyle: EditorFontStyle.NORMAL, textAlign: EditorTextAlign.LEFT, letterSpacing: 0, textDecoration: EditorTextDecoration.NONE, textStroke: { width: 0, color: '#000000' }, textShadow: { offsetX: 0, offsetY: 0, blur: 0, color: '#000000' }, glow: false, rotation: 0, maxWidth: 100 })
   const layers = reactive(doc.getLayers())
   view = renderView(defineComponent({ setup: () => () => h(Sidebar, { layers, canvasWidth: 320, canvasHeight: 240, selectedLayerId: 'text', onUpdateLayerText: (id: string, text: string) => doc.setLayerProp(id, 'text', text) }) }))
   const input = nodes(view.root).find(node => node.props.class === 'layer-text-input')!
@@ -29,7 +30,7 @@ it('writes sidebar text edits into the document instead of only mutating a displ
 
 it('uses visible indices while dragging and converts the resulting order to document indices', () => {
   drag.start.mockClear()
-  const layers = ['first', 'second'].map(id => ({ id, type: 'rect' as const, visible: true, name: id, x: 0, y: 0, w: 40, h: 40, color: '#ef4444', lineWidth: 4 }))
+  const layers = ['first', 'second'].map(id => ({ id, type: EditorLayerType.RECT, visible: true, name: id, x: 0, y: 0, w: 40, h: 40, color: '#ef4444', lineWidth: 4 }))
   const reordered = vi.fn()
   view = renderView(Sidebar, { layers, canvasWidth: 320, canvasHeight: 240, selectedLayerId: null, onReorderLayer: reordered })
   const first = nodes(view.root).find(node => node.props.class?.includes('layer-item-wrap'))!

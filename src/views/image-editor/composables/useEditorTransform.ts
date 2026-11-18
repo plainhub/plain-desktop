@@ -1,8 +1,5 @@
 import { ref, computed, type Ref } from 'vue'
-import type {
-  EditorLayer, EditorTextLayer, EditorImageLayer,
-  ArrowLayer, EllipseLayer,
-} from '@/views/image-editor/utils/types'
+import { EditorLayerType, type EditorLayer, type EditorTextLayer, type EditorImageLayer, type ArrowLayer, type EllipseLayer } from '@/views/image-editor/utils/types'
 import { SELECTION } from '@/views/image-editor/utils/selection-border'
 import { getSelectionLayout } from '@/views/image-editor/utils/renderer'
 import type { ImageEditorDoc } from './useImageEditorDoc'
@@ -42,7 +39,7 @@ export function useEditorTransform(
     if (!sel) return null
     const { bounds, pad, cx, cy, rotation } = getSelectionLayout(sel, displayScale())
     const p = unrotatePoint(cx2, cy2, cx, cy, rotation)
-    const hasRotation = sel.type === 'text' || sel.type === 'image' || sel.type === 'arrow' || sel.type === 'sticker'
+    const hasRotation = sel.type === EditorLayerType.TEXT || sel.type === EditorLayerType.IMAGE || sel.type === EditorLayerType.ARROW || sel.type === EditorLayerType.STICKER
     if (hasRotation) {
       const handleX = bounds.x + bounds.w / 2
       const handleY = bounds.y - pad - SELECTION.rotationOffset / displayScale()
@@ -57,7 +54,7 @@ export function useEditorTransform(
     for (const [hx, hy, tag] of cornerDefs) {
       if (Math.hypot(p.x - hx, p.y - hy) < SELECTION.cornerHitRadius / displayScale()) return tag
     }
-    if (sel.type === 'text' || sel.type === 'image') {
+    if (sel.type === EditorLayerType.TEXT || sel.type === EditorLayerType.IMAGE) {
       const edgeMidY = bounds.y + bounds.h / 2
       if (Math.hypot(p.x - (bounds.x - pad), p.y - edgeMidY) < SELECTION.edgeHitRadius / displayScale()) return 'edge-left'
       if (Math.hypot(p.x - (bounds.x + bounds.w + pad), p.y - edgeMidY) < SELECTION.edgeHitRadius / displayScale()) return 'edge-right'
@@ -83,9 +80,9 @@ export function useEditorTransform(
       isScaling.value = true
       scaleStartCx = cx; scaleStartCy = cy
       scaleStartDist = Math.hypot(pos.x - cx, pos.y - cy)
-      if (sel.type === 'image') { scaleStartW = (sel as EditorImageLayer).w; scaleStartH = (sel as EditorImageLayer).h }
-      else if (sel.type === 'text') { scaleStartFontSize = (sel as EditorTextLayer).fontSize; scaleStartMaxWidth = (sel as EditorTextLayer).maxWidth }
-      else if (sel.type === 'arrow') { const a = sel as ArrowLayer; scaleStartX1 = a.x1; scaleStartY1 = a.y1; scaleStartX2 = a.x2; scaleStartY2 = a.y2 }
+      if (sel.type === EditorLayerType.IMAGE) { scaleStartW = (sel as EditorImageLayer).w; scaleStartH = (sel as EditorImageLayer).h }
+      else if (sel.type === EditorLayerType.TEXT) { scaleStartFontSize = (sel as EditorTextLayer).fontSize; scaleStartMaxWidth = (sel as EditorTextLayer).maxWidth }
+      else if (sel.type === EditorLayerType.ARROW) { const a = sel as ArrowLayer; scaleStartX1 = a.x1; scaleStartY1 = a.y1; scaleStartX2 = a.x2; scaleStartY2 = a.y2 }
       else if ('w' in sel && 'h' in sel) { scaleStartW = (sel as any).w; scaleStartH = (sel as any).h }
       else if ('rx' in sel) { scaleStartW = sel.rx; scaleStartH = sel.ry }
       return true
@@ -95,8 +92,8 @@ export function useEditorTransform(
       isWidthDragging.value = true
       widthDragSide = handle === 'edge-left' ? 'left' : 'right'
       widthDragStartX = pos.x
-      if (sel.type === 'image') { widthDragStartW = (sel as EditorImageLayer).w; widthDragStartH = (sel as EditorImageLayer).h }
-      else if (sel.type === 'text') { widthDragStartMaxWidth = (sel as EditorTextLayer).maxWidth }
+      if (sel.type === EditorLayerType.IMAGE) { widthDragStartW = (sel as EditorImageLayer).w; widthDragStartH = (sel as EditorImageLayer).h }
+      else if (sel.type === EditorLayerType.TEXT) { widthDragStartMaxWidth = (sel as EditorTextLayer).maxWidth }
       return true
     }
     return false
@@ -131,12 +128,12 @@ export function useEditorTransform(
       if (sel) {
         const delta = pos.x - widthDragStartX
         const sign = widthDragSide === 'right' ? 1 : -1
-        if (sel.type === 'image') {
+        if (sel.type === EditorLayerType.IMAGE) {
           const ar = widthDragStartH / widthDragStartW
           const newW = Math.max(20, Math.round(widthDragStartW + delta * sign))
           const newH = Math.max(20, Math.round(newW * ar))
           doc.setLayerProps(id, { w: newW, h: newH })
-        } else if (sel.type === 'text') {
+        } else if (sel.type === EditorLayerType.TEXT) {
           doc.setLayerProp(id, 'maxWidth', Math.max(50, Math.round(widthDragStartMaxWidth + delta * sign)))
         }
         return true
@@ -146,17 +143,17 @@ export function useEditorTransform(
   }
 
   function _applyScale(id: string, sel: EditorLayer, ratio: number) {
-    if (sel.type === 'image') {
+    if (sel.type === EditorLayerType.IMAGE) {
       doc.setLayerProps(id, {
         w: Math.max(20, Math.round(scaleStartW * ratio)),
         h: Math.max(20, Math.round(scaleStartH * ratio)),
       })
-    } else if (sel.type === 'text') {
+    } else if (sel.type === EditorLayerType.TEXT) {
       doc.setLayerProps(id, {
         fontSize: Math.max(10, Math.min(500, Math.round(scaleStartFontSize * ratio))),
         maxWidth: Math.max(50, Math.round(scaleStartMaxWidth * ratio)),
       })
-    } else if (sel.type === 'arrow') {
+    } else if (sel.type === EditorLayerType.ARROW) {
       const sCx = (scaleStartX1 + scaleStartX2) / 2
       const sCy = (scaleStartY1 + scaleStartY2) / 2
       doc.setLayerProps(id, {
@@ -169,7 +166,7 @@ export function useEditorTransform(
       const nw = Math.max(4, Math.round(scaleStartW * ratio))
       const nh = Math.max(4, Math.round(scaleStartH * ratio))
       const props: Record<string, unknown> = { w: nw, h: nh }
-      if (sel.type === 'rect' || sel.type === 'highlight' || sel.type === 'mosaic') {
+      if (sel.type === EditorLayerType.RECT || sel.type === EditorLayerType.HIGHLIGHT || sel.type === EditorLayerType.MOSAIC) {
         props.x = Math.round(scaleStartCx - nw / 2)
         props.y = Math.round(scaleStartCy - nh / 2)
       }

@@ -1,9 +1,10 @@
+import { cssFontWeight } from '@/views/image-editor/utils/text-styles'
 import { Application, Container, Graphics, Sprite, Texture, TilingSprite } from 'pixi.js'
-import type {
-  EditorLayer, CanvasSize, ArrowLayer, RectLayer, EllipseLayer, HighlightLayer,
-  FreehandLayer, EditorTextLayer, EditorImageLayer, StickerLayer, MosaicLayer, EditorRasterSource,
+import {
+  EditorLayerType, type EditorLayer, type CanvasSize, type ArrowLayer, type RectLayer, type EllipseLayer,
+  type HighlightLayer, type FreehandLayer, type EditorTextLayer, type EditorImageLayer, type StickerLayer,
+  type MosaicLayer, type EditorRasterSource, getEditorLayerBounds, getEditorRasterSize,
 } from '../utils/types'
-import { getEditorLayerBounds, getEditorRasterSize } from '../utils/types'
 import { drawLayer, wrapText } from '../utils/editor-draw-layers'
 
 export interface PixiRenderState {
@@ -96,10 +97,8 @@ function renderTextToCanvas(l: EditorTextLayer): { canvas: HTMLCanvasElement; cx
   const padX = Math.max(PAD, (l.textShadow.blur || 0) + Math.abs(l.textShadow.offsetX) + 20)
   const padY = Math.max(PAD, (l.textShadow.blur || 0) + Math.abs(l.textShadow.offsetY) + 20)
   const w = l.maxWidth + padX * 2
-  const fontStyle = l.fontStyle === 'italic' ? 'italic ' : ''
-  const fontWeight = l.fontWeight === 'bold' ? 'bold ' : ''
   const ctx = document.createElement('canvas').getContext('2d')!
-  ctx.font = `${fontStyle}${fontWeight}${l.fontSize}px ${l.fontFamily}`
+  ctx.font = `${l.fontStyle.toLowerCase()} ${cssFontWeight(l.fontWeight)} ${l.fontSize}px ${l.fontFamily}`
   const lines = wrapText(ctx, l.text, l.maxWidth)
   const lineH = l.fontSize * 1.15
   const textH = lines.length * lineH
@@ -131,30 +130,30 @@ function isGradientBg(v: string): boolean {
 
 function layerContentHash(l: EditorLayer, state: PixiRenderState): string {
   switch (l.type) {
-    case 'arrow':
+    case EditorLayerType.ARROW:
       return `arrow|${l.x1},${l.y1},${l.x2},${l.y2}|${l.color}|${l.lineWidth}|${l.rotation ?? 0}`
-    case 'rect':
+    case EditorLayerType.RECT:
       return `rect|${l.x},${l.y},${l.w},${l.h}|${l.color}|${l.lineWidth}`
-    case 'ellipse':
+    case EditorLayerType.ELLIPSE:
       return `ellipse|${l.cx},${l.cy},${l.rx},${l.ry}|${l.color}|${l.lineWidth}`
-    case 'highlight':
+    case EditorLayerType.HIGHLIGHT:
       return `highlight|${l.x},${l.y},${l.w},${l.h}|${l.color}`
-    case 'freehand': {
+    case EditorLayerType.FREEHAND: {
       const p = l.points
       const n = p.length
       const head = p[0]
       const tail = p[n - 1]
       return `freehand|${n}|${head?.x ?? 0},${head?.y ?? 0}|${tail?.x ?? 0},${tail?.y ?? 0}|${l.color}|${l.lineWidth}`
     }
-    case 'text':
+    case EditorLayerType.TEXT:
       return `text|${textLayerHash(l)}`
-    case 'sticker':
+    case EditorLayerType.STICKER:
       return `sticker|${stickerLayerHash(l)}`
-    case 'image': {
+    case EditorLayerType.IMAGE: {
       const img = state.layerImages.get(l.id)
       return `image|${l.x},${l.y},${l.w},${l.h}|${l.opacity}|${l.rotation}|${img?.src ?? ''}`
     }
-    case 'mosaic': {
+    case EditorLayerType.MOSAIC: {
       const sourceSize = state.sourceImg ? getEditorRasterSize(state.sourceImg) : { width: 0, height: 0 }
       return `mosaic|${Math.round(l.x)},${Math.round(l.y)},${Math.round(l.w)},${Math.round(l.h)}|${l.blockSize}|${state.imgOffset.x},${state.imgOffset.y}|${sourceSize.width},${sourceSize.height}`
     }
@@ -376,20 +375,20 @@ export class PixiEditorRenderer {
     node.rotation = 0
 
     switch (layer.type) {
-      case 'arrow': {
+      case EditorLayerType.ARROW: {
         const g = this.reuseGraphics(node)
         this.drawArrowLayer(g, layer)
         this.setRotation(node, (layer.x1 + layer.x2) / 2, (layer.y1 + layer.y2) / 2, layer.rotation ?? 0)
         break
       }
-      case 'rect': this.drawRectLayer(this.reuseGraphics(node), layer); break
-      case 'ellipse': this.drawEllipseLayer(this.reuseGraphics(node), layer); break
-      case 'highlight': this.drawHighlightLayer(this.reuseGraphics(node), layer); break
-      case 'freehand': this.drawFreehandLayer(this.reuseGraphics(node), layer); break
-      case 'text': this.clearNodeChildren(node); this.drawTextLayer(node, layer); break
-      case 'sticker': this.clearNodeChildren(node); this.drawStickerLayer(node, layer); break
-      case 'image': this.clearNodeChildren(node); this.drawImageLayer(node, layer, state.layerImages); break
-      case 'mosaic': this.clearNodeChildren(node); this.drawMosaicLayer(node, layer); break
+      case EditorLayerType.RECT: this.drawRectLayer(this.reuseGraphics(node), layer); break
+      case EditorLayerType.ELLIPSE: this.drawEllipseLayer(this.reuseGraphics(node), layer); break
+      case EditorLayerType.HIGHLIGHT: this.drawHighlightLayer(this.reuseGraphics(node), layer); break
+      case EditorLayerType.FREEHAND: this.drawFreehandLayer(this.reuseGraphics(node), layer); break
+      case EditorLayerType.TEXT: this.clearNodeChildren(node); this.drawTextLayer(node, layer); break
+      case EditorLayerType.STICKER: this.clearNodeChildren(node); this.drawStickerLayer(node, layer); break
+      case EditorLayerType.IMAGE: this.clearNodeChildren(node); this.drawImageLayer(node, layer, state.layerImages); break
+      case EditorLayerType.MOSAIC: this.clearNodeChildren(node); this.drawMosaicLayer(node, layer); break
     }
   }
 

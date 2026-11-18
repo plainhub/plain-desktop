@@ -1,6 +1,7 @@
 import type { Ref } from 'vue'
-import type {
-  EditorLayer, EditorTool, CanvasSize, EditorTextLayer, EditorImageLayer,
+import {
+  EditorLayerType, EditorFontWeight, EditorFontStyle, EditorTextAlign, EditorTextDecoration,
+  type EditorLayer, type EditorTool, type CanvasSize, type EditorTextLayer, type EditorImageLayer,
 } from '@/views/image-editor/utils/types'
 import type { ImageEditorDoc } from './useImageEditorDoc'
 import { generateRecordId } from '@/lib/record-id.generated'
@@ -24,11 +25,11 @@ export function useImageEditorLayers(
 ) {
   function createRichTextLayer(x: number, y: number, text = 'Text', name = nextLayerName('Text')): EditorTextLayer {
     return {
-      id: generateRecordId(), type: 'text', visible: true, name,
+      id: generateRecordId(), type: EditorLayerType.TEXT, visible: true, name,
       x, y, text,
       fontSize: activeFontSize.value, color: activeColor.value,
-      fontFamily: 'Inter, sans-serif', fontWeight: 'bold', fontStyle: 'normal',
-      textAlign: 'center', letterSpacing: 0, textDecoration: 'none',
+      fontFamily: 'Inter, sans-serif', fontWeight: EditorFontWeight.BOLD, fontStyle: EditorFontStyle.NORMAL,
+      textAlign: EditorTextAlign.CENTER, letterSpacing: 0, textDecoration: EditorTextDecoration.NONE,
       textStroke: { width: 0, color: '#000000' },
       textShadow: { offsetX: 0, offsetY: 0, blur: 0, color: 'rgba(0,0,0,0.7)' },
       glow: false, rotation: 0, maxWidth: canvasSize.value.width * 0.6,
@@ -72,7 +73,7 @@ export function useImageEditorLayers(
     const w = Math.round(img.naturalWidth * scale)
     const h = Math.round(img.naturalHeight * scale)
     const layer: EditorImageLayer = {
-      id: generateRecordId(), type: 'image', visible: true, name: nextLayerName('Image'),
+      id: generateRecordId(), type: EditorLayerType.IMAGE, visible: true, name: nextLayerName('Image'),
       x: canvasSize.value.width / 2, y: canvasSize.value.height / 2,
       w, h, opacity: 1, rotation: 0,
     }
@@ -86,7 +87,7 @@ export function useImageEditorLayers(
     const { img, src } = await loadImageFile(file)
     layerImages.set(layerId, img)
     doc.setImageSrc(layerId, src)
-    const layer = layers.find(l => l.id === layerId && l.type === 'image') as EditorImageLayer | undefined
+    const layer = layers.find(l => l.id === layerId && l.type === EditorLayerType.IMAGE) as EditorImageLayer | undefined
     if (layer) {
       const maxDim = Math.min(canvasSize.value.width, canvasSize.value.height) * 0.4
       const scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight))
@@ -101,24 +102,24 @@ export function useImageEditorLayers(
     const id = generateRecordId()
     switch (tool) {
       case 'arrow':
-        return { id, type: 'arrow', visible: true, name: nextLayerName('Arrow'), x1: start.x, y1: start.y, x2: end.x, y2: end.y, color: activeColor.value, lineWidth: activeLineWidth.value, rotation: 0 }
+        return { id, type: EditorLayerType.ARROW, visible: true, name: nextLayerName('Arrow'), x1: start.x, y1: start.y, x2: end.x, y2: end.y, color: activeColor.value, lineWidth: activeLineWidth.value, rotation: 0 }
       case 'rect':
-        return { id, type: 'rect', visible: true, name: nextLayerName('Rect'), x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), w: Math.abs(end.x - start.x), h: Math.abs(end.y - start.y), color: activeColor.value, lineWidth: activeLineWidth.value }
+        return { id, type: EditorLayerType.RECT, visible: true, name: nextLayerName('Rect'), x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), w: Math.abs(end.x - start.x), h: Math.abs(end.y - start.y), color: activeColor.value, lineWidth: activeLineWidth.value }
       case 'ellipse':
-        return { id, type: 'ellipse', visible: true, name: nextLayerName('Ellipse'), cx: (start.x + end.x) / 2, cy: (start.y + end.y) / 2, rx: Math.abs(end.x - start.x) / 2, ry: Math.abs(end.y - start.y) / 2, color: activeColor.value, lineWidth: activeLineWidth.value }
+        return { id, type: EditorLayerType.ELLIPSE, visible: true, name: nextLayerName('Ellipse'), cx: (start.x + end.x) / 2, cy: (start.y + end.y) / 2, rx: Math.abs(end.x - start.x) / 2, ry: Math.abs(end.y - start.y) / 2, color: activeColor.value, lineWidth: activeLineWidth.value }
       case 'highlight':
-        return { id, type: 'highlight', visible: true, name: nextLayerName('Highlight'), x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), w: Math.abs(end.x - start.x), h: Math.abs(end.y - start.y), color: activeColor.value }
+        return { id, type: EditorLayerType.HIGHLIGHT, visible: true, name: nextLayerName('Highlight'), x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), w: Math.abs(end.x - start.x), h: Math.abs(end.y - start.y), color: activeColor.value }
       case 'mosaic':
-        return { id, type: 'mosaic', visible: true, name: nextLayerName('Mosaic'), x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), w: Math.abs(end.x - start.x), h: Math.abs(end.y - start.y), blockSize: 12 }
+        return { id, type: EditorLayerType.MOSAIC, visible: true, name: nextLayerName('Mosaic'), x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), w: Math.abs(end.x - start.x), h: Math.abs(end.y - start.y), blockSize: 12 }
       default:
-        return { id, type: 'rect', visible: true, name: nextLayerName('Rect'), x: start.x, y: start.y, w: 0, h: 0, color: activeColor.value, lineWidth: activeLineWidth.value }
+        return { id, type: EditorLayerType.RECT, visible: true, name: nextLayerName('Rect'), x: start.x, y: start.y, w: 0, h: 0, color: activeColor.value, lineWidth: activeLineWidth.value }
     }
   }
 
   function getBoundsSize(layer: EditorLayer): number {
-    if (layer.type === 'arrow') return Math.hypot(layer.x2 - layer.x1, layer.y2 - layer.y1)
-    if (layer.type === 'ellipse') return layer.rx * 2 + layer.ry * 2
-    if (layer.type === 'freehand') return layer.points.length > 2 ? 10 : 0
+    if (layer.type === EditorLayerType.ARROW) return Math.hypot(layer.x2 - layer.x1, layer.y2 - layer.y1)
+    if (layer.type === EditorLayerType.ELLIPSE) return layer.rx * 2 + layer.ry * 2
+    if (layer.type === EditorLayerType.FREEHAND) return layer.points.length > 2 ? 10 : 0
     return (layer as any).w + (layer as any).h
   }
 

@@ -1,5 +1,5 @@
 import type { Ref } from 'vue'
-import type { EditorLayer, CanvasSize, StickerLayer } from '@/views/image-editor/utils/types'
+import { EditorLayerType, EditorFontWeight, EditorFontStyle, type EditorLayer, type CanvasSize, type StickerLayer } from '@/views/image-editor/utils/types'
 import { measureStickerSize } from '@/views/image-editor/utils/editor-draw-layers'
 import type { ImageEditorDoc } from './useImageEditorDoc'
 import { generateRecordId } from '@/lib/record-id.generated'
@@ -19,7 +19,7 @@ export function useImageEditorSticker(
     const color = STICKER_COLORS[_stickerColorIdx % STICKER_COLORS.length]!
     _stickerColorIdx++
     return {
-      id: generateRecordId(), type: 'sticker', visible: true,
+      id: generateRecordId(), type: EditorLayerType.STICKER, visible: true,
       name: nextLayerName('Note'),
       x, y,
       w: canvasSize.value.width * 0.18,
@@ -27,8 +27,8 @@ export function useImageEditorSticker(
       color,
       text: 'Note',
       fontSize: Math.round(canvasSize.value.width * 0.02),
-      fontWeight: '600',
-      fontStyle: 'normal',
+      fontWeight: EditorFontWeight.SEMIBOLD,
+      fontStyle: EditorFontStyle.NORMAL,
       rotation: 0,
     }
   }
@@ -63,11 +63,11 @@ export function useImageEditorSticker(
   }
 
   function toggleStickerBold(layer: StickerLayer) {
-    doc.setLayerProp(layer.id, 'fontWeight', layer.fontWeight === 'bold' ? '600' : 'bold')
+    doc.setLayerProp(layer.id, 'fontWeight', layer.fontWeight === EditorFontWeight.BOLD ? EditorFontWeight.SEMIBOLD : EditorFontWeight.BOLD)
   }
 
   function toggleStickerItalic(layer: StickerLayer) {
-    doc.setLayerProp(layer.id, 'fontStyle', layer.fontStyle === 'italic' ? 'normal' : 'italic')
+    doc.setLayerProp(layer.id, 'fontStyle', layer.fontStyle === EditorFontStyle.ITALIC ? EditorFontStyle.NORMAL : EditorFontStyle.ITALIC)
   }
 
   return {

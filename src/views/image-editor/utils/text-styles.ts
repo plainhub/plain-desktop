@@ -1,3 +1,9 @@
+import { EditorFontWeight } from './types'
+
+export function cssFontWeight(weight: EditorFontWeight): string {
+  return weight === EditorFontWeight.SEMIBOLD ? '600' : weight.toLowerCase()
+}
+
 /** Maps to CSS `-webkit-text-stroke` */
 export interface TextStroke {
   width: number

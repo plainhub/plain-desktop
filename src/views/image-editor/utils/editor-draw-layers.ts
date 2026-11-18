@@ -1,12 +1,12 @@
+import { cssFontWeight } from '@/views/image-editor/utils/text-styles'
 /**
  * Individual layer draw functions for the image editor canvas.
  * Called exclusively by `drawLayer()` dispatcher.
  */
 
-import type {
-  EditorLayer, ArrowLayer, RectLayer, EllipseLayer,
-  HighlightLayer, EditorTextLayer, EditorImageLayer,
-  FreehandLayer, StickerLayer,
+import {
+  EditorLayerType, EditorTextAlign, type EditorLayer, type ArrowLayer, type RectLayer, type EllipseLayer,
+  type HighlightLayer, type EditorTextLayer, type EditorImageLayer, type FreehandLayer, type StickerLayer,
 } from '@/views/image-editor/utils/types'
 
 export function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
@@ -48,15 +48,15 @@ export function drawLayer(
   if (layer.id === hideLayerId) return
   ctx.save()
   switch (layer.type) {
-    case 'arrow': drawArrow(ctx, layer); break
-    case 'rect': drawRect(ctx, layer); break
-    case 'ellipse': drawEllipse(ctx, layer); break
-    case 'highlight': drawHighlight(ctx, layer); break
-    case 'mosaic': break
-    case 'text': drawRichText(ctx, layer); break
-    case 'image': drawEditorImage(ctx, layer, layerImages); break
-    case 'freehand': drawFreehand(ctx, layer); break
-    case 'sticker': drawSticker(ctx, layer); break
+    case EditorLayerType.ARROW: drawArrow(ctx, layer); break
+    case EditorLayerType.RECT: drawRect(ctx, layer); break
+    case EditorLayerType.ELLIPSE: drawEllipse(ctx, layer); break
+    case EditorLayerType.HIGHLIGHT: drawHighlight(ctx, layer); break
+    case EditorLayerType.MOSAIC: break
+    case EditorLayerType.TEXT: drawRichText(ctx, layer); break
+    case EditorLayerType.IMAGE: drawEditorImage(ctx, layer, layerImages); break
+    case EditorLayerType.FREEHAND: drawFreehand(ctx, layer); break
+    case EditorLayerType.STICKER: drawSticker(ctx, layer); break
   }
   ctx.restore()
 }
@@ -133,9 +133,7 @@ function drawRichText(ctx: CanvasRenderingContext2D, l: EditorTextLayer) {
     ctx.translate(-l.x, -l.y)
   }
 
-  const fontStyle = l.fontStyle === 'italic' ? 'italic ' : ''
-  const fontWeight = l.fontWeight === 'bold' ? 'bold ' : ''
-  ctx.font = `${fontStyle}${fontWeight}${l.fontSize}px ${l.fontFamily}`
+  ctx.font = `${l.fontStyle.toLowerCase()} ${cssFontWeight(l.fontWeight)} ${l.fontSize}px ${l.fontFamily}`
   ctx.textBaseline = 'middle'
   if (l.letterSpacing) (ctx as any).letterSpacing = `${l.letterSpacing}px`
 
@@ -147,10 +145,10 @@ function drawRichText(ctx: CanvasRenderingContext2D, l: EditorTextLayer) {
   for (let i = 0; i < lines.length; i++) {
     const lineY = startY + i * lineH
     let lineX: number
-    if (l.textAlign === 'left') lineX = l.x - l.maxWidth / 2
-    else if (l.textAlign === 'right') lineX = l.x + l.maxWidth / 2
+    if (l.textAlign === EditorTextAlign.LEFT) lineX = l.x - l.maxWidth / 2
+    else if (l.textAlign === EditorTextAlign.RIGHT) lineX = l.x + l.maxWidth / 2
     else lineX = l.x
-    ctx.textAlign = l.textAlign
+    ctx.textAlign = l.textAlign.toLowerCase() as CanvasTextAlign
 
     ctx.shadowColor = 'transparent'
     ctx.shadowBlur = 0
@@ -233,9 +231,7 @@ const STICKER_PADDING = 14
 export function measureStickerSize(l: StickerLayer): { w: number; h: number } {
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext('2d')!
-  const fontStyle = l.fontStyle === 'italic' ? 'italic ' : ''
-  const fontWeight = l.fontWeight === 'bold' ? 'bold ' : '600 '
-  ctx.font = `${fontStyle}${fontWeight}${l.fontSize}px Inter, sans-serif`
+  ctx.font = `${l.fontStyle.toLowerCase()} ${cssFontWeight(l.fontWeight)} ${l.fontSize}px Inter, sans-serif`
   const minW = l.fontSize * 4
   const maxW = Math.max(l.w, minW)
   const textMaxW = maxW - STICKER_PADDING * 2
@@ -264,9 +260,7 @@ function drawSticker(ctx: CanvasRenderingContext2D, l: StickerLayer) {
 
   if (l.text) {
     ctx.fillStyle = palette.text
-    const fontStyle = l.fontStyle === 'italic' ? 'italic ' : ''
-    const fontWeight = l.fontWeight === 'bold' ? 'bold ' : '600 '
-    ctx.font = `${fontStyle}${fontWeight}${l.fontSize}px Inter, sans-serif`
+    ctx.font = `${l.fontStyle.toLowerCase()} ${cssFontWeight(l.fontWeight)} ${l.fontSize}px Inter, sans-serif`
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
     const maxW = l.w - STICKER_PADDING * 2

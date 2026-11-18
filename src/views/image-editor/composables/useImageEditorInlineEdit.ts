@@ -1,6 +1,9 @@
+import { cssFontWeight } from '@/views/image-editor/utils/text-styles'
 import { ref, computed, nextTick, type Ref } from 'vue'
-import type { CanvasSize, EditorLayer, EditorTextLayer, StickerLayer } from '@/views/image-editor/utils/types'
-import { isEditorTextLayer } from '@/views/image-editor/utils/types'
+import {
+  EditorLayerType, EditorTextAlign, type CanvasSize, type EditorLayer, type EditorTextLayer,
+  type StickerLayer, isEditorTextLayer,
+} from '@/views/image-editor/utils/types'
 import { STICKER_PALETTE } from '@/views/image-editor/utils/editor-draw-layers'
 import type { ImageEditorDoc } from './useImageEditorDoc'
 
@@ -25,7 +28,7 @@ export function useImageEditorInlineEdit(
     const l = layers.find(l => l.id === inlineEditLayerId.value)
     if (!l) return null
     if (isEditorTextLayer(l)) return l
-    if (l.type === 'sticker') return l as StickerLayer
+    if (l.type === EditorLayerType.STICKER) return l as StickerLayer
     return null
   })
 
@@ -33,7 +36,7 @@ export function useImageEditorInlineEdit(
     const layer = layers.find(l => l.id === layerId)
     if (!layer) return
     const isText = isEditorTextLayer(layer)
-    const isSticker = layer.type === 'sticker'
+    const isSticker = layer.type === EditorLayerType.STICKER
     if (!isText && !isSticker) return
     const wrap = wrapRef.value
     if (!wrap) return
@@ -65,8 +68,8 @@ export function useImageEditorInlineEdit(
         'transform-origin': '50% 50%',
         'font-size': `${fontSize}px`,
         'font-family': 'Inter, sans-serif',
-        'font-weight': sl.fontWeight,
-        'font-style': sl.fontStyle,
+        'font-weight': cssFontWeight(sl.fontWeight),
+        'font-style': sl.fontStyle.toLowerCase(),
         color: palette.text,
         'background-color': palette.bg,
         'border-radius': `${8 * scale}px`,
@@ -92,8 +95,8 @@ export function useImageEditorInlineEdit(
       const centerYDisplay = tl.y * scale
 
       let left: number
-      if (tl.textAlign === 'center') left = centerXDisplay - maxWDisplay / 2
-      else if (tl.textAlign === 'right') left = centerXDisplay - maxWDisplay
+      if (tl.textAlign === EditorTextAlign.CENTER) left = centerXDisplay - maxWDisplay / 2
+      else if (tl.textAlign === EditorTextAlign.RIGHT) left = centerXDisplay - maxWDisplay
       else left = centerXDisplay - maxWDisplay / 2
 
       const top = centerYDisplay - totalHDisplay / 2
@@ -101,8 +104,8 @@ export function useImageEditorInlineEdit(
       if (tl.rotation) transforms.push(`rotate(${tl.rotation}deg)`)
 
       let originX = '50%'
-      if (tl.textAlign === 'left') originX = '0%'
-      else if (tl.textAlign === 'right') originX = '100%'
+      if (tl.textAlign === EditorTextAlign.LEFT) originX = '0%'
+      else if (tl.textAlign === EditorTextAlign.RIGHT) originX = '100%'
 
       let textShadow = 'none'
       if (tl.glow) {
@@ -119,10 +122,10 @@ export function useImageEditorInlineEdit(
         'transform-origin': `${originX} 50%`,
         'font-size': `${fontSize}px`,
         'font-family': tl.fontFamily,
-        'font-weight': tl.fontWeight,
-        'font-style': tl.fontStyle,
+        'font-weight': cssFontWeight(tl.fontWeight),
+        'font-style': tl.fontStyle.toLowerCase(),
         color: tl.color,
-        'text-align': tl.textAlign,
+        'text-align': tl.textAlign.toLowerCase(),
         '-webkit-text-stroke': strokeW > 0 ? `${strokeW}px ${tl.textStroke.color}` : '',
         'paint-order': 'stroke fill',
         'line-height': '1.15',

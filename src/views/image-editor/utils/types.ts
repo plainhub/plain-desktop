@@ -13,8 +13,22 @@ export type EditorTool =
   | 'brush'
   | 'sticker'
 
-/** All possible layer discriminator values */
-export type EditorLayerType = 'arrow' | 'rect' | 'ellipse' | 'highlight' | 'mosaic' | 'text' | 'image' | 'freehand' | 'sticker'
+export enum EditorLayerType {
+  ARROW = 'ARROW',
+  RECT = 'RECT',
+  ELLIPSE = 'ELLIPSE',
+  HIGHLIGHT = 'HIGHLIGHT',
+  MOSAIC = 'MOSAIC',
+  TEXT = 'TEXT',
+  IMAGE = 'IMAGE',
+  FREEHAND = 'FREEHAND',
+  STICKER = 'STICKER',
+}
+
+export enum EditorFontWeight { NORMAL = 'NORMAL', SEMIBOLD = 'SEMIBOLD', BOLD = 'BOLD' }
+export enum EditorFontStyle { NORMAL = 'NORMAL', ITALIC = 'ITALIC' }
+export enum EditorTextAlign { LEFT = 'LEFT', CENTER = 'CENTER', RIGHT = 'RIGHT' }
+export enum EditorTextDecoration { NONE = 'NONE', UNDERLINE = 'UNDERLINE' }
 
 /** Base for every layer type */
 interface LayerBase {
@@ -25,7 +39,7 @@ interface LayerBase {
 }
 
 export interface ArrowLayer extends LayerBase {
-  type: 'arrow'
+  type: EditorLayerType.ARROW
   x1: number; y1: number
   x2: number; y2: number
   color: string
@@ -34,7 +48,7 @@ export interface ArrowLayer extends LayerBase {
 }
 
 export interface RectLayer extends LayerBase {
-  type: 'rect'
+  type: EditorLayerType.RECT
   x: number; y: number
   w: number; h: number
   color: string
@@ -42,7 +56,7 @@ export interface RectLayer extends LayerBase {
 }
 
 export interface EllipseLayer extends LayerBase {
-  type: 'ellipse'
+  type: EditorLayerType.ELLIPSE
   cx: number; cy: number
   rx: number; ry: number
   color: string
@@ -50,14 +64,14 @@ export interface EllipseLayer extends LayerBase {
 }
 
 export interface HighlightLayer extends LayerBase {
-  type: 'highlight'
+  type: EditorLayerType.HIGHLIGHT
   x: number; y: number
   w: number; h: number
   color: string
 }
 
 export interface MosaicLayer extends LayerBase {
-  type: 'mosaic'
+  type: EditorLayerType.MOSAIC
   x: number; y: number
   w: number; h: number
   blockSize: number
@@ -65,17 +79,17 @@ export interface MosaicLayer extends LayerBase {
 
 /** Rich text layer with font styling, stroke, shadow, glow */
 export interface EditorTextLayer extends LayerBase {
-  type: 'text'
+  type: EditorLayerType.TEXT
   x: number; y: number
   text: string
   fontSize: number
   color: string
   fontFamily: string
-  fontWeight: string
-  fontStyle: string
-  textAlign: 'left' | 'center' | 'right'
+  fontWeight: EditorFontWeight
+  fontStyle: EditorFontStyle
+  textAlign: EditorTextAlign
   letterSpacing: number
-  textDecoration: string
+  textDecoration: EditorTextDecoration
   textStroke: TextStroke
   textShadow: TextShadow
   glow: boolean
@@ -85,7 +99,7 @@ export interface EditorTextLayer extends LayerBase {
 
 /** Image layer (actual HTMLImageElement stored in layerImages Map) */
 export interface EditorImageLayer extends LayerBase {
-  type: 'image'
+  type: EditorLayerType.IMAGE
   x: number; y: number
   w: number; h: number
   opacity: number
@@ -94,7 +108,7 @@ export interface EditorImageLayer extends LayerBase {
 
 /** Freehand brush stroke layer */
 export interface FreehandLayer extends LayerBase {
-  type: 'freehand'
+  type: EditorLayerType.FREEHAND
   points: { x: number; y: number }[]
   color: string
   lineWidth: number
@@ -102,14 +116,14 @@ export interface FreehandLayer extends LayerBase {
 
 /** Sticky note layer */
 export interface StickerLayer extends LayerBase {
-  type: 'sticker'
+  type: EditorLayerType.STICKER
   x: number; y: number
   w: number; h: number
   color: string
   text: string
   fontSize: number
-  fontWeight: string
-  fontStyle: string
+  fontWeight: EditorFontWeight
+  fontStyle: EditorFontStyle
   rotation: number
 }
 
@@ -177,11 +191,11 @@ export const TOOLS: ToolMeta[] = [
 ]
 
 export function isEditorTextLayer(layer: EditorLayer): layer is EditorTextLayer {
-  return layer.type === 'text'
+  return layer.type === EditorLayerType.TEXT
 }
 
 export function isEditorImageLayer(layer: EditorLayer): layer is EditorImageLayer {
-  return layer.type === 'image'
+  return layer.type === EditorLayerType.IMAGE
 }
 
 const HIT_TOL = 8
@@ -195,24 +209,24 @@ function unrotatePoint(px: number, py: number, cx: number, cy: number, deg: numb
 
 export function hitTestLayer(layer: EditorLayer, px: number, py: number): boolean {
   switch (layer.type) {
-    case 'arrow': {
+    case EditorLayerType.ARROW: {
       const cx = (layer.x1 + layer.x2) / 2, cy = (layer.y1 + layer.y2) / 2
       const p = unrotatePoint(px, py, cx, cy, layer.rotation)
       return distToSeg(p.x, p.y, layer.x1, layer.y1, layer.x2, layer.y2) < HIT_TOL + layer.lineWidth
     }
-    case 'rect':
-    case 'highlight':
-    case 'mosaic': {
+    case EditorLayerType.RECT:
+    case EditorLayerType.HIGHLIGHT:
+    case EditorLayerType.MOSAIC: {
       const l = layer as RectLayer | HighlightLayer | MosaicLayer
       return px >= l.x - HIT_TOL && px <= l.x + l.w + HIT_TOL
         && py >= l.y - HIT_TOL && py <= l.y + l.h + HIT_TOL
     }
-    case 'ellipse': {
+    case EditorLayerType.ELLIPSE: {
       const dx = (px - layer.cx) / (layer.rx + HIT_TOL)
       const dy = (py - layer.cy) / (layer.ry + HIT_TOL)
       return dx * dx + dy * dy <= 1
     }
-    case 'text': {
+    case EditorLayerType.TEXT: {
       const l = layer as EditorTextLayer
       const halfW = l.maxWidth / 2
       const charW = l.fontSize * 0.6
@@ -222,19 +236,19 @@ export function hitTestLayer(layer: EditorLayer, px: number, py: number): boolea
       return p.x >= l.x - halfW - HIT_TOL && p.x <= l.x + halfW + HIT_TOL
         && p.y >= l.y - halfH - HIT_TOL && p.y <= l.y + halfH + HIT_TOL
     }
-    case 'image': {
+    case EditorLayerType.IMAGE: {
       const l = layer as EditorImageLayer
       const p = unrotatePoint(px, py, l.x, l.y, l.rotation)
       return p.x >= l.x - l.w / 2 - HIT_TOL && p.x <= l.x + l.w / 2 + HIT_TOL
         && p.y >= l.y - l.h / 2 - HIT_TOL && p.y <= l.y + l.h / 2 + HIT_TOL
     }
-    case 'freehand': {
+    case EditorLayerType.FREEHAND: {
       for (const pt of layer.points) {
         if (Math.hypot(px - pt.x, py - pt.y) < HIT_TOL + layer.lineWidth) return true
       }
       return false
     }
-    case 'sticker': {
+    case EditorLayerType.STICKER: {
       const l = layer as StickerLayer
       const p = unrotatePoint(px, py, l.x, l.y, l.rotation)
       return p.x >= l.x - l.w / 2 - HIT_TOL && p.x <= l.x + l.w / 2 + HIT_TOL
@@ -253,26 +267,26 @@ function distToSeg(px: number, py: number, x1: number, y1: number, x2: number, y
 
 export function getEditorLayerBounds(layer: EditorLayer): { x: number; y: number; w: number; h: number } {
   switch (layer.type) {
-    case 'arrow':
+    case EditorLayerType.ARROW:
       return { x: Math.min(layer.x1, layer.x2), y: Math.min(layer.y1, layer.y2), w: Math.abs(layer.x2 - layer.x1), h: Math.abs(layer.y2 - layer.y1) }
-    case 'rect': case 'highlight': case 'mosaic': {
+    case EditorLayerType.RECT: case EditorLayerType.HIGHLIGHT: case EditorLayerType.MOSAIC: {
       const l = layer as RectLayer | HighlightLayer | MosaicLayer
       return { x: l.x, y: l.y, w: l.w, h: l.h }
     }
-    case 'ellipse':
+    case EditorLayerType.ELLIPSE:
       return { x: layer.cx - layer.rx, y: layer.cy - layer.ry, w: layer.rx * 2, h: layer.ry * 2 }
-    case 'text': {
+    case EditorLayerType.TEXT: {
       const l = layer as EditorTextLayer
       const charW = l.fontSize * 0.6
       const lineCount = Math.max(1, Math.ceil((l.text.length * charW) / l.maxWidth))
       const h = lineCount * l.fontSize * 1.15
       return { x: l.x - l.maxWidth / 2, y: l.y - h / 2, w: l.maxWidth, h }
     }
-    case 'image': {
+    case EditorLayerType.IMAGE: {
       const l = layer as EditorImageLayer
       return { x: l.x - l.w / 2, y: l.y - l.h / 2, w: l.w, h: l.h }
     }
-    case 'freehand': {
+    case EditorLayerType.FREEHAND: {
       if (!layer.points.length) return { x: 0, y: 0, w: 0, h: 0 }
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
       for (const p of layer.points) {
@@ -283,7 +297,7 @@ export function getEditorLayerBounds(layer: EditorLayer): { x: number; y: number
       }
       return { x: minX, y: minY, w: maxX - minX, h: maxY - minY }
     }
-    case 'sticker': {
+    case EditorLayerType.STICKER: {
       const l = layer as StickerLayer
       return { x: l.x - l.w / 2, y: l.y - l.h / 2, w: l.w, h: l.h }
     }
@@ -292,19 +306,19 @@ export function getEditorLayerBounds(layer: EditorLayer): { x: number; y: number
 
 export function moveLayerBy(layer: EditorLayer, dx: number, dy: number) {
   switch (layer.type) {
-    case 'arrow':
+    case EditorLayerType.ARROW:
       layer.x1 += dx; layer.y1 += dy; layer.x2 += dx; layer.y2 += dy; break
-    case 'rect': case 'highlight': case 'mosaic':
+    case EditorLayerType.RECT: case EditorLayerType.HIGHLIGHT: case EditorLayerType.MOSAIC:
       (layer as RectLayer | HighlightLayer | MosaicLayer).x += dx
       ;(layer as RectLayer | HighlightLayer | MosaicLayer).y += dy
       break
-    case 'ellipse':
+    case EditorLayerType.ELLIPSE:
       layer.cx += dx; layer.cy += dy; break
-    case 'text': case 'image': case 'sticker':
+    case EditorLayerType.TEXT: case EditorLayerType.IMAGE: case EditorLayerType.STICKER:
       (layer as EditorTextLayer | EditorImageLayer | StickerLayer).x += dx
       ;(layer as EditorTextLayer | EditorImageLayer | StickerLayer).y += dy
       break
-    case 'freehand':
+    case EditorLayerType.FREEHAND:
       for (const p of layer.points) { p.x += dx; p.y += dy }
       break
   }

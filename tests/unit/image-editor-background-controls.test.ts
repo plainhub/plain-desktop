@@ -1,3 +1,4 @@
+import { EditorLayerType } from '@/views/image-editor/utils/types'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { ref, shallowRef, h, type PropType } from 'vue'
 import Editor from '@/views/image-editor/components/ImageEditor.vue'
@@ -53,7 +54,7 @@ it('shows reset for the actual document offset and resets that offset through th
 
 it('reopens text controls when the same selected layer is clicked after closing them', async () => {
   fixture.core.wrapRef.value.getBoundingClientRect = () => ({ top: 0, right: 600 })
-  fixture.core.state.layers.push({ id: 'text', type: 'text', x: 20, y: 20 })
+  fixture.core.state.layers.push({ id: 'text', type: EditorLayerType.TEXT, x: 20, y: 20 })
   click(nodes(view.root).find(node => content(node) === 'select-text' && node.tag === 'button')!)
   await flush()
   click(nodes(view.root).find(node => content(node) === 'close-text' && node.tag === 'button')!)

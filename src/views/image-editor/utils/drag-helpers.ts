@@ -2,7 +2,7 @@
  * Pure geometry helpers for layer drag operations.
  * Extracted from useImageEditorCore for testability.
  */
-import type { EditorLayer, RectLayer, HighlightLayer, MosaicLayer, EllipseLayer } from './types'
+import { EditorLayerType, type EditorLayer, type RectLayer, type HighlightLayer, type MosaicLayer, type EllipseLayer } from './types'
 
 export function updateLayerFromDrag(
   layer: EditorLayer,
@@ -11,8 +11,8 @@ export function updateLayerFromDrag(
   shiftKey = false,
 ) {
   switch (layer.type) {
-    case 'arrow': layer.x2 = end.x; layer.y2 = end.y; break
-    case 'rect': case 'highlight': case 'mosaic': {
+    case EditorLayerType.ARROW: layer.x2 = end.x; layer.y2 = end.y; break
+    case EditorLayerType.RECT: case EditorLayerType.HIGHLIGHT: case EditorLayerType.MOSAIC: {
       const l = layer as RectLayer | HighlightLayer | MosaicLayer
       let w = Math.abs(end.x - start.x)
       let h = Math.abs(end.y - start.y)
@@ -21,7 +21,7 @@ export function updateLayerFromDrag(
       l.y = end.y >= start.y ? start.y : start.y - h
       l.w = w; l.h = h; break
     }
-    case 'ellipse': {
+    case EditorLayerType.ELLIPSE: {
       let rw = Math.abs(end.x - start.x) / 2
       let rh = Math.abs(end.y - start.y) / 2
       if (shiftKey) { const r = Math.max(rw, rh); rw = r; rh = r }

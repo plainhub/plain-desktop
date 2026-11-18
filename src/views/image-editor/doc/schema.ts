@@ -1,6 +1,7 @@
+import { EditorLayerType, EditorFontWeight, EditorFontStyle, EditorTextAlign, EditorTextDecoration } from '@/views/image-editor/utils/types'
 import * as Y from 'yjs'
 import type {
-  EditorLayer, EditorLayerType,
+  EditorLayer,
   ArrowLayer, RectLayer, EllipseLayer, HighlightLayer, MosaicLayer,
   EditorTextLayer, EditorImageLayer, FreehandLayer, StickerLayer,
 } from '../utils/types'
@@ -22,46 +23,23 @@ type PointTuple = [number, number]
 
 const LAYER_COMMON_KEYS = ['id', 'type', 'visible', 'name'] as const
 
-const LAYER_ENUMS: Record<string, Record<string, string>> = {
-  type: {
-    arrow: 'ARROW', rect: 'RECT', ellipse: 'ELLIPSE', highlight: 'HIGHLIGHT', mosaic: 'MOSAIC',
-    text: 'TEXT', image: 'IMAGE', freehand: 'FREEHAND', sticker: 'STICKER',
-  } satisfies Record<EditorLayerType, string>,
-  fontWeight: { normal: 'NORMAL', '600': 'SEMIBOLD', bold: 'BOLD' },
-  fontStyle: { normal: 'NORMAL', italic: 'ITALIC' },
-  textAlign: { left: 'LEFT', center: 'CENTER', right: 'RIGHT' },
-  textDecoration: { none: 'NONE', underline: 'UNDERLINE' },
-}
-
-const LAYER_ENUM_READERS = Object.fromEntries(Object.entries(LAYER_ENUMS).map(([key, values]) => [
-  key, Object.fromEntries(Object.entries(values).map(([local, stored]) => [stored, local])),
-]))
-
-function enumValue(key: string, value: unknown, values: Record<string, string>): string {
+function readYEnum<T extends string>(yMap: Y.Map<unknown>, key: string, values: Record<string, T>): T {
+  const value = yMap.get(key)
   if (typeof value !== 'string' || !Object.hasOwn(values, value)) {
     throw new Error(`Unsupported image editor ${key === 'type' ? 'layer type' : key}`)
   }
-  return values[value]
-}
-
-export function setYLayerProp(yMap: Y.Map<unknown>, key: string, value: unknown): void {
-  if (Object.hasOwn(LAYER_ENUMS, key)) value = enumValue(key, value, LAYER_ENUMS[key])
-  yMap.set(key, value)
-}
-
-function readYEnum(yMap: Y.Map<unknown>, key: string): string {
-  return enumValue(key, yMap.get(key), LAYER_ENUM_READERS[key])
+  return value as T
 }
 
 export function createYLayer(layer: EditorLayer): Y.Map<unknown> {
   const yMap = new Y.Map<unknown>()
   yMap.set('id', layer.id)
-  setYLayerProp(yMap, 'type', layer.type)
+  yMap.set('type', layer.type)
   yMap.set('visible', layer.visible)
   yMap.set('name', layer.name)
 
   switch (layer.type) {
-    case 'arrow': {
+    case EditorLayerType.ARROW: {
       const l = layer as ArrowLayer
       yMap.set('x1', l.x1); yMap.set('y1', l.y1)
       yMap.set('x2', l.x2); yMap.set('y2', l.y2)
@@ -69,57 +47,57 @@ export function createYLayer(layer: EditorLayer): Y.Map<unknown> {
       yMap.set('rotation', l.rotation)
       break
     }
-    case 'rect': {
+    case EditorLayerType.RECT: {
       const l = layer as RectLayer
       yMap.set('x', l.x); yMap.set('y', l.y)
       yMap.set('w', l.w); yMap.set('h', l.h)
       yMap.set('color', l.color); yMap.set('lineWidth', l.lineWidth)
       break
     }
-    case 'ellipse': {
+    case EditorLayerType.ELLIPSE: {
       const l = layer as EllipseLayer
       yMap.set('cx', l.cx); yMap.set('cy', l.cy)
       yMap.set('rx', l.rx); yMap.set('ry', l.ry)
       yMap.set('color', l.color); yMap.set('lineWidth', l.lineWidth)
       break
     }
-    case 'highlight': {
+    case EditorLayerType.HIGHLIGHT: {
       const l = layer as HighlightLayer
       yMap.set('x', l.x); yMap.set('y', l.y)
       yMap.set('w', l.w); yMap.set('h', l.h)
       yMap.set('color', l.color)
       break
     }
-    case 'mosaic': {
+    case EditorLayerType.MOSAIC: {
       const l = layer as MosaicLayer
       yMap.set('x', l.x); yMap.set('y', l.y)
       yMap.set('w', l.w); yMap.set('h', l.h)
       yMap.set('blockSize', l.blockSize)
       break
     }
-    case 'text': {
+    case EditorLayerType.TEXT: {
       const l = layer as EditorTextLayer
       yMap.set('x', l.x); yMap.set('y', l.y)
       yMap.set('text', l.text)
       yMap.set('fontSize', l.fontSize); yMap.set('color', l.color)
       yMap.set('fontFamily', l.fontFamily)
-      setYLayerProp(yMap, 'fontWeight', l.fontWeight); setYLayerProp(yMap, 'fontStyle', l.fontStyle)
-      setYLayerProp(yMap, 'textAlign', l.textAlign); yMap.set('letterSpacing', l.letterSpacing)
-      setYLayerProp(yMap, 'textDecoration', l.textDecoration)
+      yMap.set('fontWeight', l.fontWeight); yMap.set('fontStyle', l.fontStyle)
+      yMap.set('textAlign', l.textAlign); yMap.set('letterSpacing', l.letterSpacing)
+      yMap.set('textDecoration', l.textDecoration)
       yMap.set('textStroke', createYTextStroke(l.textStroke))
       yMap.set('textShadow', createYTextShadow(l.textShadow))
       yMap.set('glow', l.glow); yMap.set('rotation', l.rotation)
       yMap.set('maxWidth', l.maxWidth)
       break
     }
-    case 'image': {
+    case EditorLayerType.IMAGE: {
       const l = layer as EditorImageLayer
       yMap.set('x', l.x); yMap.set('y', l.y)
       yMap.set('w', l.w); yMap.set('h', l.h)
       yMap.set('opacity', l.opacity); yMap.set('rotation', l.rotation)
       break
     }
-    case 'freehand': {
+    case EditorLayerType.FREEHAND: {
       const l = layer as FreehandLayer
       const yPoints = new Y.Array<PointTuple>()
       yPoints.push(l.points.map(p => [p.x, p.y] as PointTuple))
@@ -127,13 +105,13 @@ export function createYLayer(layer: EditorLayer): Y.Map<unknown> {
       yMap.set('color', l.color); yMap.set('lineWidth', l.lineWidth)
       break
     }
-    case 'sticker': {
+    case EditorLayerType.STICKER: {
       const l = layer as StickerLayer
       yMap.set('x', l.x); yMap.set('y', l.y)
       yMap.set('w', l.w); yMap.set('h', l.h)
       yMap.set('color', l.color); yMap.set('text', l.text)
       yMap.set('fontSize', l.fontSize)
-      setYLayerProp(yMap, 'fontWeight', l.fontWeight); setYLayerProp(yMap, 'fontStyle', l.fontStyle)
+      yMap.set('fontWeight', l.fontWeight); yMap.set('fontStyle', l.fontStyle)
       yMap.set('rotation', l.rotation)
       break
     }
@@ -171,13 +149,13 @@ function readYTextShadow(m: Y.Map<unknown>): TextShadow {
 }
 
 export function readYLayer(yMap: Y.Map<unknown>): EditorLayer {
-  const type = readYEnum(yMap, 'type') as EditorLayerType
+  const type = readYEnum(yMap, 'type', EditorLayerType)
   const id = yMap.get('id') as string
   const visible = yMap.get('visible') as boolean
   const name = yMap.get('name') as string
 
   switch (type) {
-    case 'arrow':
+    case EditorLayerType.ARROW:
       return {
         id, type, visible, name,
         x1: yMap.get('x1') as number, y1: yMap.get('y1') as number,
@@ -186,7 +164,7 @@ export function readYLayer(yMap: Y.Map<unknown>): EditorLayer {
         lineWidth: yMap.get('lineWidth') as number,
         rotation: yMap.get('rotation') as number,
       }
-    case 'rect':
+    case EditorLayerType.RECT:
       return {
         id, type, visible, name,
         x: yMap.get('x') as number, y: yMap.get('y') as number,
@@ -194,7 +172,7 @@ export function readYLayer(yMap: Y.Map<unknown>): EditorLayer {
         color: yMap.get('color') as string,
         lineWidth: yMap.get('lineWidth') as number,
       }
-    case 'ellipse':
+    case EditorLayerType.ELLIPSE:
       return {
         id, type, visible, name,
         cx: yMap.get('cx') as number, cy: yMap.get('cy') as number,
@@ -202,21 +180,21 @@ export function readYLayer(yMap: Y.Map<unknown>): EditorLayer {
         color: yMap.get('color') as string,
         lineWidth: yMap.get('lineWidth') as number,
       }
-    case 'highlight':
+    case EditorLayerType.HIGHLIGHT:
       return {
         id, type, visible, name,
         x: yMap.get('x') as number, y: yMap.get('y') as number,
         w: yMap.get('w') as number, h: yMap.get('h') as number,
         color: yMap.get('color') as string,
       }
-    case 'mosaic':
+    case EditorLayerType.MOSAIC:
       return {
         id, type, visible, name,
         x: yMap.get('x') as number, y: yMap.get('y') as number,
         w: yMap.get('w') as number, h: yMap.get('h') as number,
         blockSize: yMap.get('blockSize') as number,
       }
-    case 'text':
+    case EditorLayerType.TEXT:
       return {
         id, type, visible, name,
         x: yMap.get('x') as number, y: yMap.get('y') as number,
@@ -224,18 +202,18 @@ export function readYLayer(yMap: Y.Map<unknown>): EditorLayer {
         fontSize: yMap.get('fontSize') as number,
         color: yMap.get('color') as string,
         fontFamily: yMap.get('fontFamily') as string,
-        fontWeight: readYEnum(yMap, 'fontWeight'),
-        fontStyle: readYEnum(yMap, 'fontStyle'),
-        textAlign: readYEnum(yMap, 'textAlign') as EditorTextLayer['textAlign'],
+        fontWeight: readYEnum(yMap, 'fontWeight', EditorFontWeight),
+        fontStyle: readYEnum(yMap, 'fontStyle', EditorFontStyle),
+        textAlign: readYEnum(yMap, 'textAlign', EditorTextAlign),
         letterSpacing: yMap.get('letterSpacing') as number,
-        textDecoration: readYEnum(yMap, 'textDecoration'),
+        textDecoration: readYEnum(yMap, 'textDecoration', EditorTextDecoration),
         textStroke: readYTextStroke(yMap.get('textStroke') as Y.Map<unknown>),
         textShadow: readYTextShadow(yMap.get('textShadow') as Y.Map<unknown>),
         glow: yMap.get('glow') as boolean,
         rotation: yMap.get('rotation') as number,
         maxWidth: yMap.get('maxWidth') as number,
       }
-    case 'image':
+    case EditorLayerType.IMAGE:
       return {
         id, type, visible, name,
         x: yMap.get('x') as number, y: yMap.get('y') as number,
@@ -243,7 +221,7 @@ export function readYLayer(yMap: Y.Map<unknown>): EditorLayer {
         opacity: yMap.get('opacity') as number,
         rotation: yMap.get('rotation') as number,
       }
-    case 'freehand': {
+    case EditorLayerType.FREEHAND: {
       const yPoints = yMap.get('points') as Y.Array<PointTuple>
       const tuples = yPoints.toArray()
       return {
@@ -253,7 +231,7 @@ export function readYLayer(yMap: Y.Map<unknown>): EditorLayer {
         lineWidth: yMap.get('lineWidth') as number,
       }
     }
-    case 'sticker':
+    case EditorLayerType.STICKER:
       return {
         id, type, visible, name,
         x: yMap.get('x') as number, y: yMap.get('y') as number,
@@ -261,8 +239,8 @@ export function readYLayer(yMap: Y.Map<unknown>): EditorLayer {
         color: yMap.get('color') as string,
         text: yMap.get('text') as string,
         fontSize: yMap.get('fontSize') as number,
-        fontWeight: readYEnum(yMap, 'fontWeight'),
-        fontStyle: readYEnum(yMap, 'fontStyle'),
+        fontWeight: readYEnum(yMap, 'fontWeight', EditorFontWeight),
+        fontStyle: readYEnum(yMap, 'fontStyle', EditorFontStyle),
         rotation: yMap.get('rotation') as number,
       }
     default:
@@ -271,27 +249,27 @@ export function readYLayer(yMap: Y.Map<unknown>): EditorLayer {
 }
 
 export function moveYLayer(yMap: Y.Map<unknown>, dx: number, dy: number): void {
-  const type = readYEnum(yMap, 'type') as EditorLayerType
+  const type = readYEnum(yMap, 'type', EditorLayerType)
   switch (type) {
-    case 'arrow':
+    case EditorLayerType.ARROW:
       yMap.set('x1', (yMap.get('x1') as number) + dx)
       yMap.set('y1', (yMap.get('y1') as number) + dy)
       yMap.set('x2', (yMap.get('x2') as number) + dx)
       yMap.set('y2', (yMap.get('y2') as number) + dy)
       break
-    case 'rect': case 'highlight': case 'mosaic':
+    case EditorLayerType.RECT: case EditorLayerType.HIGHLIGHT: case EditorLayerType.MOSAIC:
       yMap.set('x', (yMap.get('x') as number) + dx)
       yMap.set('y', (yMap.get('y') as number) + dy)
       break
-    case 'ellipse':
+    case EditorLayerType.ELLIPSE:
       yMap.set('cx', (yMap.get('cx') as number) + dx)
       yMap.set('cy', (yMap.get('cy') as number) + dy)
       break
-    case 'text': case 'image': case 'sticker':
+    case EditorLayerType.TEXT: case EditorLayerType.IMAGE: case EditorLayerType.STICKER:
       yMap.set('x', (yMap.get('x') as number) + dx)
       yMap.set('y', (yMap.get('y') as number) + dy)
       break
-    case 'freehand': {
+    case EditorLayerType.FREEHAND: {
       const yPoints = yMap.get('points') as Y.Array<PointTuple> | undefined
       if (!yPoints) break
       const moved = yPoints.toArray().map(t => [t[0] + dx, t[1] + dy] as PointTuple)

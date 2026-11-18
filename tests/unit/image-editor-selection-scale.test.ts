@@ -3,9 +3,9 @@ import { ref } from 'vue'
 import { drawSelectionRect } from '@/views/image-editor/utils/renderer'
 import { useEditorTransform } from '@/views/image-editor/composables/useEditorTransform'
 import { useImageEditorDoc } from '@/views/image-editor/composables/useImageEditorDoc'
-import type { ArrowLayer } from '@/views/image-editor/utils/types'
+import { EditorLayerType, type ArrowLayer } from '@/views/image-editor/utils/types'
 
-const arrow: ArrowLayer = { id: 'arrow', type: 'arrow', visible: true, name: 'Arrow', x1: 100, y1: 100, x2: 300, y2: 150, color: '#ef4444', lineWidth: 4, rotation: 0 }
+const arrow: ArrowLayer = { id: 'arrow', type: EditorLayerType.ARROW, visible: true, name: 'Arrow', x1: 100, y1: 100, x2: 300, y2: 150, color: '#ef4444', lineWidth: 4, rotation: 0 }
 
 it.each([.5, 1, 3])('keeps visible arrow handles and hit regions fixed at display scale %s', scale => {
   let currentScale = scale

@@ -1,3 +1,4 @@
+import { EditorLayerType, EditorFontWeight, EditorFontStyle, EditorTextAlign, EditorTextDecoration } from '@/views/image-editor/utils/types'
 import { expect, it } from 'vitest'
 import { useImageEditorDoc } from '@/views/image-editor/composables/useImageEditorDoc'
 import { useImageEditorDocBinding } from '@/views/image-editor/composables/useImageEditorDocBinding'
@@ -21,7 +22,7 @@ it('persists background controls through the document binding and restores the s
 
 it('reflects nested text-style changes from the document without replacing the layer', () => {
   const doc = useImageEditorDoc()
-  doc.addLayer({ id: 'text', type: 'text', visible: true, name: 'Text', x: 10, y: 10, text: 'Text', fontSize: 24, color: '#000000', fontFamily: 'sans-serif', fontWeight: 'normal', fontStyle: 'normal', textAlign: 'left', letterSpacing: 0, textDecoration: 'none', textStroke: { width: 0, color: '#000000' }, textShadow: { offsetX: 0, offsetY: 0, blur: 0, color: '#000000' }, glow: false, rotation: 0, maxWidth: 100 })
+  doc.addLayer({ id: 'text', type: EditorLayerType.TEXT, visible: true, name: 'Text', x: 10, y: 10, text: 'Text', fontSize: 24, color: '#000000', fontFamily: 'sans-serif', fontWeight: EditorFontWeight.NORMAL, fontStyle: EditorFontStyle.NORMAL, textAlign: EditorTextAlign.LEFT, letterSpacing: 0, textDecoration: EditorTextDecoration.NONE, textStroke: { width: 0, color: '#000000' }, textShadow: { offsetX: 0, offsetY: 0, blur: 0, color: '#000000' }, glow: false, rotation: 0, maxWidth: 100 })
   const binding = useImageEditorDocBinding(doc)
   const stroke = doc.getLayerYMap('text')!.get('textStroke') as Y.Map<unknown>
   stroke.set('width', 4)

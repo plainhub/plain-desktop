@@ -1,3 +1,4 @@
+import { EditorLayerType, EditorFontWeight, EditorFontStyle, EditorTextAlign, EditorTextDecoration } from '@/views/image-editor/utils/types'
 import { expect, it } from 'vitest'
 import * as Y from 'yjs'
 import { useImageEditorDoc } from '@/views/image-editor/composables/useImageEditorDoc'
@@ -37,20 +38,20 @@ it.each(['sticker', 'UNSUPPORTED'])('rejects noncanonical layer kind %s before a
 it('round-trips canonical Yjs enum values from layer creation and edits', () => {
   const doc = useImageEditorDoc()
   doc.addLayer({
-    id: 'sticker', type: 'sticker', name: 'Sticker', visible: true,
+    id: 'sticker', type: EditorLayerType.STICKER, name: 'Sticker', visible: true,
     x: 12, y: 18, w: 160, h: 90, color: '#ffff00', text: 'note',
-    fontSize: 20, fontWeight: '600', fontStyle: 'normal', rotation: 0,
+    fontSize: 20, fontWeight: EditorFontWeight.SEMIBOLD, fontStyle: EditorFontStyle.NORMAL, rotation: 0,
   })
   doc.addLayer({
-    id: 'text', type: 'text', name: 'Text', visible: true,
+    id: 'text', type: EditorLayerType.TEXT, name: 'Text', visible: true,
     x: 24, y: 36, text: 'title', fontFamily: 'sans-serif', fontSize: 20, color: '#000000',
-    fontWeight: 'normal', fontStyle: 'normal', textAlign: 'center', textDecoration: 'none',
+    fontWeight: EditorFontWeight.NORMAL, fontStyle: EditorFontStyle.NORMAL, textAlign: EditorTextAlign.CENTER, textDecoration: EditorTextDecoration.NONE,
     letterSpacing: 0, glow: false, rotation: 0, maxWidth: 150,
     textStroke: { width: 0, color: '#000000' },
     textShadow: { offsetX: 0, offsetY: 0, blur: 0, color: '#000000' },
   })
-  doc.setLayerProp('text', 'textAlign', 'right')
-  doc.setLayerProps('text', { fontStyle: 'italic', textDecoration: 'underline', fontWeight: 'bold' })
+  doc.setLayerProp('text', 'textAlign', EditorTextAlign.RIGHT)
+  doc.setLayerProps('text', { fontStyle: EditorFontStyle.ITALIC, textDecoration: EditorTextDecoration.UNDERLINE, fontWeight: EditorFontWeight.BOLD })
   doc.moveLayerBy('sticker', 2, 3)
 
   const bytes = doc.getStateUpdate()
@@ -63,7 +64,7 @@ it('round-trips canonical Yjs enum values from layer creation and edits', () => 
   const restored = useImageEditorDoc()
   restored.loadState(bytes)
   expect(restored.getLayers()).toEqual(doc.getLayers())
-  expect(restored.getLayer('sticker')).toMatchObject({ type: 'sticker', fontWeight: '600', fontStyle: 'normal' })
+  expect(restored.getLayer('sticker')).toMatchObject({ type: 'STICKER', fontWeight: 'SEMIBOLD', fontStyle: 'NORMAL' })
 
   raw.getArray<Y.Map<unknown>>('layers').get(0).set('fontStyle', 'normal')
   expect(() => restored.loadState(Y.encodeStateAsUpdate(raw))).toThrow('Unsupported image editor fontStyle')
