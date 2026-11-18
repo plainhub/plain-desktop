@@ -3,15 +3,16 @@
     <div v-for="preview in linkPreviews" :key="preview.url" class="link-preview-item" @click="openLink(preview.url)">
       <v-dropdown
         class="preview-actions"
+        :class="{ 'is-active': openMenu === preview.url || savingUrls.has(preview.url) }"
         :model-value="openMenu === preview.url"
         @update:model-value="openMenu = $event ? preview.url : ''"
       >
         <template #trigger>
-          <v-icon-button type="button" :aria-label="$t('actions')" :aria-expanded="openMenu === preview.url" :loading="saving">
+          <v-icon-button type="button" :aria-label="$t('actions')" :aria-expanded="openMenu === preview.url" :loading="savingUrls.has(preview.url)">
             <i-material-symbols:more-horiz aria-hidden="true" />
           </v-icon-button>
         </template>
-        <button type="button" class="dropdown-item bookmark-action" :disabled="saving" @click.stop="addBookmark(preview.url)">
+        <button type="button" class="dropdown-item bookmark-action" :disabled="savingUrls.has(preview.url)" @click.stop="addBookmark(preview.url)">
           {{ $t('add_to_bookmarks') }}
         </button>
       </v-dropdown>
@@ -58,11 +59,18 @@ const props = defineProps<{ data: IChatItem }>()
 const tempStore = useTempStore()
 const failed = reactive(new Set<string>())
 const openMenu = ref('')
-const { mutate: saveBookmark, loading: saving } = initMutation({ document: addBookmarksGQL })
+const savingUrls = reactive(new Set<string>())
+const { mutate: saveBookmark } = initMutation({ document: addBookmarksGQL })
 
-function addBookmark(url: string) {
+async function addBookmark(url: string) {
+  if (savingUrls.has(url)) return
   openMenu.value = ''
-  return saveBookmark({ urls: [url], groupId: '' })
+  savingUrls.add(url)
+  try {
+    await saveBookmark({ urls: [url], groupId: '' })
+  } finally {
+    savingUrls.delete(url)
+  }
 }
 
 const linkPreviews = computed(() => {
@@ -147,6 +155,13 @@ function openLink(url: string) {
     inset-inline-end: 8px;
     border-radius: 8px;
     background: var(--md-sys-color-surface-container);
+  }
+
+  @media (hover: hover) {
+    .link-preview-item:not(:hover) .preview-actions:not(:focus-within):not(.is-active) {
+      opacity: 0;
+      pointer-events: none;
+    }
   }
   
   .preview-domain {

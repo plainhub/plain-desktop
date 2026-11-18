@@ -6,16 +6,16 @@ import VIconButton from '@/components/base/VIconButton.vue'
 
 const fixture = vi.hoisted(() => ({
   resource: vi.fn((_: unknown, image: string) => 'local-' + image),
-  mutate: vi.fn(),
+  mutate: vi.fn<(input: { urls: string[]; groupId: string }) => Promise<unknown>>(),
   openUrl: vi.fn(),
 }))
 vi.mock('@/stores/temp', () => ({ useTempStore: () => ({ urlTokenKey: new Uint8Array(32).fill(7) }) }))
 vi.mock('@/lib/api/file', () => ({ getChatFileId: fixture.resource, getFileUrl: (id: string) => '/fs?id=' + encodeURIComponent(id) }))
 vi.mock('@/lib/browser', () => ({ openUrl: fixture.openUrl }))
-vi.mock('@/lib/api/mutation', async () => {
-  const { ref } = await import('vue')
-  return { addBookmarksGQL: 'addBookmarks', initMutation: () => ({ mutate: fixture.mutate, loading: ref(false) }) }
-})
+vi.mock('@/lib/api/mutation', () => ({
+  addBookmarksGQL: 'addBookmarks',
+  initMutation: () => ({ mutate: fixture.mutate }),
+}))
 import ChatLinkPreviews from '@/views/chat/ChatLinkPreviews.vue'
 
 const dropdown = {
@@ -70,10 +70,13 @@ it('saves only the selected preview as an ungrouped bookmark without opening its
   const { root, unmount } = renderView(component, props([null, null]), {
     VDropdown: dropdown,
     VIconButton: clientTemplate({ ...VIconButton }, 'src/components/base/VIconButton.vue'),
-    VCircularProgress: { render: () => null },
+    VCircularProgress: { render: () => h('span', { 'data-spinner': true }) },
   })
   try {
+    let finishSaving!: (value: unknown) => void
+    fixture.mutate.mockReturnValueOnce(new Promise(resolve => { finishSaving = resolve }))
     const triggers = nodes(root).filter(element => element.props['data-trigger'])
+    const actionButtons = nodes(root).filter(element => element.props['aria-label'] === 'actions')
     expect(triggers).toHaveLength(2)
     click(triggers[1]!)
     await flush()
@@ -83,9 +86,18 @@ it('saves only the selected preview as an ungrouped bookmark without opening its
     action.props.onClick({ stopPropagation })
     await flush()
     expect(stopPropagation).toHaveBeenCalledOnce()
+    expect(actionButtons.map(button => button.props.disabled)).toEqual([false, true])
+    expect(triggers.map(trigger => nodes(trigger).some(element => element.props['data-spinner']))).toEqual([false, true])
+    click(action)
     expect(fixture.mutate).toHaveBeenCalledExactlyOnceWith({ urls: ['https://example.invalid/1'], groupId: '' })
     expect(fixture.openUrl).not.toHaveBeenCalled()
     expect(nodes(root).some(element => element.tag === 'button' && content(element) === 'add_to_bookmarks')).toBe(false)
+    finishSaving(undefined)
+    await flush()
+    expect(actionButtons.map(button => button.props.disabled)).toEqual([false, false])
+    click(triggers[1]!)
+    await flush()
+    expect(nodes(root).some(element => element.tag === 'button' && content(element) === 'add_to_bookmarks')).toBe(true)
     const cards = nodes(root).filter(element => element.props.class === 'link-preview-item')
     click(cards[1]!)
     expect(fixture.openUrl).toHaveBeenCalledExactlyOnceWith('https://example.invalid/1')
