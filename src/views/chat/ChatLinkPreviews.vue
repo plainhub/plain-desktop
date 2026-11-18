@@ -153,8 +153,6 @@ function openLink(url: string) {
     position: absolute;
     inset-block-start: 8px;
     inset-inline-end: 8px;
-    border-radius: 8px;
-    background: var(--md-sys-color-surface-container);
   }
 
   @media (hover: hover) {
