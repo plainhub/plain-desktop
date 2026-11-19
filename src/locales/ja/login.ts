@@ -32,7 +32,7 @@ export default {
     manual_host_placeholder: 'ホスト:ポート（例: device.example:8443）',
     change_device: 'デバイスを変更',
     connect_failed: '接続失敗。アドレスを確認してもう一度お試しください。',
-       current: '現在',
+       current: '現在のデバイス',
     no_devices_yet: 'デバイスがありません。以下で検索またはアドレスを入力してください。',
     unpair_confirm: '{name}とのペアリングを解除しますか？',
     unpair_hint: 'チャット履歴は保持されます。このデバイスを使うには、もう一度ペアリングしてください。',

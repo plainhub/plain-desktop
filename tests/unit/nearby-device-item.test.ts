@@ -79,3 +79,10 @@ it('shows waiting and cancel from the device pairing status', async () => {
   expect(html).toContain('>cancel<')
   expect(html).not.toContain('pairing_chat_only')
 })
+
+it('marks the selected peer with a labelled icon rather than visible status text', async () => {
+  const html = await render({ peer, current: true, fullControl: true })
+  expect(html).toMatch(/<i-lucide:check[^>]*role="img"[^>]*aria-label="device_discovery.current"/)
+  expect(html).not.toContain('>device_discovery.current<')
+  expect(html).not.toContain('aria-label="switch"')
+})

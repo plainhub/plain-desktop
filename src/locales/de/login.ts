@@ -32,7 +32,7 @@ export default {
     manual_host_placeholder: 'Host:Port (z.B. device.example:8443)',
     change_device: 'Gerät wechseln',
     connect_failed: 'Verbindung fehlgeschlagen. Adresse prüfen und erneut versuchen.',
-       current: 'Aktuell',
+       current: 'Aktuelles Gerät',
     no_devices_yet: 'Keine Geräte. Suchen oder Adresse unten eingeben.',
     unpair_confirm: 'Kopplung mit {name} aufheben?',
     unpair_hint: 'Dein Chatverlauf bleibt erhalten. Kopple das Gerät erneut, um es zu verwenden.',

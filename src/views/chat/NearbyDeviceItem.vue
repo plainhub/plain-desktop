@@ -8,7 +8,7 @@
     </template>
     <template #title>
       <span>{{ identity.name }}</span>
-      <span v-if="current" class="status-badge on">{{ $t('device_discovery.current') }}</span>
+      <i-lucide:check v-if="current" role="img" :aria-label="$t('device_discovery.current')" />
       <span v-if="pairing" class="status-badge warn">{{ $t('waiting_for_confirmation') }}</span>
     </template>
     <template #end>
@@ -56,7 +56,7 @@ const identity = computed(() => (props.peer ?? props.device)!)
 const pairing = computed(() => props.pending || props.device?.status === 'PAIRING')
 const ip = computed(() => props.peer ? props.peer.ip : props.device?.bestIp || props.device?.ips.join(', ') || '')
 const action = computed(() => nearbyPairAction(props.peer, props.device, props.fullControl))
-const connectDisabled = computed(() => props.disabled || (action.value === 'control' && (!props.peer?.online || props.device?.remoteAccess !== true)) || (action.value === 'switch' && !props.switchOnly && (!props.peer?.online || props.device?.remoteAccess === false)))
+const connectDisabled = computed(() => props.disabled || (action.value === 'control' && (!props.peer?.online || props.device?.remoteAccess !== true)))
 const actionLabel = computed(() => ({ switch: 'switch', control: 'pairing_full_control', pair: 'pair', chat: 'pairing_chat_only' })[action.value])
 const menuId = computed(() => `nearby-actions-${identity.value.id}`)
 const infoOpen = ref(false)

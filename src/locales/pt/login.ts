@@ -32,7 +32,7 @@ export default {
     manual_host_placeholder: 'Host:porta (ex. device.example:8443)',
     change_device: 'Mudar dispositivo',
     connect_failed: 'Falha na conexão. Verifique o endereço e tente novamente.',
-       current: 'Atual',
+       current: 'Dispositivo atual',
     no_devices_yet: 'Nenhum dispositivo. Pesquise ou insira um endereço abaixo.',
     unpair_confirm: 'Desemparelhar {name}?',
     unpair_hint: 'Seu histórico de conversas será mantido. Pareie o dispositivo novamente para usá-lo.',

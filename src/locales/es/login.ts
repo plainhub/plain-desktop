@@ -32,7 +32,7 @@ export default {
     manual_host_placeholder: 'Host:puerto (p. ej. device.example:8443)',
     change_device: 'Cambiar dispositivo',
     connect_failed: 'Conexión fallida. Verifica la dirección e inténtalo de nuevo.',
-       current: 'Actual',
+       current: 'Dispositivo actual',
     no_devices_yet: 'Sin dispositivos. Busca o introduce una dirección abajo.',
     unpair_confirm: '¿Desemparejar {name}?',
     unpair_hint: 'Se conserva el historial de chat. Vuelve a emparejar este dispositivo para usarlo.',

@@ -32,7 +32,7 @@ export default {
     manual_host_placeholder: '主機:埠（例如 device.example:8443）',
     change_device: '更換設備',
     connect_failed: '連接失敗，請檢查地址後重試。',
-       current: '當前',
+       current: '目前裝置',
     no_devices_yet: '暫無設備，請在下方搜尋或輸入地址。',
     unpair_confirm: '解除與{name}的配對？',
     unpair_hint: '聊天記錄會保留。下次使用這台裝置時，需要重新配對。',

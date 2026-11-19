@@ -32,7 +32,7 @@ export default {
     manual_host_placeholder: 'Host:cổng (vd. device.example:8443)',
     change_device: 'Đổi thiết bị',
     connect_failed: 'Kết nối thất bại. Kiểm tra địa chỉ và thử lại.',
-       current: 'Hiện tại',
+       current: 'Thiết bị hiện tại',
     no_devices_yet: 'Chưa có thiết bị. Tìm kiếm hoặc nhập địa chỉ bên dưới.',
     unpair_confirm: 'Hủy ghép nối với {name}?',
     unpair_hint: 'Lịch sử trò chuyện được giữ lại. Hãy ghép nối lại để sử dụng thiết bị này.',

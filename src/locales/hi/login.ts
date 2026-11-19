@@ -32,7 +32,7 @@ export default {
     manual_host_placeholder: 'होस्ट:पोर्ट (जैसे device.example:8443)',
     change_device: 'डिवाइस बदलें',
     connect_failed: 'कनेक्शन विफल। पता जांचें और पुनः प्रयास करें।',
-       current: 'वर्तमान',
+       current: 'वर्तमान डिवाइस',
     no_devices_yet: 'कोई डिवाइस नहीं। नीचे खोजें या पता दर्ज करें।',
     unpair_confirm: '{name} को अनपेयर करें?',
     unpair_hint: 'चैट इतिहास बना रहेगा। इस डिवाइस का उपयोग करने के लिए फिर से पेयर करें।',

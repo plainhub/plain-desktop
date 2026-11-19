@@ -29,7 +29,8 @@
               <template #start><PeerIcon :device-type="selfDevice.deviceType" /></template>
               <template #title>
                 <span>{{ selfDevice.name }}</span>
-                <span class="status-badge on">{{ $t(localMode ? 'device_discovery.current' : 'device_discovery.local') }}</span>
+                <i-lucide:check v-if="localMode" role="img" :aria-label="$t('device_discovery.current')" />
+                <span v-else class="status-badge on">{{ $t('device_discovery.local') }}</span>
               </template>
               <template v-if="!localMode" #end
                 ><v-icon-button :aria-label="$t('switch')" :title="$t('switch')" @click="switchDevice('')"><i-lucide:arrow-left-right /></v-icon-button></template
@@ -119,6 +120,8 @@ import { HttpErrorCode } from '@/lib/api/http-error-code'
 
 import { computed, onBeforeUnmount, onMounted, ref, shallowReactive, watch } from 'vue'
 import { popModal, pushModal } from '@/components/modal'
+import toast from '@/components/toaster'
+import { useI18n } from 'vue-i18n'
 import DeviceDiscoveryStatus from '@/components/DeviceDiscoveryStatus.vue'
 import MdnsFirewallFix from '@/components/MdnsFirewallFix.vue'
 import RequestApproval from '@/components/RequestApproval.vue'
@@ -150,6 +153,7 @@ import { hasFeature } from '@/lib/feature'
 
 const { switchOnly = false, origin = false } = defineProps<{ switchOnly?: boolean; origin?: boolean }>()
 const useOrigin = switchOnly || origin
+const { t } = useI18n()
 const request = __IS_TAURI__ ? nativeGqlFetch : bindGraphqlClient(useOrigin)
 const ownSubscriptions = __IS_TAURI__ || (useOrigin && !!getRemoteClientId())
 const subscriptions = ownSubscriptions
@@ -328,6 +332,11 @@ async function onLoginSuccess(id: string) {
   await loadPeers().catch(reportFailure)
 }
 async function switchTo(peer: IPeer) {
+  const accessOff = deviceById.value.get(peer.id)?.remoteAccess === false
+  if (accessOff || !peer.online) {
+    toast(peer.name + ': ' + t(accessOff ? 'remote_access_off' : 'offline'))
+    return
+  }
   if (__IS_TAURI__) {
     await preloadLoginPeers()
     if (canSwitchTo(peer)) switchDevice(peer.id)

@@ -32,7 +32,7 @@ export default {
     manual_host_placeholder: 'Host:poort (bijv. device.example:8443)',
     change_device: 'Apparaat wijzigen',
     connect_failed: 'Verbinding mislukt. Controleer het adres en probeer opnieuw.',
-       current: 'Huidig',
+       current: 'Huidig apparaat',
     no_devices_yet: 'Geen apparaten. Zoek of voer een adres hieronder in.',
     unpair_confirm: '{name} ontkoppelen?',
     unpair_hint: 'Je chatgeschiedenis blijft bewaard. Koppel dit apparaat opnieuw om het te gebruiken.',

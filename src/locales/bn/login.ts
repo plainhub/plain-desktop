@@ -32,7 +32,7 @@ export default {
     manual_host_placeholder: 'হোস্ট:পোর্ট (যেমন device.example:8443)',
     change_device: 'ডিভাইস পরিবর্তন করুন',
     connect_failed: 'সংযোগ ব্যর্থ। ঠিকানা যাচাই করুন এবং আবার চেষ্টা করুন।',
-       current: 'বর্তমান',
+       current: 'বর্তমান ডিভাইস',
     no_devices_yet: 'কোনো ডিভাইস নেই। নিচে খুঁজুন বা ঠিকানা দিন।',
     unpair_confirm: '{name} এর সঙ্গে জোড়া খুলবেন?',
     unpair_hint: 'চ্যাটের ইতিহাস সংরক্ষিত থাকবে। ডিভাইসটি ব্যবহার করতে আবার জোড়া লাগান।',

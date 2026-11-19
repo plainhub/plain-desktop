@@ -32,7 +32,7 @@ export default {
     manual_host_placeholder: '호스트:포트 (예: device.example:8443)',
     change_device: '기기 변경',
     connect_failed: '연결 실패. 주소를 확인하고 다시 시도해 주세요.',
-       current: '현재',
+       current: '현재 기기',
     no_devices_yet: '기기 없음. 아래에서 검색하거나 주소를 입력하세요.',
     unpair_confirm: '{name} 기기의 페어링을 해제할까요?',
     unpair_hint: '채팅 기록은 유지됩니다. 이 기기를 다시 사용하려면 페어링하세요.',

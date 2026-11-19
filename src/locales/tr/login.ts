@@ -32,7 +32,7 @@ export default {
     manual_host_placeholder: 'Host:port (örn. device.example:8443)',
     change_device: 'Cihaz değiştir',
     connect_failed: 'Bağlantı başarısız. Adresi kontrol edip tekrar deneyin.',
-       current: 'Mevcut',
+       current: 'Geçerli cihaz',
     no_devices_yet: 'Cihaz yok. Aşağıda arayın veya adres girin.',
     unpair_confirm: '{name} ile eşleşme kaldırılsın mı?',
     unpair_hint: 'Sohbet geçmişiniz saklanır. Bu cihazı kullanmak için yeniden eşleştirin.',

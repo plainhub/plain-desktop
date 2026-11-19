@@ -34,6 +34,8 @@ import requestVerificationSource from '@/components/RequestVerificationCode.vue?
 
 const io = vi.hoisted(() => ({ request: vi.fn(), probe: vi.fn(), pushModal: vi.fn(), removePref: vi.fn(), clearRemote: vi.fn(), setRemote: vi.fn(), start: vi.fn(), current: '', status: 0, devices: [] as DiscoveredDevice[], self: null as SelfDevice | null }))
 const bluetooth = vi.hoisted(() => ({ invoke: vi.fn(), supported: false }))
+const notify = vi.hoisted(() => vi.fn())
+vi.mock('@/components/toaster', () => ({ default: notify }))
 const chatPairing = vi.hoisted(() => ({ start: vi.fn(), cancel: vi.fn(), updates: new Map<string, (state: PairingView) => void>(), update(state: PairingView) { this.updates.get(state.deviceId)?.(state) } }))
 const managedPairing = vi.hoisted(() => ({ finish: new Map<string, () => void>(), cancel: vi.fn() }))
 vi.mock('@/stores/temp', () => ({ useTempStore: () => ({ app: { capabilities: bluetooth.supported ? ['BLE'] : [] } }) }))
@@ -479,8 +481,17 @@ it.each(['', 'remote'])('switches the managed Web picker without changing the vi
   expect(io.request.mock.calls.every(([document]) => document === peersGQL)).toBe(true)
 })
 
-it('checks a stale offline Web row on explicit Switch and does not change target on failed preflight', async () => {
-  const view = await mount('', false, { switchOnly: true, online: false, self })
+it.each([true, false])('explains why Switch cannot proceed without changing target (access off: %s)', async (accessOff) => {
+  const view = await mount('', false, { switchOnly: true, online: false, self,
+    devices: accessOff ? [{ ...discovered, id: peer.id, remoteAccess: false }] : [] })
+  await view.clickText('Switch')
+  expect(notify).toHaveBeenCalledWith(peer.name + ': ' + (accessOff ? common.remote_access_off : common.offline))
+  expect(io.probe).not.toHaveBeenCalled()
+  expect(view.location.reload).not.toHaveBeenCalled()
+})
+
+it('does not change target when an online peer fails preflight', async () => {
+  const view = await mount('', false, { switchOnly: true, online: true, self })
   let reject!: (reason: Error) => void
   io.probe.mockReturnValue(new Promise((_, fail) => { reject = fail }))
   await view.clickText('Switch')
@@ -565,7 +576,7 @@ it.each(
     const button = controls()[0]!
     expect(button.props['aria-label']).toBe('Switch')
     expect(button.props.title).toBe('Switch')
-    expect(Boolean(button.props.disabled)).toBe(!state.online && !state.switchOnly)
+    expect(Boolean(button.props.disabled)).toBe(false)
     if (!button.props.disabled) {
       await click(button)
       expect(connect).toHaveBeenCalledExactlyOnceWith('switch')

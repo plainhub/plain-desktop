@@ -38,7 +38,7 @@ export default {
     manual_host_placeholder: 'Or enter manually: device.example:8443',
     change_device: 'Switch Device',
     connect_failed: 'Connection failed. Check the address and try again.',
-       current: 'Current',
+       current: 'Current device',
     no_devices_yet: 'No devices yet. Search or enter a host below.',
     unpair_confirm: 'Unpair {name}?',
     unpair_hint: 'Your chat history is kept. Pair again to use this device.',
