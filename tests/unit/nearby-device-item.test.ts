@@ -5,6 +5,7 @@ import NearbyDeviceItem from '@/views/chat/NearbyDeviceItem.vue'
 import PeerIcon from '@/components/PeerIcon.vue'
 import DeviceTypeIcon from '@/components/DeviceTypeIcon.vue'
 import VListItem from '@/components/base/VListItem.vue'
+import VIconButton from '@/components/base/VIconButton.vue'
 import VOutlinedButton from '@/components/base/VOutlinedButton.vue'
 import { DeviceType, PeerStatus } from '@/lib/status'
 
@@ -33,8 +34,8 @@ async function render(props: Record<string, unknown>) {
     PeerIcon,
     DeviceTypeIcon,
     VDropdown: wrapper,
-    VIconButton: wrapper,
-    VDropdownMenu: () => null,
+    VIconButton,
+    VDropdownMenu: (_, { slots }: { slots: Slots }) => h('div', { 'data-nearby-menu': '' }, slots.default?.()),
     VCircularProgress: wrapper,
   }))
     app.component(name, component)
@@ -49,26 +50,25 @@ it('renders the real outlined chat action for remote-off discoveries and shows t
 })
 it('renders an upgrade action, keeps it disabled when remote access is off, and uses the shared online icon', async () => {
   const html = await render({ peer, device: { ...device, remoteAccess: false } })
-  expect(html).toContain('pairing_full_control')
-  expect(html).toMatch(/<button[^>]*disabled/)
+  expect(html).toMatch(/data-nearby-menu[^>]*><button[^>]*disabled[^>]*>pairing_full_control<\/button>/)
   expect(html).toContain('online-dot')
   expect(html).not.toContain('pairing_chat_only')
 })
 it('enables the upgrade when remote access is on, without an online text label', async () => {
   const html = await render({ peer, device: { ...device, remoteAccess: true } })
-  expect(html).not.toMatch(/<button[^>]*disabled/)
+  expect(html).toMatch(/data-nearby-menu[^>]*><button(?![^>]*disabled)[^>]*>pairing_full_control<\/button>/)
   expect(html).not.toContain('>online<')
 })
 it('keeps offline peers visible without a green dot and disables their upgrade', async () => {
   const html = await render({ peer: { ...peer, online: false } })
   expect(html).toContain('Fixture phone')
   expect(html).not.toContain('class="online-dot"')
-  expect(html).toMatch(/<button[^>]*disabled/)
+  expect(html).toMatch(/data-nearby-menu[^>]*><button[^>]*disabled[^>]*>pairing_full_control<\/button>/)
 })
 
 it('switches an authenticated peer instead of offering another pairing or upgrade', async () => {
   const html = await render({ peer, fullControl: true, device: { ...device, remoteAccess: true } })
-  expect(html).toContain('switch')
+  expect(html).toMatch(/<button(?![^>]*disabled)[^>]*aria-label="switch"/)
   expect(html).not.toContain('pairing_full_control')
   expect(html).not.toMatch(/<button[^>]*disabled/)
 })
