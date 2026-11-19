@@ -1,5 +1,5 @@
 <template>
-  <div class="scan-status">
+  <div v-if="showSearching" class="scan-status">
     <v-circular-progress indeterminate class="sm" />
     <span>{{ $t('device_discovery.searching') }}</span>
   </div>
@@ -29,9 +29,10 @@
 <script setup lang="ts">
 import { DiscoveryStatus } from '@/hooks/use-device-discovery'
 
-defineProps<{
+withDefaults(defineProps<{
   status: DiscoveryStatus
-}>()
+  showSearching?: boolean
+}>(), { showSearching: true })
 
 defineEmits<{
   (e: 'retry'): void

@@ -1,6 +1,6 @@
 import { PairingErrorCode, parsePairingErrorCode } from '@/lib/api/pairing-error-code'
 import { GqlError } from '@/lib/api/gql-error'
-import { pairPeerGQL } from '@/lib/api/mutation'
+import { cancelPairingGQL, pairPeerGQL } from '@/lib/api/mutation'
 import { computed, reactive, ref } from 'vue'
 import { nativeGraphql } from '@/lib/api/native-client'
 import type { bindGraphqlClient, GqlResult } from '@/lib/api/gql-client'
@@ -59,7 +59,7 @@ export function createPairing(subscriptions = graphqlSubscriptions, request?: Re
   ]
   async function cancel(id = peerId.value) {
     if (!id) return
-    await execute('mutation($peerId: ID!) { cancelPairing(peerId: $peerId) }', { peerId: id })
+    await execute(cancelPairingGQL, { peerId: id })
     update(id, { phase: 'CANCELED' })
   }
   async function start(value: PairingInput) {

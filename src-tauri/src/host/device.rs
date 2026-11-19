@@ -9,6 +9,8 @@ const DESKTOP: &[Capability] = &[
 
 pub fn desktop_capabilities() -> Vec<Capability> {
     let mut capabilities = DESKTOP.to_vec();
+    #[cfg(target_os = "macos")]
+    capabilities.push(Capability::Ble);
     capabilities.extend(plain_rs::features::services::files::media_action_io::capabilities());
     capabilities
 }

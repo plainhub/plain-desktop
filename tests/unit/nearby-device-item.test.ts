@@ -72,3 +72,10 @@ it('switches an authenticated peer instead of offering another pairing or upgrad
   expect(html).not.toContain('pairing_full_control')
   expect(html).not.toMatch(/<button[^>]*disabled/)
 })
+
+it('shows waiting and cancel from the device pairing status', async () => {
+  const html = await render({ device: { ...device, status: 'PAIRING' } })
+  expect(html).toContain('waiting_for_confirmation')
+  expect(html).toContain('>cancel<')
+  expect(html).not.toContain('pairing_chat_only')
+})

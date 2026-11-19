@@ -253,6 +253,8 @@ pub fn run() {
                 );
             }
             if let tauri::WindowEvent::Destroyed = event {
+                #[cfg(target_os = "macos")]
+                crate::host::macos_ble::stop(window.label(), None);
                 crate::commands::native::views::page_changed(window.app_handle(), window.label(), false);
                 crate::commands::screen_capture::commands::on_window_destroyed(
                     window.app_handle(),
@@ -294,6 +296,12 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            #[cfg(target_os = "macos")]
+            crate::host::macos_ble::nearby_bluetooth_enable,
+            #[cfg(target_os = "macos")]
+            crate::host::macos_ble::nearby_bluetooth_stop,
+            #[cfg(target_os = "macos")]
+            crate::host::macos_ble::nearby_bluetooth_open_settings,
             crate::commands::discover::mdns_firewall_status,
             crate::commands::discover::fix_mdns_firewall,
             crate::commands::notification::send_macos_notification,

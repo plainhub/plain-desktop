@@ -1,7 +1,6 @@
 <template>
   <section v-if="pairingTrust">
-    <p v-if="pairingTrust.identityChanged" role="alert">{{ $t('pairing_manage_identity_changed') }}</p>
-    <p v-else>{{ $t('pairing_manage_trust_hint') }}</p>
+    <p role="alert">{{ $t('pairing_manage_identity_changed') }}</p>
     <p v-if="showError" class="alert alert-danger show" role="alert">{{ $t(error) }}</p>
     <v-filled-button type="button" :loading="isSubmitting" @click="confirmPairingTrust">
       {{ $t('pairing_trust') }}
@@ -36,24 +35,13 @@
       {{ $t(pairing ? 'pair' : isSubmitting ? 'logging_in' : 'log_in') }}
     </component>
   </form>
-  <div v-if="showConfirm">
-    <div class="tap-phone">
-      <TouchPhone aria-hidden="true" />
-    </div>
-    <div class="tap-phone-text" role="status">
-      {{ $t('login.to_continue') }}
-    </div>
-    <RequestVerificationCode v-if="verificationCode" :code="verificationCode" :hint="$t('login.compare_code')" />
-    <v-outlined-button @click="onCancel">
-      {{ $t('cancel') }}
-    </v-outlined-button>
-  </div>
+  <RequestApproval v-if="showConfirm" :code="verificationCode" :hint="$t('login.compare_code')" @cancel="onCancel"><slot /></RequestApproval>
 </template>
 
 <script setup lang="ts">
 import VOutlinedButton from '@/components/base/VOutlinedButton.vue'
 import VFilledButton from '@/components/base/VFilledButton.vue'
-import RequestVerificationCode from '@/components/RequestVerificationCode.vue'
+import RequestApproval from '@/components/RequestApproval.vue'
 import { computed, onBeforeUnmount } from 'vue'
 import type { InitResult } from '@/lib/api/init'
 import type { SubscriptionClient } from '@/lib/api/subscription-client'
@@ -95,6 +83,7 @@ const {
 })
 
 const identityChanged = computed(() => !nativeApp && !props.managedDeviceId && showError.value && error.value === 'login.PEER_IDENTITY_CHANGED')
+const hasCancel = computed(() => !!pairingTrust.value || showConfirm.value)
 
 async function init(result: InitResult, options: InitOptions = {}) {
   const authenticated = applyInitResult(result)
@@ -110,7 +99,7 @@ function onCancel() {
 
 onBeforeUnmount(dispose)
 
-defineExpose({ init, startPairing })
+defineExpose({ init, startPairing, cancel: onCancel, hasCancel })
 </script>
 
 <style scoped lang="scss">
@@ -118,21 +107,6 @@ defineExpose({ init, startPairing })
 .v-outlined-button {
   margin-top: 24px;
   width: 100%;
-}
-
-.tap-phone {
-  text-align: center;
-  padding-block-end: 1rem;
-
-  *:is(svg) {
-    width: 120px;
-    height: auto;
-    fill: var(--md-sys-color-primary);
-  }
-}
-
-.tap-phone-text {
-  text-align: center;
 }
 
 .alert-danger {

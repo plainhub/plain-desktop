@@ -34,6 +34,7 @@ import { onMounted, onUnmounted } from 'vue'
 interface Props {
   type?: string
   backgroundClose?: boolean
+  escapeClose?: boolean
   modalId?: string
   /**
    * Optional fixed CSS width (e.g. `"480px"`). When set, the modal uses
@@ -47,6 +48,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   type: 'default',
   backgroundClose: true,
+  escapeClose: true,
   modalId: '',
   width: ''
 })
@@ -77,7 +79,7 @@ const handleBackdropClick = () => {
 
 // 处理ESC键
 const handleEscapeKey = (event: KeyboardEvent) => {
-  if (event.key === 'Escape') {
+  if (props.escapeClose && event.key === 'Escape') {
     emit('close')
   }
 }
@@ -210,4 +212,4 @@ defineExpose({
     --md-sys-color-surface-container-high: var(--md-sys-color-surface-variant);
   }
 }
-</style> 
+</style>

@@ -4,7 +4,9 @@ import LoginForm from '@/views/login/LoginForm.vue'
 import VFilledButton from '@/components/base/VFilledButton.vue'
 import VOutlinedButton from '@/components/base/VOutlinedButton.vue'
 import RequestVerificationCode from '@/components/RequestVerificationCode.vue'
+import RequestApproval from '@/components/RequestApproval.vue'
 import { pairingViews } from '@/lib/device/pairing'
+import chat from '@/locales/en-US/chat'
 import { click, clientTemplate, content, flush, nodes, renderView, type Node } from '../helpers/vue-node-renderer'
 
 const io = vi.hoisted(() => ({ request: vi.fn(), listeners: new Map<string, (value: unknown) => void>() }))
@@ -30,6 +32,7 @@ clientTemplate(LoginForm, 'src/views/login/LoginForm.vue')
 clientTemplate(VFilledButton, 'src/components/base/VFilledButton.vue')
 clientTemplate(VOutlinedButton, 'src/components/base/VOutlinedButton.vue')
 clientTemplate(RequestVerificationCode, 'src/components/RequestVerificationCode.vue')
+clientTemplate(RequestApproval, 'src/components/RequestApproval.vue')
 
 beforeEach(() => {
   vi.stubGlobal('__IS_TAURI__', false)
@@ -43,7 +46,7 @@ async function mountPairing() {
   const onCancel = vi.fn()
   const onSuccess = vi.fn()
   const empty = { render: () => null }
-  let form: { startPairing(): Promise<void> } | null = null
+  let form: { startPairing(): Promise<void>; cancel(): void; hasCancel: boolean } | null = null
   const wrapper = { render: () => h(LoginForm, {
     ref: (vm: unknown) => { form = vm as typeof form },
     pairing: true, managedDeviceId: 'target', redirectOnSuccess: false, onCancel, onSuccess,
@@ -60,7 +63,8 @@ async function mountPairing() {
   const button = (label: string) => nodes(view.root).find(node => node.tag === 'button' && visible(node) && content(node) === label)
   await form!.startPairing()
   await flush()
-  return { ...view, emit, button, onSuccess, onCancel, text: () => nodes(view.root).filter(visible).map(node => node.text ?? '').join(''),
+  return { ...view, emit, button, onSuccess, onCancel, form: form!, text: () => nodes(view.root).filter(visible)
+    .map(node => node.text ? chat[node.text as keyof typeof chat] ?? node.text : '').join(''),
     phone: () => nodes(view.root).some(node => visible(node) && node.props.id === 'tap-phone-fixture') }
 }
 
@@ -86,7 +90,8 @@ it('waits for an explicit local trust decision, then displays remote approval an
   try {
     await view.emit('pairingRequested', { fromId: 'target', verificationCode: '01234567', identityChanged: true })
     expect(view.phone()).toBe(false)
-    expect(view.text()).toContain('pairing_manage_identity_changed')
+    expect(view.text()).toContain('no longer matches')
+    expect(view.text()).toContain('Cancel if you didn’t expect')
     expect(view.text()).not.toContain('01234567')
     expect(view.text()).not.toContain('pairing_compare_code')
     expect(io.request).toHaveBeenCalledTimes(1)
@@ -104,17 +109,19 @@ it('waits for an explicit local trust decision, then displays remote approval an
   } finally { view.unmount() }
 })
 
-it('offers explicit local trust without a comparison code for a new managed device', async () => {
+it('shows the remote comparison code without local trust for a new managed device', async () => {
   const view = await mountPairing()
   try {
-    await view.emit('pairingRequested', { fromId: 'target', verificationCode: '01234567', identityChanged: false })
-    expect(view.text()).toContain('pairing_manage_trust_hint')
-    expect(view.text()).not.toContain('01234567')
-    expect(view.phone()).toBe(false)
-    expect(view.button('pairing_trust')).toBeDefined()
+    expect(view.form.hasCancel).toBe(false)
+    await view.emit('pairingStarted', { deviceId: 'target', verificationCode: '01234567' })
+    expect(view.text()).toContain('01234567')
+    expect(view.phone()).toBe(true)
+    expect(view.button('pairing_trust')).toBeUndefined()
     expect(io.request).toHaveBeenCalledTimes(1)
-    click(view.button('cancel')!)
+    expect(view.form.hasCancel).toBe(true)
+    view.form.cancel()
     await flush()
+    expect(view.onCancel).toHaveBeenCalledOnce()
     expect(io.request.mock.lastCall?.[1]).toEqual({ peerId: 'target' })
   } finally { view.unmount() }
 })

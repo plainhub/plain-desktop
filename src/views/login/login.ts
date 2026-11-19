@@ -53,7 +53,7 @@ export function useLogin(options: UseLoginOptions = {}) {
   let pendingLoginController: AbortController | null = null
   const managedDeviceId = options.managedDeviceId
   const pairing = __IS_TAURI__ || managedDeviceId
-    ? createPairing(options.subscriptions, managedDeviceId ? bindGraphqlClient(options.managedOrigin) : undefined)
+    ? createPairing(options.subscriptions, !__IS_TAURI__ && managedDeviceId ? bindGraphqlClient(options.managedOrigin) : undefined)
     : null
   const pairingTrust = computed(() => {
     const state = pairing?.state.value

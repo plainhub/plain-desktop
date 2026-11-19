@@ -7,11 +7,11 @@
       :redirect-on-success="false"
       pairing
       :subscriptions="subscriptions"
-      :managed-device-id="managedDeviceId"
+      :managed-device-id="deviceId"
       :managed-origin="managedOrigin"
-      @success="onSuccess"
+      @success="emit('success')"
       @cancel="emit('cancel')"
-    />
+    ><slot /></LoginForm>
   </div>
 </template>
 
@@ -19,27 +19,18 @@
 import { HttpErrorCode } from '@/lib/api/http-error-code'
 
 import type { SubscriptionClient } from '@/lib/api/subscription-client'
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import LoginForm from './LoginForm.vue'
-import { clearPendingLoginDevice, setPendingLoginDevice, type PendingLoginDevice } from '@/lib/api/api'
-import { clearRemoteClientId, getRemoteClientId, setRemoteClientId } from '@/lib/device/client-id'
 
-const props = defineProps<{ device: PendingLoginDevice & { id: string }; subscriptions?: SubscriptionClient; managedOrigin?: boolean }>()
+defineProps<{ deviceId: string; subscriptions?: SubscriptionClient; managedOrigin?: boolean }>()
 const emit = defineEmits<{ success: []; cancel: [] }>()
 
 const loginFormRef = ref<InstanceType<typeof LoginForm> | null>(null)
+const hasCancel = computed(() => loginFormRef.value?.hasCancel ?? false)
 const initError = ref('')
-const previousClientId = getRemoteClientId()
-const managedDeviceId = __IS_TAURI__ ? undefined : props.device.id
-let succeeded = false
 let active = true
 
 onMounted(async () => {
-  if (!managedDeviceId) {
-    clearRemoteClientId()
-    setPendingLoginDevice(props.device)
-  }
-  await nextTick()
   try {
     await loginFormRef.value?.startPairing()
   } catch {
@@ -49,12 +40,12 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   active = false
-  clearPendingLoginDevice()
-  if (!succeeded) setRemoteClientId(previousClientId)
 })
 
-function onSuccess() {
-  succeeded = true
-  emit('success')
+function cancel() {
+  if (loginFormRef.value) loginFormRef.value.cancel()
+  else emit('cancel')
 }
+
+defineExpose({ cancel, hasCancel })
 </script>

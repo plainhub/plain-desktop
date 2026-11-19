@@ -24,6 +24,16 @@ impl Runtime {
 
     async fn dispatch(&self, method: &str, params: Value) -> Result<Value, String> {
         match method {
+            #[cfg(target_os = "macos")]
+            "nearbyScanFacts" => Ok(super::macos_ble::scan_facts()),
+            #[cfg(target_os = "macos")]
+            "bleScanRead" => super::macos_ble::exchange(params, true).await,
+            #[cfg(target_os = "macos")]
+            "peerTransportBleExchange" => super::macos_ble::exchange(params, false).await,
+            #[cfg(target_os = "macos")]
+            "blePairConnect" | "blePairSend" | "blePairWait" | "blePairClose" => {
+                super::macos_ble::pair(method, params).await
+            }
             "systemWebLoginRequested"
             | "systemWebLoginClosed"
             | "systemWebLoginSnapshot"
@@ -58,7 +68,13 @@ impl Runtime {
             "systemCapabilities" => {
                 plain_libs::serde_json::to_value(&self.capabilities).map_err(|error| error.to_string())
             }
-            "peerTransportCapabilities" => Ok(plain_libs::serde_json::json!([])),
+            "peerTransportCapabilities" => {
+                #[cfg(target_os = "macos")]
+                if super::macos_ble::transport_available() {
+                    return Ok(plain_libs::serde_json::json!(["BLE"]));
+                }
+                Ok(plain_libs::serde_json::json!([]))
+            }
             "systemSetClipboard" => {
                 let request: ClipboardText =
                     plain_libs::serde_json::from_value(params).map_err(|error| error.to_string())?;
@@ -93,6 +109,8 @@ impl Runtime {
 
     pub fn start(self: Arc<Self>) -> Result<tokio::task::JoinHandle<Result<(), String>>, String> {
         let session = Arc::new(self.core.host_events()?);
+        #[cfg(target_os = "macos")]
+        super::macos_ble::initialize(self.app.clone(), session.clone())?;
         let changes = Arc::new(tokio::sync::Notify::new());
         let receiver = changes.clone();
         let observer = session.clone();

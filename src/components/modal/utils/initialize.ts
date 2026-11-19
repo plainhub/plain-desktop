@@ -10,7 +10,8 @@ export default function initialize() {
     if (configuration.escClose && (e.key === 'Escape' || e.code === 'Escape')) {
       const modal = getCurrentModal()
       if (!modal) return
-      closeById(modal.id, { esc: true })
+      if (modal.instance?.onEscape) void modal.instance.onEscape()
+      else void closeById(modal.id, { esc: true })
     }
   })
 }

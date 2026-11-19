@@ -441,6 +441,7 @@ declare module 'vue' {
     RemoteAccessAddresses: typeof import('./src/views/home/remote-access/RemoteAccessAddresses.vue')['default']
     RemoteAccessCard: typeof import('./src/views/home/remote-access/RemoteAccessCard.vue')['default']
     RenameChannelModal: typeof import('./src/views/chat/RenameChannelModal.vue')['default']
+    RequestApproval: typeof import('./src/components/RequestApproval.vue')['default']
     RequestVerificationCode: typeof import('./src/components/RequestVerificationCode.vue')['default']
     SaveFormatButton: typeof import('./src/views/image-editor/components/SaveFormatButton.vue')['default']
     ScreenCaptureOverlay: typeof import('./src/views/screen-capture/ScreenCaptureOverlay.vue')['default']
