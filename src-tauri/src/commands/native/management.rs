@@ -37,11 +37,7 @@ pub fn native_peer_notifications(
 
 #[tauri::command]
 pub fn native_password_configured(core: tauri::State<'_, Arc<ContentServer>>) -> Result<bool, String> {
-    core.native_management()?
-        .preferences()?
-        .get("passwordConfigured")
-        .and_then(plain_libs::serde_json::Value::as_bool)
-        .ok_or_else(|| "Invalid password status".to_owned())
+    core.native_management()?.password_configured()
 }
 
 #[tauri::command]
