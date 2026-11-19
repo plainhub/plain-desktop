@@ -131,7 +131,7 @@ export default {
   address: '位址',
   yes: '是',
   no: '否',
-  confirm_to_delete_name: '確認刪除"{name}"？',
+  confirm_to_delete_name: '確認刪除{name}？',
   confirm_to_delete: '確定要刪除這{count}個項目嗎？此操作無法復原。',
   valid: {
     string_min: '至少{min}個字元',
@@ -265,7 +265,7 @@ export default {
   trash: '資源回收筒',
   move_to_trash: '移至資源回收筒',
   move_to_folder: '移動到資料夾',
-  moved_to_folder: '已移動到「{folder}」',
+  moved_to_folder: '已移動到{folder}',
   undo: '復原',
   undo_organize_tip: '復原上一步（還有 {count} 步）',
   organize_summary_title: '完成整理',

@@ -130,7 +130,7 @@ export default {
   address: '주소',
   yes: '예',
   no: '아니오',
-  confirm_to_delete_name: '"{name}"을(를) 삭제하시겠습니까?',
+  confirm_to_delete_name: '{name}을(를) 삭제하시겠습니까?',
   confirm_to_delete: '이 {count} 항목을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
   valid: {
     string_min: '{min}자 이상이어야 합니다',

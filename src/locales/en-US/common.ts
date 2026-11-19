@@ -180,7 +180,7 @@ export default {
   address: 'Address',
   yes: 'Yes',
   no: 'No',
-  confirm_to_delete_name: 'Confirm to delete "{name}"?',
+  confirm_to_delete_name: 'Confirm to delete {name}?',
   confirm_to_delete: 'Are you sure you want to delete these {count} item(s)? This action cannot be undone.',
   valid: {
     string_min: 'At least {min} characters',

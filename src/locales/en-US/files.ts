@@ -45,7 +45,7 @@ export default {
   upload_auto_paused: 'Uploads were auto-paused after repeated network failures. Resume once the connection is back.',
   upload_unauthorized: 'Session expired, please sign in again',
   deleting: 'Deleting…',
-  delete_failed_name: 'Failed to delete "{name}"',
+  delete_failed_name: 'Failed to delete {name}',
   deleted_n_items: 'Deleted {n} item(s)',
   delete_files: 'Delete files',
   recents: 'Recents',

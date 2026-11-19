@@ -129,7 +129,7 @@ export default {
   address: 'Adres',
   yes: 'Evet',
   no: 'Hayır',
-  confirm_to_delete_name: '"{name}" silmek için onayla?',
+  confirm_to_delete_name: '{name} silmek için onayla?',
   confirm_to_delete: 'Bu {count} öğeyi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.',
   valid: {
     string_min: 'En az {min} karakter',

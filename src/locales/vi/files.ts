@@ -44,7 +44,7 @@ export default {
   upload_auto_paused: 'Đã tự động tạm dừng tải lên sau nhiều lỗi mạng lặp lại. Tiếp tục khi kết nối được khôi phục.',
   upload_unauthorized: 'Phiên đã hết hạn, vui lòng đăng nhập lại',
   deleting: 'Đang xóa…',
-  delete_failed_name: 'Xóa "{name}" thất bại',
+  delete_failed_name: 'Xóa {name} thất bại',
   deleted_n_items: 'Đã xóa {n} mục',
   delete_files: 'Xóa tệp',
   recents: 'Mới nhất',

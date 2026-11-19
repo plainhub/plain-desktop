@@ -40,7 +40,7 @@ export default {
     connect_failed: '连接失败，请检查地址后重试。',
        current: '当前',
     no_devices_yet: '暂无设备，请在下方搜索或输入地址。',
-    unpair_confirm: '解除与「{name}」的配对？',
+    unpair_confirm: '解除与{name}的配对？',
     unpair_hint: '聊天记录会保留。下次使用这台设备时，需要重新配对。',
     unpair_current_hint: '解除配对后会切回本机。',
     firewall_blocked_title: 'Windows 防火墙可能阻止了设备发现',

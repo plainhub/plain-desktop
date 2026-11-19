@@ -129,7 +129,7 @@ export default {
   address: 'Địa chỉ',
   yes: 'Có',
   no: 'Không',
-  confirm_to_delete_name: 'Xác nhận xóa "{name}"?',
+  confirm_to_delete_name: 'Xác nhận xóa {name}?',
   confirm_to_delete: 'Bạn có chắc chắn muốn xóa {count} mục này không? Hành động này không thể hoàn tác.',
   valid: {
     string_min: 'Ít nhất {min} ký tự',

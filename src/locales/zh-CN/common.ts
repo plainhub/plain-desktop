@@ -170,7 +170,7 @@ export default {
   address: '地址',
   yes: '是',
   no: '否',
-  confirm_to_delete_name: '确认删除"{name}"?',
+  confirm_to_delete_name: '确认删除{name}?',
   confirm_to_delete: '您确定要删除这{count}个项目吗？此操作无法撤销。',
   valid: {
     string_min: '至少{min}个字符',
@@ -337,7 +337,7 @@ export default {
   trash: '回收站',
   move_to_trash: '移到回收站',
   move_to_folder: '移动到文件夹',
-  moved_to_folder: '已移动到「{folder}」',
+  moved_to_folder: '已移动到{folder}',
   undo: '撤回',
   undo_organize_tip: '撤销上一步（还有 {count} 步）',
   organize_summary_title: '完成整理',

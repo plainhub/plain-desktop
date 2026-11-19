@@ -34,7 +34,7 @@ export default {
     connect_failed: 'Conexión fallida. Verifica la dirección e inténtalo de nuevo.',
        current: 'Actual',
     no_devices_yet: 'Sin dispositivos. Busca o introduce una dirección abajo.',
-    unpair_confirm: '¿Desemparejar «{name}»?',
+    unpair_confirm: '¿Desemparejar {name}?',
     unpair_hint: 'Se conserva el historial de chat. Vuelve a emparejar este dispositivo para usarlo.',
     unpair_current_hint: 'Volverás a este equipo.',
     firewall_blocked_title: 'El firewall de Windows podría estar bloqueando la detección',

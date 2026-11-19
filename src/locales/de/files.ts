@@ -44,7 +44,7 @@ export default {
   upload_auto_paused: 'Uploads wurden nach wiederholten Netzwerkfehlern automatisch pausiert. Bitte fortsetzen, sobald die Verbindung wiederhergestellt ist.',
   upload_unauthorized: 'Sitzung abgelaufen, bitte erneut anmelden',
   deleting: 'Wird gelöscht…',
-  delete_failed_name: 'Löschen von "{name}" fehlgeschlagen',
+  delete_failed_name: 'Löschen von {name} fehlgeschlagen',
   deleted_n_items: '{n} Element(e) gelöscht',
   delete_files: 'Dateien löschen',
   recents: 'Zuletzt verwendet',

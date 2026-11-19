@@ -40,7 +40,7 @@ export default {
     connect_failed: 'Connection failed. Check the address and try again.',
        current: 'Current',
     no_devices_yet: 'No devices yet. Search or enter a host below.',
-    unpair_confirm: 'Unpair “{name}”?',
+    unpair_confirm: 'Unpair {name}?',
     unpair_hint: 'Your chat history is kept. Pair again to use this device.',
     unpair_current_hint: 'You’ll switch back to this computer.',
     firewall_blocked_title: 'Windows Firewall may be blocking discovery',

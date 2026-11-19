@@ -34,7 +34,7 @@ export default {
     connect_failed: 'Kết nối thất bại. Kiểm tra địa chỉ và thử lại.',
        current: 'Hiện tại',
     no_devices_yet: 'Chưa có thiết bị. Tìm kiếm hoặc nhập địa chỉ bên dưới.',
-    unpair_confirm: 'Hủy ghép nối với “{name}”?',
+    unpair_confirm: 'Hủy ghép nối với {name}?',
     unpair_hint: 'Lịch sử trò chuyện được giữ lại. Hãy ghép nối lại để sử dụng thiết bị này.',
     unpair_current_hint: 'Bạn sẽ quay lại máy tính này.',
     firewall_blocked_title: 'Tường lửa Windows có thể đang chặn việc tìm thiết bị',

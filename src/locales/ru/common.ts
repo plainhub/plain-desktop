@@ -130,7 +130,7 @@ export default {
   address: 'Адрес',
   yes: 'Да',
   no: 'Нет',
-  confirm_to_delete_name: 'Подтвердите удаление "{name}"?',
+  confirm_to_delete_name: 'Подтвердите удаление {name}?',
   confirm_to_delete: 'Вы уверены, что хотите удалить эти {count} элемента? Это действие не может быть отменено.',
   valid: {
     string_min: 'Минимум {min} символов',

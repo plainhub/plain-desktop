@@ -44,7 +44,7 @@ export default {
   upload_auto_paused: 'Uploads zijn automatisch gepauzeerd na herhaalde netwerkfouten. Hervat zodra de verbinding terug is.',
   upload_unauthorized: 'Sessie verlopen, meld je opnieuw aan',
   deleting: 'Verwijderen…',
-  delete_failed_name: 'Verwijderen van "{name}" mislukt',
+  delete_failed_name: 'Verwijderen van {name} mislukt',
   deleted_n_items: '{n} item(s) verwijderd',
   delete_files: 'Bestanden verwijderen',
   recents: 'Recent',

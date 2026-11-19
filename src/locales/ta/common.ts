@@ -131,7 +131,7 @@ export default {
   address: 'முகவரி',
   yes: 'ஆம்',
   no: 'இல்லை',
-  confirm_to_delete_name: 'நீக்க உறுதிப்படுத்த "{name}"?',
+  confirm_to_delete_name: 'நீக்க உறுதிப்படுத்த {name}?',
   confirm_to_delete: 'இந்த {count} உருப்படிகளை நீக்க விரும்புகிறீர்களா? இந்த செயலை மீண்டும் செய்ய முடியாது.',
   valid: {
     string_min: 'குறைந்தது {min} எழுத்துக்கள்',

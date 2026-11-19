@@ -129,7 +129,7 @@ export default {
   address: 'Adres',
   yes: 'Ja',
   no: 'Nee',
-  confirm_to_delete_name: 'Bevestigen om "{name}" te verwijderen?',
+  confirm_to_delete_name: 'Bevestigen om {name} te verwijderen?',
   confirm_to_delete: 'Weet u zeker dat u deze {count} items wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.',
   valid: {
     string_min: 'Minimaal {min} karakters',

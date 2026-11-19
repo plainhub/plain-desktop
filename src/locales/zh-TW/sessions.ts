@@ -5,7 +5,7 @@ export default {
     create_token: '建立 API Token',
     revoke_token: '撤銷 API Token',
     revoke_session: '撤銷工作階段',
-    confirm_revoke: '撤銷「{name}」的存取權限？',
+    confirm_revoke: '撤銷{name}的存取權限？',
     token_created: 'API Token 已建立',
     copy_new_token: '請立即複製並妥善儲存 Token，關閉此視窗後將不再顯示。',
     view_raw: '檢視原始資料',

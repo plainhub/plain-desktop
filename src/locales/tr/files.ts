@@ -44,7 +44,7 @@ export default {
   upload_auto_paused: 'Tekrarlayan ağ hataları sonrasında yüklemeler otomatik olarak duraklatıldı. Bağlantı geri geldiğinde devam edin.',
   upload_unauthorized: 'Oturum süresi doldu, lütfen tekrar oturum açın',
   deleting: 'Siliniyor…',
-  delete_failed_name: '"{name}" silinemedi',
+  delete_failed_name: '{name} silinemedi',
   deleted_n_items: '{n} öğe silindi',
   delete_files: 'Dosyaları sil',
   recents: 'Son kullanılanlar',

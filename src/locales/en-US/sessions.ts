@@ -5,7 +5,7 @@ export default {
     create_token: 'Create API token',
     revoke_token: 'Revoke API token',
     revoke_session: 'Revoke session',
-    confirm_revoke: 'Revoke access for "{name}"?',
+    confirm_revoke: 'Revoke access for {name}?',
     token_created: 'API token created',
     copy_new_token: 'Copy and save this token now. After closing this window, it will not be shown again.',
     view_raw: 'View raw',

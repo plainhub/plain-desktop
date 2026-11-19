@@ -45,7 +45,7 @@ export default {
   upload_auto_paused: '连续上传失败，已自动暂停；网络恢复后请点击继续',
   upload_unauthorized: '登录已失效，请重新登录',
   deleting: '正在删除…',
-  delete_failed_name: '删除失败："{name}"',
+  delete_failed_name: '删除失败：{name}',
   deleted_n_items: '已删除 {n} 项',
   delete_files: '删除文件',
   recents: '最近',

@@ -44,7 +44,7 @@ export default {
   upload_auto_paused: 'Las subidas se pausaron automáticamente tras fallos de red repetidos. Reanuda cuando vuelva la conexión.',
   upload_unauthorized: 'La sesión ha caducado, vuelve a iniciar sesión',
   deleting: 'Eliminando…',
-  delete_failed_name: 'Error al eliminar "{name}"',
+  delete_failed_name: 'Error al eliminar {name}',
   deleted_n_items: '{n} elemento(s) eliminado(s)',
   delete_files: 'Eliminar archivos',
   recents: 'Recientes',

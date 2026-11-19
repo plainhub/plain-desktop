@@ -34,7 +34,7 @@ export default {
     connect_failed: 'Verbinding mislukt. Controleer het adres en probeer opnieuw.',
        current: 'Huidig',
     no_devices_yet: 'Geen apparaten. Zoek of voer een adres hieronder in.',
-    unpair_confirm: '‘{name}’ ontkoppelen?',
+    unpair_confirm: '{name} ontkoppelen?',
     unpair_hint: 'Je chatgeschiedenis blijft bewaard. Koppel dit apparaat opnieuw om het te gebruiken.',
     unpair_current_hint: 'Je gaat terug naar deze computer.',
     firewall_blocked_title: 'De Windows-firewall blokkeert mogelijk apparaatdetectie',

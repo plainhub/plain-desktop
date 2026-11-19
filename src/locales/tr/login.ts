@@ -34,7 +34,7 @@ export default {
     connect_failed: 'Bağlantı başarısız. Adresi kontrol edip tekrar deneyin.',
        current: 'Mevcut',
     no_devices_yet: 'Cihaz yok. Aşağıda arayın veya adres girin.',
-    unpair_confirm: '“{name}” ile eşleşme kaldırılsın mı?',
+    unpair_confirm: '{name} ile eşleşme kaldırılsın mı?',
     unpair_hint: 'Sohbet geçmişiniz saklanır. Bu cihazı kullanmak için yeniden eşleştirin.',
     unpair_current_hint: 'Bu bilgisayara geri dönersiniz.',
     firewall_blocked_title: 'Windows güvenlik duvarı cihaz keşfini engelliyor olabilir',

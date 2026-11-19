@@ -44,7 +44,7 @@ export default {
   upload_auto_paused: 'I caricamenti sono stati messi in pausa automaticamente dopo ripetuti errori di rete. Riprendi quando la connessione torna disponibile.',
   upload_unauthorized: 'Sessione scaduta, effettua di nuovo l’accesso',
   deleting: 'Eliminazione…',
-  delete_failed_name: 'Impossibile eliminare "{name}"',
+  delete_failed_name: 'Impossibile eliminare {name}',
   deleted_n_items: '{n} elemento(i) eliminato(i)',
   delete_files: 'Elimina file',
   recents: 'Recenti',

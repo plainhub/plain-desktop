@@ -130,7 +130,7 @@ export default {
   address: 'Endereço',
   yes: 'Sim',
   no: 'Não',
-  confirm_to_delete_name: 'Confirmar exclusão de "{name}"?',
+  confirm_to_delete_name: 'Confirmar exclusão de {name}?',
   confirm_to_delete: 'Tem certeza de que deseja excluir estes {count} itens? Esta ação não pode ser desfeita.',
   valid: {
     string_min: 'Pelo menos {min} caracteres',

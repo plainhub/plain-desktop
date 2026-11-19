@@ -130,7 +130,7 @@ export default {
   address: 'एड्रेस',
   yes: 'यस',
   no: 'नो',
-  confirm_to_delete_name: 'कन्फर्म टू डिलीट "{name}"?',
+  confirm_to_delete_name: 'कन्फर्म टू डिलीट {name}?',
   confirm_to_delete: 'क्या आप वाकई इन {count} वस्तुओं को हटाना चाहते हैं? यह क्रिया पूर्ववत नहीं की जा सकती।?',
   valid: {
     string_min: '{min} से कम नहीं',

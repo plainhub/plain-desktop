@@ -44,7 +44,7 @@ export default {
   upload_auto_paused: 'Les téléversements ont été mis en pause automatiquement après des échecs réseau répétés. Reprenez une fois la connexion rétablie.',
   upload_unauthorized: 'Session expirée, veuillez vous reconnecter',
   deleting: 'Suppression…',
-  delete_failed_name: 'Échec de la suppression de « {name} »',
+  delete_failed_name: 'Échec de la suppression de {name}',
   deleted_n_items: '{n} élément(s) supprimé(s)',
   delete_files: 'Supprimer des fichiers',
   recents: 'Récents',

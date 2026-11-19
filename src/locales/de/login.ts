@@ -34,7 +34,7 @@ export default {
     connect_failed: 'Verbindung fehlgeschlagen. Adresse prüfen und erneut versuchen.',
        current: 'Aktuell',
     no_devices_yet: 'Keine Geräte. Suchen oder Adresse unten eingeben.',
-    unpair_confirm: 'Kopplung mit „{name}“ aufheben?',
+    unpair_confirm: 'Kopplung mit {name} aufheben?',
     unpair_hint: 'Dein Chatverlauf bleibt erhalten. Kopple das Gerät erneut, um es zu verwenden.',
     unpair_current_hint: 'Du wechselst zurück zu diesem Computer.',
     firewall_blocked_title: 'Die Windows-Firewall blockiert möglicherweise die Geräteerkennung',

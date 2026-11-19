@@ -34,7 +34,7 @@ export default {
     connect_failed: '연결 실패. 주소를 확인하고 다시 시도해 주세요.',
        current: '현재',
     no_devices_yet: '기기 없음. 아래에서 검색하거나 주소를 입력하세요.',
-    unpair_confirm: '‘{name}’ 기기의 페어링을 해제할까요?',
+    unpair_confirm: '{name} 기기의 페어링을 해제할까요?',
     unpair_hint: '채팅 기록은 유지됩니다. 이 기기를 다시 사용하려면 페어링하세요.',
     unpair_current_hint: '이 컴퓨터로 돌아갑니다.',
     firewall_blocked_title: 'Windows 방화벽이 기기 검색을 차단하고 있을 수 있어요',

@@ -34,7 +34,7 @@ export default {
     connect_failed: '連接失敗，請檢查地址後重試。',
        current: '當前',
     no_devices_yet: '暫無設備，請在下方搜尋或輸入地址。',
-    unpair_confirm: '解除與「{name}」的配對？',
+    unpair_confirm: '解除與{name}的配對？',
     unpair_hint: '聊天記錄會保留。下次使用這台裝置時，需要重新配對。',
     unpair_current_hint: '解除配對後會切回本機。',
     firewall_blocked_title: 'Windows 防火牆可能阻止了裝置探索',

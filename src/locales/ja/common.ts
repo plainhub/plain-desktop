@@ -130,7 +130,7 @@ export default {
   address: '住所',
   yes: 'はい',
   no: 'いいえ',
-  confirm_to_delete_name: '"{name}"を削除しますか？',
+  confirm_to_delete_name: '{name}を削除しますか？',
   confirm_to_delete: 'これらの {count} 項目を削除してもよろしいですか？ この操作は元に戻せません。',
   valid: {
     string_min: '{min}文字以上で入力してください',

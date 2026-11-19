@@ -44,7 +44,7 @@ export default {
   upload_auto_paused: 'Os envios foram pausados automaticamente após falhas de rede repetidas. Retome quando a conexão voltar.',
   upload_unauthorized: 'Sessão expirada, inicie sessão novamente',
   deleting: 'Excluindo…',
-  delete_failed_name: 'Falha ao excluir "{name}"',
+  delete_failed_name: 'Falha ao excluir {name}',
   deleted_n_items: '{n} item(ns) excluído(s)',
   delete_files: 'Excluir arquivos',
   recents: 'Recentes',

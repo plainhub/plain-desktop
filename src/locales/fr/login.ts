@@ -34,7 +34,7 @@ export default {
     connect_failed: 'Connexion échouée. Vérifiez l\'adresse et réessayez.',
        current: 'Actuel',
     no_devices_yet: 'Aucun appareil. Recherchez ou entrez une adresse ci-dessous.',
-    unpair_confirm: 'Dissocier « {name} » ?',
+    unpair_confirm: 'Dissocier {name} ?',
     unpair_hint: 'Votre historique de discussion est conservé. Associez de nouveau cet appareil pour l’utiliser.',
     unpair_current_hint: 'Vous reviendrez sur cet ordinateur.',
     firewall_blocked_title: 'Le pare-feu Windows bloque peut-être la détection des appareils',

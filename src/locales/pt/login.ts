@@ -34,7 +34,7 @@ export default {
     connect_failed: 'Falha na conexão. Verifique o endereço e tente novamente.',
        current: 'Atual',
     no_devices_yet: 'Nenhum dispositivo. Pesquise ou insira um endereço abaixo.',
-    unpair_confirm: 'Desemparelhar “{name}”?',
+    unpair_confirm: 'Desemparelhar {name}?',
     unpair_hint: 'Seu histórico de conversas será mantido. Pareie o dispositivo novamente para usá-lo.',
     unpair_current_hint: 'Você voltará a este computador.',
     firewall_blocked_title: 'O firewall do Windows pode estar bloqueando a detecção',

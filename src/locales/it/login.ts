@@ -34,7 +34,7 @@ export default {
     connect_failed: 'Connessione fallita. Verifica l\'indirizzo e riprova.',
        current: 'Corrente',
     no_devices_yet: 'Nessun dispositivo. Cerca o inserisci un indirizzo sotto.',
-    unpair_confirm: 'Dissociare «{name}»?',
+    unpair_confirm: 'Dissociare {name}?',
     unpair_hint: 'La cronologia delle chat viene conservata. Associa di nuovo il dispositivo per usarlo.',
     unpair_current_hint: 'Tornerai a questo computer.',
     firewall_blocked_title: 'Il firewall di Windows potrebbe bloccare il rilevamento dei dispositivi',

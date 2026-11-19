@@ -44,7 +44,7 @@ export default {
   upload_auto_paused: 'बार-बार नेटवर्क विफलता के बाद अपलोड स्वतः रोक दिए गए। कनेक्शन वापस आने पर फिर से शुरू करें।',
   upload_unauthorized: 'सत्र समाप्त, कृपया फिर से लॉगिन करें',
   deleting: 'हटाया जा रहा है…',
-  delete_failed_name: '"{name}" हटाने में विफल',
+  delete_failed_name: '{name} हटाने में विफल',
   deleted_n_items: '{n} आइटम हटाए गए',
   delete_files: 'डिलीट फाइल्स',
   recents: 'रीसेंट्स',

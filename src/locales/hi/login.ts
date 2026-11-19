@@ -34,7 +34,7 @@ export default {
     connect_failed: 'कनेक्शन विफल। पता जांचें और पुनः प्रयास करें।',
        current: 'वर्तमान',
     no_devices_yet: 'कोई डिवाइस नहीं। नीचे खोजें या पता दर्ज करें।',
-    unpair_confirm: '“{name}” को अनपेयर करें?',
+    unpair_confirm: '{name} को अनपेयर करें?',
     unpair_hint: 'चैट इतिहास बना रहेगा। इस डिवाइस का उपयोग करने के लिए फिर से पेयर करें।',
     unpair_current_hint: 'आप इस कंप्यूटर पर वापस आ जाएंगे।',
     firewall_blocked_title: 'Windows फ़ायरवॉल डिवाइस खोजने में बाधक हो सकता है',

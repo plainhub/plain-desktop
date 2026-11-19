@@ -129,7 +129,7 @@ export default {
   address: 'ঠিকানা',
   yes: 'হ্যাঁ',
   no: 'না',
-  confirm_to_delete_name: '"{name}" মুছতে নিশ্চিত?',
+  confirm_to_delete_name: '{name} মুছতে নিশ্চিত?',
   confirm_to_delete: 'আপনি কি নিশ্চিত যে আপনি এই {count} আইটেমগুলি মুছে ফেলতে চান? এই ক্রিয়াটি পূর্বাবস্থায় ফেরানো যাবে না।?',
   valid: {
     string_min: 'কমপক্ষে {min} টি অক্ষর',

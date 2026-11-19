@@ -34,7 +34,7 @@ export default {
     connect_failed: '接続失敗。アドレスを確認してもう一度お試しください。',
        current: '現在',
     no_devices_yet: 'デバイスがありません。以下で検索またはアドレスを入力してください。',
-    unpair_confirm: '「{name}」とのペアリングを解除しますか？',
+    unpair_confirm: '{name}とのペアリングを解除しますか？',
     unpair_hint: 'チャット履歴は保持されます。このデバイスを使うには、もう一度ペアリングしてください。',
     unpair_current_hint: 'このコンピューターに切り替わります。',
     firewall_blocked_title: 'Windows ファイアウォールがデバイスの検出をブロックしている可能性があります',

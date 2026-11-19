@@ -44,7 +44,7 @@ export default {
   upload_auto_paused: 'বারবার নেটওয়ার্ক ব্যর্থতার পরে আপলোড স্বয়ংক্রিয়ভাবে থামানো হয়েছে। সংযোগ ফিরে এলে আবার শুরু করুন।',
   upload_unauthorized: 'সেশনের মেয়াদ শেষ, আবার লগইন করুন',
   deleting: 'মুছে ফেলা হচ্ছে…',
-  delete_failed_name: '"{name}" মুছতে ব্যর্থ হয়েছে',
+  delete_failed_name: '{name} মুছতে ব্যর্থ হয়েছে',
   deleted_n_items: '{n}টি আইটেম মুছে ফেলা হয়েছে',
   delete_files: 'ফাইল মুছুন',
   recents: 'সাম্প্রতিক',

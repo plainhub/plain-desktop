@@ -132,7 +132,7 @@ export default {
   address: 'Indirizzo',
   yes: 'Sì',
   no: 'No',
-  confirm_to_delete_name: 'Conferma eliminazione di "{name}"?',
+  confirm_to_delete_name: 'Conferma eliminazione di {name}?',
   confirm_to_delete: 'Sei sicuro di voler eliminare questi {count} elementi? Questa azione non può essere annullata.',
   valid: {
     string_min: 'Almeno {min} caratteri',

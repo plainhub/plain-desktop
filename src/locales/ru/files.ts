@@ -44,7 +44,7 @@ export default {
   upload_auto_paused: 'Загрузки автоматически приостановлены после повторных сетевых сбоев. Возобновите, когда соединение восстановится.',
   upload_unauthorized: 'Сессия истекла, войдите снова',
   deleting: 'Удаление…',
-  delete_failed_name: 'Не удалось удалить «{name}»',
+  delete_failed_name: 'Не удалось удалить {name}',
   deleted_n_items: 'Удалено элементов: {n}',
   delete_files: 'Удалить файлы',
   recents: 'Недавние',
