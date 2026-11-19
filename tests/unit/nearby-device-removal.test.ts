@@ -123,7 +123,7 @@ function clientRender(source: string) {
       mode: 'function',
       prefixIdentifiers: true,
       bindingMetadata: compileScript(descriptor, { id: 'nearby-device-removal' }).bindings,
-      isCustomElement: (tag) => tag.startsWith('i-material-symbols:'),
+      isCustomElement: (tag) => tag.startsWith('i-material-symbols:') || tag.startsWith('i-lucide:'),
     },
   })
   if (errors.length) throw new Error(errors.join('\n'))
@@ -231,18 +231,18 @@ async function mount(current = '', fail = false, fixtures: { paired?: boolean; d
     onClick({ stopPropagation() {} })
     await nextTick()
   }
-  const clickText = (label: string) => click((node) => node.children.some((child) => child.text === label) || node.text === label)
+  const clickText = (label: string) => click((node) => node.props['aria-label'] === label || node.children.some((child) => child.text === label) || node.text === label)
   const openRemoval = async () => {
     await click((node) => node.props.id === 'nearby-actions-remote')
-    expect(nodes(body).filter((node) => node.props.class === 'dropdown-item').map((node) => node.text)).toEqual(['Unpair'])
+    expect(nodes(body).filter((node) => node.props.class === 'dropdown-item').map((node) => node.text)).toContain('Unpair')
     await clickText('Unpair')
   }
   const escape = async () => {
     for (const type of ['keydown', 'keyup']) document.dispatchEvent(Object.assign(new Event(type), { key: 'Escape' }))
     await new Promise<void>((resolve) => setImmediate(resolve))
   }
-  return { location, openRemoval, clickText, escape, deviceLists: () => nodes(body).filter((node) => node.props.class === 'card list-items').length,
-    text: () => nodes(body).map((node) => node.text).join(' '), searching: () => nodes(body).some((node) => node.props.role === 'progressbar'),
+  return { location, openRemoval, openActions: () => click(node => node.props.id === 'nearby-actions-remote'), clickText, escape, deviceLists: () => nodes(body).filter((node) => node.props.class === 'card list-items').length,
+    text: () => nodes(body).map((node) => node.text || node.props['aria-label'] || '').join(' '), searching: () => nodes(body).some((node) => node.props.role === 'progressbar'),
     hasBackButton: () => nodes(body).some((node) => node.props['aria-label'] === 'Back') }
 }
 
@@ -375,14 +375,36 @@ it.each(['Cancel', 'Escape'] as const)('returns from Chat only confirmation via 
 
 it.each([
   [DiscoveryStatus.SEARCHING, false, true],
-  [DiscoveryStatus.SEARCHING, true, false],
-  [DiscoveryStatus.OK, true, false],
+  [DiscoveryStatus.SEARCHING, true, true],
+  [DiscoveryStatus.OK, true, true],
   [DiscoveryStatus.NETWORK_ERROR, false, false],
   [DiscoveryStatus.PERMISSION_DENIED, false, false],
-] as const)('shows the search spinner only for an active search without results (status %s, results %s)', async (status, hasResults, searching) => {
+] as const)('keeps searching while discovery is active, including with results (status %s, results %s)', async (status, hasResults, searching) => {
   const view = await mount('', false, { paired: false, status, devices: hasResults ? [discovered] : [] })
   expect(view.searching()).toBe(searching)
+  if (status === DiscoveryStatus.SEARCHING || status === DiscoveryStatus.OK) {
+    expect(view.text()).toContain('Searching for nearby PlainApp devices…')
+  } else {
+    expect(view.text()).not.toContain('Searching for nearby PlainApp devices…')
+  }
   if (status === DiscoveryStatus.NETWORK_ERROR) expect(view.text()).toContain('Unable to scan nearby devices')
+})
+
+it.each(['chat', 'control'] as const)('keeps Nearby open and the current device selected after %s pairing succeeds', async (mode) => {
+  const waiting = { deviceId: discovered.id, phase: 'PAIRING', verificationCode: '01234567', error: null } as const
+  chatPairing.start.mockImplementation(async () => chatPairing.update(waiting))
+  const view = await mount('', false, { paired: false, devices: [{ ...discovered, ips: ['192.0.2.10'] }] })
+  await view.clickText('Pair')
+  await view.clickText(mode === 'chat' ? 'Chat only' : 'Full Control')
+  if (mode === 'chat') chatPairing.update({ ...waiting, phase: 'SUCCEEDED' })
+  else managedPairing.finish.get(discovered.id)!()
+  await new Promise<void>(resolve => setImmediate(resolve))
+  expect(view.deviceLists()).toBe(1)
+  expect(view.text()).toContain('Nearby Devices')
+  expect(view.location.href).toBe('/nearby?q=keep#hash')
+  expect(view.location.reload).not.toHaveBeenCalled()
+  expect(io.setRemote).not.toHaveBeenCalled()
+  expect(io.clearRemote).not.toHaveBeenCalled()
 })
 
 it('shows the pairing failure without offering a discovery retry as a pairing action', async () => {
@@ -472,6 +494,7 @@ it('checks a stale offline Web row on explicit Switch and does not change target
 
 it('exposes Unpair for a stale managed row in the Web picker without requiring a connection', async () => {
   const view = await mount('', false, { switchOnly: true, online: false, self })
+  await view.openActions()
   await view.clickText('Unpair')
   expect(view.text()).toContain('Unpair “Test device”?')
   expect(io.request.mock.calls.every(([document]) => document === peersGQL)).toBe(true)
@@ -480,14 +503,85 @@ it('exposes Unpair for a stale managed row in the Web picker without requiring a
 
 it('confirms and removes a stale saved Web peer through the gateway using the declared peerId variable', async () => {
   const view = await mount('', false, { switchOnly: true, online: false, self })
+  await view.openActions()
   await view.clickText('Unpair')
   expect(view.text()).toContain('Your chat history is kept.')
   await view.clickText('Cancel')
   expect(io.request.mock.calls.every(([document]) => document === peersGQL)).toBe(true)
+  await view.openActions()
   await view.clickText('Unpair')
   await view.clickText('Confirm')
   await new Promise<void>(done => setImmediate(done))
   expect(io.request.mock.calls.filter(([document]) => document === unpairPeerGQL)).toEqual([[unpairPeerGQL, { peerId: peer.id }]])
   expect(view.text()).not.toContain(peer.name)
   expect(io.probe).not.toHaveBeenCalled()
+})
+
+it.each(
+  [false, true].flatMap(fullControl => [false, true].flatMap(current => [false, true].flatMap(pending =>
+    [false, true].flatMap(online => [false, true].map(switchOnly => ({ fullControl, current, pending, online, switchOnly }))))))
+)('enforces paired-row action states: %j', async (state) => {
+  const connect = vi.fn(), cancel = vi.fn(), remove = vi.fn()
+  const root = makeNode()
+  const app = renderer.createApp({ render: () => h(NearbyDeviceItem, {
+    peer: { ...peer, online: state.online }, device: { ...discovered, id: peer.id }, ...state,
+    onConnect: connect, onCancel: cancel, onRemove: remove,
+  }) })
+  app.provide(ssrContextKey, { modules: new Set() })
+  app.use(createI18n({ legacy: false, locale: 'en-US', messages: { 'en-US': messages } }))
+  app.component('VListItem', VListItem)
+  app.component('VDropdownMenu', (props, { slots }) => props.modelValue ? slots.default?.() : null)
+  app.component('VDropdown', (_, { slots }) => slots.trigger?.())
+  app.component('PeerIcon', () => null)
+  for (const name of ['VIconButton', 'VOutlinedButton', 'VTextButton']) {
+    app.component(name, { setup: (_, { slots }) => () => h('button', { 'data-control': name }, slots.default?.()) })
+  }
+  app.mount(root)
+  unmount = () => app.unmount()
+  const controls = () => nodes(root).filter(node => node.props['data-control'])
+  const switchVisible = state.fullControl && !state.current && !state.pending
+  expect(controls().map(node => node.props['data-control'])).toEqual(
+    state.pending ? ['VOutlinedButton'] : switchVisible ? ['VIconButton', 'VIconButton'] : ['VIconButton']
+  )
+  expect(connect).not.toHaveBeenCalled()
+  expect(cancel).not.toHaveBeenCalled()
+  expect(remove).not.toHaveBeenCalled()
+  const click = async (node: Node) => {
+    ;(node.props.onClick as (event: unknown) => void)({ stopPropagation() {} })
+    await nextTick()
+  }
+  if (state.pending) {
+    expect(nodes(root).some(node => node.props.id === 'nearby-actions-remote')).toBe(false)
+    await click(controls()[0]!)
+    expect(cancel).toHaveBeenCalledOnce()
+    return
+  }
+  if (switchVisible) {
+    const button = controls()[0]!
+    expect(button.props['aria-label']).toBe('Switch')
+    expect(button.props.title).toBe('Switch')
+    expect(Boolean(button.props.disabled)).toBe(!state.online && !state.switchOnly)
+    if (!button.props.disabled) {
+      await click(button)
+      expect(connect).toHaveBeenCalledExactlyOnceWith('switch')
+    }
+  }
+  const more = controls().find(node => node.props.id === 'nearby-actions-remote')!
+  await click(more)
+  const items = nodes(root).filter(node => String(node.props.class).includes('dropdown-item'))
+  const showControl = !state.fullControl && !state.current
+  expect(items.map(node => node.text || node.children.map(child => child.text).join(''))).toEqual(showControl ? ['Full control', 'Unpair'] : ['Unpair'])
+  if (showControl) {
+    expect(Boolean(items[0]!.props.disabled)).toBe(!state.online)
+    if (state.online) {
+      await click(items[0]!)
+      expect(connect).toHaveBeenCalledExactlyOnceWith('control')
+      expect(nodes(root).some(node => String(node.props.class).includes('dropdown-item'))).toBe(false)
+      await click(more)
+    }
+  }
+  const unpair = nodes(root).find(node => String(node.props.class).includes('dropdown-item') && node.text === 'Unpair')!
+  await click(unpair)
+  expect(remove).toHaveBeenCalledOnce()
+  expect(nodes(root).some(node => String(node.props.class).includes('dropdown-item'))).toBe(false)
 })

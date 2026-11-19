@@ -32,7 +32,7 @@
                 <span class="status-badge on">{{ $t(localMode ? 'device_discovery.current' : 'device_discovery.local') }}</span>
               </template>
               <template v-if="!localMode" #end
-                ><v-outlined-button @click="switchDevice('')">{{ $t('switch') }}</v-outlined-button></template
+                ><v-icon-button :aria-label="$t('switch')" :title="$t('switch')" @click="switchDevice('')"><i-lucide:arrow-left-right /></v-icon-button></template
               >
             </VListItem>
             <template v-for="peer in groups.mine" :key="peer.id">
@@ -64,7 +64,7 @@
           </ul>
         </section>
         <section v-if="!switchOnly" class="discovery-section">
-          <DeviceDiscoveryStatus :status="status" :show-searching="status === DiscoveryStatus.SEARCHING && !devices.length" @retry="refresh" @open-settings="openLanPermissionSettings" />
+          <DeviceDiscoveryStatus :status="status" :show-searching="status === DiscoveryStatus.SEARCHING || status === DiscoveryStatus.OK" @retry="refresh" @open-settings="openLanPermissionSettings" />
           <MdnsFirewallFix :device-count="groups.nearby.length" @fixed="refresh" />
           <ul v-if="groups.nearby.length" class="card list-items">
             <NearbyDeviceItem
@@ -323,17 +323,8 @@ function finishPairing(id: string) {
   attempts.delete(id)
 }
 async function onLoginSuccess(id: string) {
-  const selected = selectedAttempt.value?.device.id === id
   finishPairing(id)
-  if (!selected || attempts.size) {
-    await loadPeers().catch(reportFailure)
-    return
-  }
-  stopBluetooth()
-  await stop()
-  await popModal()
-  if (__IS_TAURI__ || origin) switchDevice(id)
-  else window.location.href = '/'
+  await loadPeers().catch(reportFailure)
 }
 async function switchTo(peer: IPeer) {
   if (__IS_TAURI__) {
