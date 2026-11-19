@@ -1,7 +1,7 @@
 export default {
   pairing_identity_changed: "A chave pública do dispositivo mudou, possivelmente após uma reinstalação. Compare a impressão digital completa antes de confiar.",
   pairing_trust: "Confiar",
-  pairing_compare_code: 'Compare este código nos dois dispositivos antes de permitir o emparelhamento.',
+  pairing_compare_code: 'Só permita o emparelhamento se os códigos coincidirem.',
   show_in_finder: 'Mostrar no Finder',
   save_as: 'Salvar como…',
   image: 'Imagem',

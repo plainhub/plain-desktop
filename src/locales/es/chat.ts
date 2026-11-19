@@ -1,7 +1,7 @@
 export default {
   pairing_identity_changed: "La clave pública del dispositivo ha cambiado. Puede haberse reinstalado. Compara la huella completa antes de confiar.",
   pairing_trust: "Confiar",
-  pairing_compare_code: 'Compara este código en ambos dispositivos antes de permitir el emparejamiento.',
+  pairing_compare_code: 'Permite el emparejamiento solo si coinciden los códigos.',
   show_in_finder: 'Mostrar en el Finder',
   save_as: 'Guardar como…',
   image: 'Imagen',

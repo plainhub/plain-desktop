@@ -1,7 +1,7 @@
 export default {
   pairing_identity_changed: "Der öffentliche Geräteschlüssel hat sich geändert, möglicherweise durch eine Neuinstallation. Vor dem Vertrauen den vollständigen Fingerabdruck vergleichen.",
   pairing_trust: "Vertrauen",
-  pairing_compare_code: 'Vergleiche diesen Code auf beiden Geräten, bevor du die Kopplung erlaubst.',
+  pairing_compare_code: 'Erlaube die Kopplung nur, wenn die Codes übereinstimmen.',
   show_in_finder: 'Im Finder anzeigen',
   save_as: 'Speichern unter…',
   image: 'Bild',

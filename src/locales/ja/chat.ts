@@ -1,7 +1,7 @@
 export default {
   pairing_identity_changed: "相手の公開鍵が変わりました。アプリを再インストールした可能性があります。完全なフィンガープリントを照合してから信頼してください。",
   pairing_trust: "信頼する",
-  pairing_compare_code: 'ペア設定を許可する前に、両方のデバイスのコードが一致することを確認してください。',
+  pairing_compare_code: 'コードが一致する場合のみ、ペア設定を許可してください。',
   show_in_finder: 'Finder で表示',
   save_as: '名前を付けて保存…',
   image: '画像',

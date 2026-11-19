@@ -1,7 +1,7 @@
 export default {
   pairing_identity_changed: "La clé publique de cet appareil a changé, peut-être après une réinstallation. Vérifiez son empreinte complète avant de lui faire confiance.",
   pairing_trust: "Faire confiance",
-  pairing_compare_code: 'Comparez ce code sur les deux appareils avant d’autoriser l’association.',
+  pairing_compare_code: 'N’autorisez l’association que si les codes correspondent.',
   show_in_finder: 'Montrer dans le Finder',
   save_as: 'Enregistrer sous…',
   image: 'Image',

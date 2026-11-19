@@ -1,7 +1,7 @@
 export default {
   pairing_identity_changed: "Cihazın açık anahtarı değişti. Uygulama yeniden yüklenmiş olabilir. Güvenmeden önce parmak izinin tamamını karşılaştırın.",
   pairing_trust: "Güven",
-  pairing_compare_code: 'Eşleştirmeye izin vermeden önce bu kodu her iki cihazda karşılaştırın.',
+  pairing_compare_code: 'Yalnızca kodlar eşleşirse eşleştirmeye izin verin.',
   show_in_finder: "Finder'da Göster",
   save_as: 'Farklı Kaydet…',
   image: 'Resim',

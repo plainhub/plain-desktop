@@ -9,7 +9,7 @@ export default {
   pairing_identity_changed: "對方公鑰已改變，可能重新安裝了應用程式。請核對完整指紋後再信任。",
   pairing_trust: "信任",
   pairing_manage_identity_changed: '此裝置的身分與已儲存的配對記錄不符，可能是對方重新安裝了 PlainApp。如果你沒有預期這個變更，或無法確認是同一台裝置，請取消。',
-  pairing_compare_code: '允許配對前，請核對兩台裝置顯示的配對碼一致。',
+  pairing_compare_code: '兩台裝置的配對碼一致才允許配對。',
   show_in_finder: '在 Finder 中顯示',
   save_as: '另存為…',
   image: '圖片',

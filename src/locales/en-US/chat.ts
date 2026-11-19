@@ -2,7 +2,7 @@ export default {
   pairing_identity_changed: "The device public key has changed. It may have been reinstalled. Compare the full fingerprint before trusting it.",
   pairing_trust: "Trust",
   pairing_manage_identity_changed: 'This device’s identity no longer matches the saved pairing. PlainApp may have been reinstalled on it. Cancel if you didn’t expect this change or can’t verify the device.',
-  pairing_compare_code: 'Compare this code on both devices before allowing pairing.',
+  pairing_compare_code: 'Only allow if the codes match.',
   show_in_finder: 'Show in Finder',
   save_as: 'Save As…',
   image: 'Image',

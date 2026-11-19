@@ -2,7 +2,7 @@ export default {
   pairing_identity_changed: "此设备的身份已变化，请核对两端匹配码。无法确认是同一台设备时，请取消。",
   pairing_trust: "信任",
   pairing_manage_identity_changed: "此设备的身份已变化。确认是同一台设备后再信任，否则请取消。",
-  pairing_compare_code: "请确认两台设备显示的匹配码一致，再允许配对。",
+  pairing_compare_code: "两台设备的配对码一致才允许配对。",
   show_in_finder: '在 Finder 中显示',
   save_as: '另存为…',
   image: '图片',

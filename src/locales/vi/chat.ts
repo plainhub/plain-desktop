@@ -1,7 +1,7 @@
 export default {
   pairing_identity_changed: "Khóa công khai của thiết bị đã thay đổi, có thể do cài đặt lại ứng dụng. Hãy đối chiếu toàn bộ dấu vân tay trước khi tin cậy.",
   pairing_trust: "Tin cậy",
-  pairing_compare_code: 'So sánh mã này trên cả hai thiết bị trước khi cho phép ghép đôi.',
+  pairing_compare_code: 'Chỉ cho phép ghép đôi nếu hai mã trùng nhau.',
   show_in_finder: 'Hiển thị trong Finder',
   save_as: 'Lưu thành…',
   image: 'Ảnh',
