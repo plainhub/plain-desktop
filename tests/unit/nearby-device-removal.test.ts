@@ -407,15 +407,20 @@ it.each(['chat', 'control'] as const)('keeps Nearby open and the current device 
   expect(io.clearRemote).not.toHaveBeenCalled()
 })
 
-it('shows the pairing failure without offering a discovery retry as a pairing action', async () => {
+it.each([
+  [null, 'Pairing failed'],
+  ['TIMEOUT', 'Pairing request expired. Pair again.'],
+  ['REJECTED', 'Pairing request rejected.'],
+  ['TOO_MANY_LOGIN_ATTEMPTS', 'Too many pairing attempts. Try again in 1 minute.'],
+] as const)('shows the %s pairing failure without offering a discovery retry as a pairing action', async (reason, message) => {
   const waiting = { deviceId: discovered.id, phase: 'PAIRING', verificationCode: '01234567', error: null } as const
   chatPairing.start.mockImplementation(async () => chatPairing.update(waiting))
   const view = await mount('', false, { paired: false, devices: [discovered] })
   await view.clickText('Pair')
   await view.clickText('Chat only')
-  chatPairing.update({ ...waiting, phase: 'FAILED' })
+  chatPairing.update({ ...waiting, phase: 'FAILED', error: reason as PairingView['error'] })
   await nextTick()
-  expect(view.text()).toContain('Pairing failed')
+  expect(view.text()).toContain(message)
   expect(view.text()).not.toContain('Retry')
   expect(view.deviceLists()).toBe(1)
   expect(chatPairing.start).toHaveBeenCalledOnce()

@@ -125,3 +125,19 @@ it('shows the remote comparison code without local trust for a new managed devic
     expect(io.request.mock.lastCall?.[1]).toEqual({ peerId: 'target' })
   } finally { view.unmount() }
 })
+
+it.each([
+  ['TIMEOUT', 'pair_expired'],
+  ['REJECTED', 'pair_rejected'],
+  ['TOO_MANY_LOGIN_ATTEMPTS', 'pair_too_many_attempts'],
+  ['INTERNAL_ERROR', 'pair_failed'],
+  ['INVALID_PASSWORD', 'login.INVALID_PASSWORD'],
+])('uses pairing wording for %s through the managed pairing form', async (reason, message) => {
+  const view = await mountPairing()
+  try {
+    await view.emit('pairingFailed', { deviceId: 'target', error: reason })
+    expect(view.text()).toContain(chat[message as keyof typeof chat] ?? message)
+    expect(view.text()).not.toContain('login.TIMEOUT')
+    expect(view.text()).not.toContain('login.REJECTED')
+  } finally { view.unmount() }
+})

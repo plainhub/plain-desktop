@@ -35,7 +35,7 @@
       {{ $t(pairing ? 'pair' : isSubmitting ? 'logging_in' : 'log_in') }}
     </component>
   </form>
-  <RequestApproval v-if="showConfirm" :code="verificationCode" :hint="$t('login.compare_code')" @cancel="onCancel"><slot /></RequestApproval>
+  <RequestApproval v-if="showConfirm" :code="verificationCode" :hint="$t(pairing ? 'pairing_compare_code' : 'login.compare_code')" @cancel="onCancel"><slot /></RequestApproval>
 </template>
 
 <script setup lang="ts">

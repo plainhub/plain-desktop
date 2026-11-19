@@ -114,6 +114,7 @@
 </template>
 
 <script setup lang="ts">
+import { pairingErrorMessage } from '@/lib/api/pairing-error-code'
 import { HttpErrorCode } from '@/lib/api/http-error-code'
 
 import { computed, onBeforeUnmount, onMounted, ref, shallowReactive, watch } from 'vue'
@@ -261,7 +262,7 @@ async function confirmPair(mode: 'chat' | 'control') {
     if (selectedAttempt.value?.device.id === device.id) return
     if (phase === 'CANCELED' || phase === 'FAILED') {
       finishPairing(device.id)
-      if (phase === 'FAILED') error.value = 'pair_failed'
+      if (phase === 'FAILED') error.value = pairingErrorMessage(pairingViews.get(device.id)?.error)
     }
   })
   attempts.set(device.id, { mode, device, stop })
@@ -273,7 +274,7 @@ async function startChat(device: DiscoveredDevice) {
   const stop = watch(pairing.state, state => {
     if (!state || !['SUCCEEDED', 'FAILED', 'CANCELED'].includes(state.phase)) return
     finishPairing(device.id)
-    if (state.phase === 'FAILED') error.value = 'pair_failed'
+    if (state.phase === 'FAILED') error.value = pairingErrorMessage(state.error)
     if (state.phase === 'SUCCEEDED') void loadPeers().catch(reportFailure)
   })
   const attempt: PairingAttempt = { mode: 'chat', device, pairing, stop: () => { stop(); pairing.dispose() } }

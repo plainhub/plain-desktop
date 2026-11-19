@@ -324,7 +324,7 @@ export default {
   load_failed: '加载{name}失败',
   NETWORK_ERROR: '网络异常，无法连接API',
   remote_access: '远程访问',
-  REMOTE_ACCESS_DISABLED: '远程访问已关闭。请在此设备上打开 PlainApp 并开启远程访问。',
+  REMOTE_ACCESS_DISABLED: "请在对方设备的 PlainApp 中开启远程访问。",
   select_first: '请先选择！',
   clear_list: '清空列表',
   tools: '工具',

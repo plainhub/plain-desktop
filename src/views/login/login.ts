@@ -1,4 +1,4 @@
-import { PairingErrorCode } from '@/lib/api/pairing-error-code'
+import { PairingErrorCode, pairingErrorMessage } from '@/lib/api/pairing-error-code'
 import { AuthErrorCode } from '@/lib/api/auth-error-code'
 import { computed, ref, watch } from 'vue'
 import { base64ToArrayBuffer } from '@/lib/strutil'
@@ -66,7 +66,7 @@ export function useLogin(options: UseLoginOptions = {}) {
     verificationCode.value = state.verificationCode || ''
     showPasswordInput.value = state.phase === 'PASSWORD_REQUIRED' || state.phase === 'FAILED' && state.error === PairingErrorCode.InvalidPassword
     isSubmitting.value = !['PASSWORD_REQUIRED', 'TRUST_REQUIRED', 'SUCCEEDED', 'FAILED', 'CANCELED'].includes(state.phase)
-    if (state.phase === 'FAILED') { showError.value = true; error.value = loginErrorMessage(state.error) }
+    if (state.phase === 'FAILED' || state.error === PairingErrorCode.InvalidPassword) { showError.value = true; error.value = pairingErrorMessage(state.error) }
     if (state.phase === 'SUCCEEDED' && state.deviceId) {
       if (!managedDeviceId) {
         await preloadLoginPeers()
@@ -94,7 +94,7 @@ export function useLogin(options: UseLoginOptions = {}) {
       const peerId = pending?.id || current?.id
       if (!peerId) throw new Error('peer_unavailable')
       await pairing.start({ peerId, mode: 'MANAGE', password: submittedPassword })
-    } catch (e) { isSubmitting.value = false; showError.value = true; error.value = loginErrorMessage(e) }
+    } catch (e) { isSubmitting.value = false; showError.value = true; error.value = pairingErrorMessage(e) }
   }
 
 
@@ -164,7 +164,7 @@ export function useLogin(options: UseLoginOptions = {}) {
         if (pairing.state.value?.phase === 'PASSWORD_REQUIRED') await pairing.submit(password.value)
         else await startPairing(showPasswordInput.value ? password.value : undefined)
         password.value = ''
-      } catch (e) { isSubmitting.value = false; showError.value = true; error.value = loginErrorMessage(e) }
+      } catch (e) { isSubmitting.value = false; showError.value = true; error.value = pairingErrorMessage(e) }
       return
     }
     if (showPasswordInput.value && !password.value?.trim()) { passwordError.value = 'valid.required'; return }
@@ -233,7 +233,7 @@ export function useLogin(options: UseLoginOptions = {}) {
     } catch (reason) {
       isSubmitting.value = false
       showError.value = true
-      error.value = loginErrorMessage(reason)
+      error.value = pairingErrorMessage(reason)
     }
   }
 

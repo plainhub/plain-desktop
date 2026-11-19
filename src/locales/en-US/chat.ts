@@ -118,4 +118,7 @@ export default {
   unpaired: 'Unpaired',
   channel_left_notice: 'You have left this channel and can no longer send messages.',
   channel_kicked_notice: 'You were removed from this channel and can no longer send messages.',
+  pair_expired: "Pairing request expired. Pair again.",
+  pair_rejected: "Pairing request rejected.",
+  pair_too_many_attempts: "Too many pairing attempts. Try again in 1 minute.",
 }
