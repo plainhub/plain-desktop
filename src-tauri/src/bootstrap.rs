@@ -46,20 +46,7 @@ pub fn run() {
     };
     let builder = crate::native_resource_protocol::with_native_resource_protocol(builder);
     let app = builder
-        .plugin(tauri::plugin::Builder::<_, ()>::new("native-views")
-            .on_navigation(|webview, url| {
-                if webview.url().is_ok_and(|current| current == *url)
-                    && webview.state::<crate::commands::native::views::NativeViews>().defer_reload(webview.label())
-                {
-                    if let Err(error) = webview.eval("window.dispatchEvent(new Event('native-reload'))") {
-                        log::error!("Native reload dispatch failed: {error}");
-                    }
-                    return false;
-                }
-                crate::commands::native::views::page_changed(webview.app_handle(), webview.label(), true);
-                true
-            })
-            .build())
+        .plugin(native_views_plugin())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
@@ -410,3 +397,27 @@ fn open_desktop_core(data: &Path, cache: &Path) -> Result<ContentServer, String>
 #[cfg(test)]
 #[path = "../tests/unit/remote_access_defaults.rs"]
 mod remote_access_defaults_tests;
+
+fn native_views_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
+    let builder = tauri::plugin::Builder::<R, ()>::new("native-views");
+    #[cfg(debug_assertions)]
+    let builder = builder.js_init_script("window.__PLAIN_LOG__ = true;");
+    builder
+        .on_navigation(|webview, url| {
+            if webview.url().is_ok_and(|current| current == *url)
+                && webview.state::<crate::commands::native::views::NativeViews>().defer_reload(webview.label())
+            {
+                if let Err(error) = webview.eval("window.dispatchEvent(new Event('native-reload'))") {
+                    log::error!("Native reload dispatch failed: {error}");
+                }
+                return false;
+            }
+            crate::commands::native::views::page_changed(webview.app_handle(), webview.label(), true);
+            true
+        })
+        .build()
+}
+
+#[cfg(test)]
+#[path = "../tests/unit/bootstrap.rs"]
+mod tests;

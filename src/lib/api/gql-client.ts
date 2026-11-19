@@ -131,8 +131,7 @@ export async function encryptedGqlPost<T = any>(
       return url
     }
   })()
-  // Enabled automatically in dev mode (see main.ts); the flag check runs before
-  // any string building so the disabled path is one property read.
+  // Vite dev mode and desktop debug builds enable this flag before startup.
   if (window.__PLAIN_LOG__) {
     console.info(`[gql] → ${op} @${host} ${json}`)
   }
