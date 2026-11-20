@@ -1,15 +1,15 @@
 <template>
   <v-modal width="560px" :escape-close="false" @close="handleClose">
     <template #headline>
-      <template v-if="removeTarget && !switchOnly">{{ $t('device_discovery.unpair_confirm', { name: removeTarget.name }) }}</template>
-      <template v-else-if="step === 'discover'">{{ $t(switchOnly ? 'device_discovery.change_device' : 'nearby_devices') }}</template>
+      <template v-if="removeTarget">{{ $t('device_discovery.unpair_confirm', { name: removeTarget.name }) }}</template>
+      <template v-else-if="step === 'discover'">{{ $t('nearby_devices') }}</template>
       <template v-else>
         <v-icon-button v-if="step === 'mode' || (selectedAttempt?.mode === 'control' && !loginForms.get(selectedAttempt.device.id)?.hasCancel)" :aria-label="$t('back')" @click="backToDevices"><i-material-symbols:arrow-back-rounded /></v-icon-button>
         <span>{{ $t('pairing_with', { name: selectedDevice?.name }) }}</span>
       </template>
     </template>
     <template #content>
-      <template v-if="removeTarget && !switchOnly">
+      <template v-if="removeTarget">
         <div>{{ $t('device_discovery.unpair_hint') }}</div>
         <div v-if="removeTarget.id === currentClientId">{{ $t('device_discovery.unpair_current_hint') }}</div>
         <div v-if="error" class="nearby-error" role="alert">{{ $t(error) }}</div>
@@ -36,35 +36,23 @@
                 ><v-icon-button :aria-label="$t('switch')" :title="$t('switch')" @click="switchDevice('')"><i-lucide:arrow-left-right /></v-icon-button></template
               >
             </VListItem>
-            <template v-for="peer in groups.mine" :key="peer.id">
-              <NearbyDeviceItem
-                :peer="peer"
-                :device="deviceById.get(peer.id)"
-                :pending="attempts.has(peer.id)"
-                :current="peer.id === currentClientId"
-                :full-control="canSwitchTo(peer)"
-                :switch-only="switchOnly"
-                :disabled="!!(switchingPeer || (switchOnly && removeTarget))"
-                :switching="switchingPeer === peer.id"
-                @connect="connectPeer(peer, $event)"
-                @cancel="cancelPair(peer.id)"
-                @remove="confirmRemoval(peer)"
-              />
-              <li v-if="switchOnly && removeTarget?.id === peer.id" class="unpair-confirmation">
-                <InlineDeleteConfirm
-                  :name="peer.name" :loading="removing" message-key="device_discovery.unpair_confirm"
-                  @cancel="handleClose" @confirm="removeDevice(peer)"
-                >
-                  <template #details>
-                    <div>{{ $t('device_discovery.unpair_hint') }}</div>
-                    <div v-if="peer.id === currentClientId">{{ $t('device_discovery.unpair_current_hint') }}</div>
-                  </template>
-                </InlineDeleteConfirm>
-              </li>
-            </template>
+            <NearbyDeviceItem
+              v-for="peer in groups.mine"
+              :key="peer.id"
+              :peer="peer"
+              :device="deviceById.get(peer.id)"
+              :pending="attempts.has(peer.id)"
+              :current="peer.id === currentClientId"
+              :full-control="canSwitchTo(peer)"
+              :disabled="!!switchingPeer"
+              :switching="switchingPeer === peer.id"
+              @connect="connectPeer(peer, $event)"
+              @cancel="cancelPair(peer.id)"
+              @remove="confirmRemoval(peer)"
+            />
           </ul>
         </section>
-        <section v-if="!switchOnly" class="discovery-section">
+        <section class="discovery-section">
           <DeviceDiscoveryStatus :status="status" :show-searching="status === DiscoveryStatus.SEARCHING || status === DiscoveryStatus.OK" @retry="refresh" @open-settings="openLanPermissionSettings" />
           <MdnsFirewallFix :device-count="groups.nearby.length" @fixed="refresh" />
           <ul v-if="groups.nearby.length" class="card list-items">
@@ -96,7 +84,7 @@
           :ref="(view) => setLoginForm(attempt.device.id, view as LoginForm | null)"
           :device-id="attempt.device.id"
           :subscriptions="subscriptions"
-          :managed-origin="useOrigin"
+          :managed-origin="origin"
           @success="onLoginSuccess(attempt.device.id)"
           @cancel="finishPairing(attempt.device.id)"
         >
@@ -104,8 +92,8 @@
         </DiscoveredDeviceLogin>
       </template>
     </template>
-    <template v-if="(removeTarget && !switchOnly) || step === 'discover'" #actions>
-      <template v-if="removeTarget && !switchOnly">
+    <template v-if="removeTarget || step === 'discover'" #actions>
+      <template v-if="removeTarget">
         <v-text-button :disabled="removing" @click="handleClose">{{ $t('cancel') }}</v-text-button>
         <v-filled-button class="danger" :loading="removing" @click="removeDevice(removeTarget)">{{ $t('unpair') }}</v-filled-button>
       </template>
@@ -151,11 +139,10 @@ import { useTempStore } from '@/stores/temp'
 import { Capability } from '@/lib/data'
 import { hasFeature } from '@/lib/feature'
 
-const { switchOnly = false, origin = false } = defineProps<{ switchOnly?: boolean; origin?: boolean }>()
-const useOrigin = switchOnly || origin
+const { origin = false } = defineProps<{ origin?: boolean }>()
 const { t } = useI18n()
-const request = __IS_TAURI__ ? nativeGqlFetch : bindGraphqlClient(useOrigin)
-const ownSubscriptions = __IS_TAURI__ || (useOrigin && !!getRemoteClientId())
+const request = __IS_TAURI__ ? nativeGqlFetch : bindGraphqlClient(origin)
+const ownSubscriptions = __IS_TAURI__ || (origin && !!getRemoteClientId())
 const subscriptions = ownSubscriptions
   ? new SubscriptionClient(__IS_TAURI__ ? openNative : callbacks => openSubscriptionConnection(callbacks, ''))
   : graphqlSubscriptions
@@ -216,7 +203,7 @@ const deviceById = computed(() => new Map([
   ...Array.from(attempts, ([id, attempt]) => [id, attempt.device] as const),
   ...devices.value.map(device => [device.id, device] as const),
 ]))
-const groups = computed(() => nearbyGroups(switchOnly ? peers.value.filter(peer => peer.managed) : peers.value, [...deviceById.value.values()], selfDevice.value?.id,
+const groups = computed(() => nearbyGroups(peers.value, [...deviceById.value.values()], selfDevice.value?.id,
   new Set(__IS_TAURI__ ? loginPeers.value.map(peer => peer.id) : peers.value.filter(peer => peer.managed).map(peer => peer.id)),
 ))
 let active = true
@@ -241,7 +228,7 @@ function selectDevice(device: DiscoveredDevice) {
   else void startChat(device)
 }
 function canSwitchTo(peer: IPeer) {
-  return __IS_TAURI__ ? !!findLoginPeer(peer.id) : switchOnly && peer.managed === true
+  return __IS_TAURI__ ? !!findLoginPeer(peer.id) : (origin || !currentClientId.value) && window.location.protocol === 'https:' && peer.managed === true
 }
 function connectPeer(peer: IPeer, action: string) {
   if (action === 'switch') {
@@ -334,7 +321,7 @@ async function onLoginSuccess(id: string) {
 async function switchTo(peer: IPeer) {
   const accessOff = deviceById.value.get(peer.id)?.remoteAccess === false
   if (accessOff || !peer.online) {
-    toast(peer.name + ': ' + t(accessOff ? 'remote_access_off' : 'offline'))
+    toast(peer.name + ': ' + t(peer.online ? 'remote_access_off' : 'offline'))
     return
   }
   if (__IS_TAURI__) {
@@ -438,9 +425,9 @@ onMounted(async () => {
   }
   try {
     await Promise.all([
-      switchOnly ? Promise.resolve() : start(),
+      start(),
       loadPeers(),
-      (__IS_TAURI__ || useOrigin)
+      (__IS_TAURI__ || origin)
         ? loadSelfDevice(request).then((value) => {
             if (active) selfDevice.value = value
           })
@@ -479,9 +466,6 @@ onBeforeUnmount(() => {
 }
 .bluetooth-tip .v-text-button {
   font-size: inherit;
-}
-.unpair-confirmation {
-  list-style: none;
 }
 .nearby-error {
   margin: 0;

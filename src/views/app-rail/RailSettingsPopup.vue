@@ -237,7 +237,7 @@ const popupFeatures = computed<Feature[]>(() => {
 
 function openNearbyDevices() {
   open.value = false
-  pushModal(NearbyView, { switchOnly: !isTauri })
+  pushModal(NearbyView, { origin: !isTauri })
 }
 
 function openAbout() {

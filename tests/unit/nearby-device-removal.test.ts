@@ -16,8 +16,6 @@ import { saveInstance } from '@/components/modal/utils/instances'
 import NearbyDeviceItem from '@/views/chat/NearbyDeviceItem.vue'
 import nearbyDeviceItemSource from '@/views/chat/NearbyDeviceItem.vue?raw'
 import VListItem from '@/components/base/VListItem.vue'
-import InlineDeleteConfirm from '@/components/base/InlineDeleteConfirm.vue'
-import inlineSource from '@/components/base/InlineDeleteConfirm.vue?raw'
 import listItemSource from '@/components/base/VListItem.vue?raw'
 import { unpairPeerGQL } from '@/lib/api/mutation'
 import { peersGQL } from '@/lib/api/query'
@@ -136,7 +134,6 @@ DeviceDiscoveryStatus.render = clientRender(discoveryStatusSource)
 VModal.render = clientRender(modalSource)
 NearbyDeviceItem.render = clientRender(nearbyDeviceItemSource)
 VListItem.render = clientRender(listItemSource)
-InlineDeleteConfirm.render = clientRender(inlineSource)
 RequestApproval.render = clientRender(RequestApprovalSource)
 RequestVerificationCode.render = clientRender(requestVerificationSource)
 
@@ -182,17 +179,17 @@ afterEach(async () => {
   bluetooth.supported = false
 })
 
-async function mount(current = '', fail = false, fixtures: { paired?: boolean; devices?: DiscoveredDevice[]; self?: SelfDevice; switchOnly?: boolean; online?: boolean; status?: DiscoveryStatus } = {}) {
+async function mount(current = '', fail = false, fixtures: { paired?: boolean; devices?: DiscoveredDevice[]; self?: SelfDevice; web?: boolean; online?: boolean; status?: DiscoveryStatus } = {}) {
   io.current = current
   io.devices = fixtures.devices ?? []
   io.status = fixtures.status ?? DiscoveryStatus.SEARCHING
   io.self = fixtures.self ?? null
   const location = { href: '/nearby?q=keep#hash', protocol: 'https:', reload: vi.fn() }
   vi.stubGlobal('window', { location })
-  vi.stubGlobal('__IS_TAURI__', !fixtures.switchOnly)
+  vi.stubGlobal('__IS_TAURI__', !fixtures.web)
   let paired = fixtures.paired ?? true
   io.request.mockImplementation(async (document: string) => {
-    if (document === peersGQL) return { data: { peers: [{ ...peer, online: fixtures.online ?? (fixtures.switchOnly ? true : peer.online), managed: fixtures.switchOnly && paired, status: paired ? PeerStatus.PAIRED : PeerStatus.UNPAIRED }] } }
+    if (document === peersGQL) return { data: { peers: [{ ...peer, online: fixtures.online ?? (fixtures.web ? true : peer.online), managed: fixtures.web && paired, status: paired ? PeerStatus.PAIRED : PeerStatus.UNPAIRED }] } }
     if (document !== unpairPeerGQL) throw new Error('Unexpected GraphQL request')
     if (fail) return { errors: [{ message: 'Device unavailable' }] }
     paired = false
@@ -205,13 +202,12 @@ async function mount(current = '', fail = false, fixtures: { paired?: boolean; d
   const modal = await pushModal(NearbyView)
   const app = renderer.createApp({
     render: () => modal.closed.value ? null : h(NearbyView, {
-      switchOnly: fixtures.switchOnly, ref: (instance) => { if (instance) saveInstance(modal.id, instance) },
+      origin: fixtures.web, ref: (instance) => { if (instance) saveInstance(modal.id, instance) },
     }),
   })
   app.provide(ssrContextKey, { modules: new Set() })
   app.use(createI18n({ legacy: false, locale: 'en-US', messages: { 'en-US': messages } }))
   app.component('VListItem', VListItem)
-  app.component('InlineDeleteConfirm', InlineDeleteConfirm)
   app.component('VModal', VModal)
   app.component('VCircularProgress', () => h('span', { role: 'progressbar' }))
   app.component('VDropdownMenu', (props, { slots }) => props.modelValue ? slots.default?.() : null)
@@ -469,10 +465,10 @@ it('shows a removal error and leaves the current session available for retry', a
 })
 
 
-it.each(['', 'remote'])('switches the managed Web picker without changing the visible URL (%s)', async (current) => {
-  const view = await mount(current, false, { switchOnly: true, self })
-  expect(view.text()).toContain('Switch Device')
-  expect(io.start).not.toHaveBeenCalled()
+it.each(['', 'remote'])('switches devices from the full Nearby Devices dialog without changing the Web URL (%s)', async (current) => {
+  const view = await mount(current, false, { web: true, self })
+  expect(view.text()).toContain('Nearby Devices')
+  expect(io.start).toHaveBeenCalledOnce()
   await view.clickText('Switch')
   expect(view.location.href).toBe('/nearby?q=keep#hash')
   expect(view.location.reload).toHaveBeenCalledOnce()
@@ -482,16 +478,16 @@ it.each(['', 'remote'])('switches the managed Web picker without changing the vi
 })
 
 it.each([true, false])('explains why Switch cannot proceed without changing target (access off: %s)', async (accessOff) => {
-  const view = await mount('', false, { switchOnly: true, online: false, self,
+  const view = await mount('', false, { web: true, online: false, self,
     devices: accessOff ? [{ ...discovered, id: peer.id, remoteAccess: false }] : [] })
   await view.clickText('Switch')
-  expect(notify).toHaveBeenCalledWith(peer.name + ': ' + (accessOff ? common.remote_access_off : common.offline))
+  expect(notify).toHaveBeenCalledWith(peer.name + ': ' + common.offline)
   expect(io.probe).not.toHaveBeenCalled()
   expect(view.location.reload).not.toHaveBeenCalled()
 })
 
 it('does not change target when an online peer fails preflight', async () => {
-  const view = await mount('', false, { switchOnly: true, online: true, self })
+  const view = await mount('', false, { web: true, online: true, self })
   let reject!: (reason: Error) => void
   io.probe.mockReturnValue(new Promise((_, fail) => { reject = fail }))
   await view.clickText('Switch')
@@ -508,8 +504,8 @@ it('does not change target when an online peer fails preflight', async () => {
   expect(view.location.reload).not.toHaveBeenCalled()
 })
 
-it('exposes Unpair for a stale managed row in the Web picker without requiring a connection', async () => {
-  const view = await mount('', false, { switchOnly: true, online: false, self })
+it('exposes Unpair for a stale managed row in the Web Nearby Devices dialog without requiring a connection', async () => {
+  const view = await mount('', false, { web: true, online: false, self })
   await view.openActions()
   await view.clickText('Unpair')
   expect(view.text()).toContain('Unpair Test device?')
@@ -518,7 +514,7 @@ it('exposes Unpair for a stale managed row in the Web picker without requiring a
 })
 
 it('confirms and removes a stale saved Web peer through the gateway using the declared peerId variable', async () => {
-  const view = await mount('', false, { switchOnly: true, online: false, self })
+  const view = await mount('', false, { web: true, online: false, self })
   await view.openActions()
   await view.clickText('Unpair')
   expect(view.text()).toContain('Your chat history is kept.')
@@ -526,7 +522,7 @@ it('confirms and removes a stale saved Web peer through the gateway using the de
   expect(io.request.mock.calls.every(([document]) => document === peersGQL)).toBe(true)
   await view.openActions()
   await view.clickText('Unpair')
-  await view.clickText('Confirm')
+  await view.clickText('Unpair')
   await new Promise<void>(done => setImmediate(done))
   expect(io.request.mock.calls.filter(([document]) => document === unpairPeerGQL)).toEqual([[unpairPeerGQL, { peerId: peer.id }]])
   expect(view.text()).not.toContain(peer.name)
@@ -535,7 +531,7 @@ it('confirms and removes a stale saved Web peer through the gateway using the de
 
 it.each(
   [false, true].flatMap(fullControl => [false, true].flatMap(current => [false, true].flatMap(pending =>
-    [false, true].flatMap(online => [false, true].map(switchOnly => ({ fullControl, current, pending, online, switchOnly }))))))
+    [false, true].map(online => ({ fullControl, current, pending, online })))))
 )('enforces paired-row action states: %j', async (state) => {
   const connect = vi.fn(), cancel = vi.fn(), remove = vi.fn()
   const root = makeNode()

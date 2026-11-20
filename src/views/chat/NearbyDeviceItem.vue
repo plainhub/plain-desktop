@@ -1,5 +1,5 @@
 <template>
-  <VListItem :subtitle="ip" :force-actions="switchOnly">
+  <VListItem :subtitle="ip">
     <template #start>
       <v-dropdown v-model="infoOpen">
         <template #trigger><PeerIcon :device-type="identity.deviceType" :online="peer?.online" :full-control="fullControl" /></template>
@@ -26,7 +26,7 @@
       </v-outlined-button>
     </template>
     <template v-if="peer && !pairing" #actions>
-      <v-icon-button :id="menuId" :aria-label="$t('actions')" :disabled="switchOnly && disabled" @click.stop="menuOpen = true"><i-material-symbols:more-horiz /></v-icon-button>
+      <v-icon-button :id="menuId" :aria-label="$t('actions')" :disabled="disabled" @click.stop="menuOpen = true"><i-material-symbols:more-horiz /></v-icon-button>
       <v-dropdown-menu v-model="menuOpen" :anchor="menuId">
         <button v-if="!current && action === 'control'" type="button" class="dropdown-item" :class="{ disabled: connectDisabled }" :disabled="connectDisabled" @click="menuOpen = false; emit('connect', action)">{{ $t(actionLabel) }}</button>
         <div class="dropdown-item" @click="remove">{{ $t('unpair') }}</div>
@@ -47,7 +47,6 @@ const props = defineProps<
     current?: boolean
     pending?: boolean
     disabled?: boolean
-    switchOnly?: boolean
     switching?: boolean
   }
 >()
