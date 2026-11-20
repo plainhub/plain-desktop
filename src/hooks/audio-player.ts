@@ -141,12 +141,19 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
     }
   }
 
+  let pendingPlay: Promise<void> | undefined
+  let pendingPause: Promise<void> | undefined
+
   function _play(positionMs?: number) {
     if (disposed) return
     restoreInitialPosition = false
     if (audioRef.value && positionMs !== undefined) audioRef.value.currentTime = positionMs / 1000
     bindPlayback()
-    void audioRef.value?.play().catch((error: Error) => emitter.emit('toast', error.message))
+    const intent = playbackIntent
+    pendingPlay = audioRef.value?.play().catch((error: Error) => {
+      if (error.name === 'AbortError' && (intent !== playbackIntent || disposed)) return
+      emitter.emit('toast', error.message)
+    })
   }
 
   async function loadMore(active: () => boolean) {
@@ -266,16 +273,27 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
     audioPlaying.value = false
     updateMediaSessionPlaybackState()
   }
-  const doPlayAudio = (track: IAudioItem) => {
-    releasePlayback?.()
-    audioRef.value?.pause()
-    current.value = track
-    audioPlayback.value = { mediaId: track.mediaId, path: track.path }
+  const doPlayAudio = async (track: IAudioItem) => {
     const intent = playbackIntent
     const context = getGraphqlContextKey()
-    void nextTick(() => {
-      if (intent === playbackIntent && context === getGraphqlContextKey()) _play(0)
-    })
+    const active = () => !disposed && intent === playbackIntent && context === getGraphqlContextKey()
+    const element = audioRef.value
+    releasePlayback?.()
+    if (element && !element.paused && !pendingPause) {
+      pendingPause = new Promise<void>((resolve) => {
+        element.addEventListener('pause', () => {
+          pendingPause = undefined
+          resolve()
+        }, { once: true })
+      })
+      element.pause()
+    }
+    if (pendingPause || pendingPlay) await Promise.all([pendingPause, pendingPlay])
+    if (!active()) return
+    current.value = track
+    audioPlayback.value = { mediaId: track.mediaId, path: track.path }
+    await nextTick()
+    if (active()) _play(0)
   }
   const pauseAudio = () => audioRef.value?.pause()
 

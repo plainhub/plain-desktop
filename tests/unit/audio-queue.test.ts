@@ -191,11 +191,20 @@ it('can shuffle into an unloaded page without choosing the current track', async
 })
 
 function mediaElement() {
-  return {
-    src: '', currentSrc: '', currentTime: 0, ended: true,
-    play: vi.fn(async () => {}), pause: vi.fn(),
-    addEventListener: vi.fn(), removeEventListener: vi.fn(),
+  const events = new EventTarget()
+  const element = {
+    src: '', currentSrc: '', currentTime: 0, ended: true, paused: true,
+    play: vi.fn(async () => { element.paused = false }),
+    pause: vi.fn(() => {
+      if (element.paused) return
+      element.paused = true
+      queueMicrotask(() => events.dispatchEvent(new Event('pause')))
+    }),
+    dispatchEvent: events.dispatchEvent.bind(events),
+    addEventListener: vi.fn(events.addEventListener.bind(events)),
+    removeEventListener: vi.fn(events.removeEventListener.bind(events)),
   }
+  return element
 }
 
 it('discards replaced callbacks and repeats the active track without a selection request', async () => {
@@ -292,6 +301,57 @@ it('pauses immediately and plays the clicked track while selection is pending', 
     expect(player.src.value).toBe('/audio/3')
   } finally {
     finish(undefined)
+    app.unmount()
+  }
+})
+
+it.each(['pause first', 'abort first'])('waits for pause and the interrupted play before starting the last of 100 selections (%s)', async (order) => {
+  const { nextTick } = await import('vue')
+  const { default: emitter } = await import('@/plugins/eventbus')
+  const toast = vi.fn()
+  emitter.on('toast', toast)
+  const { app, player, element } = await startBrowserPlayer()
+  let interrupt!: (error: Error) => void
+  try {
+    element.play.mockImplementationOnce(() => new Promise<void>((_, reject) => { interrupt = reject }))
+    player.playItem(tracks(2, 1)[0]!)
+    await vi.waitFor(() => expect(element.play).toHaveBeenCalledTimes(2))
+    element.paused = false
+    element.pause.mockImplementation(() => { element.paused = true })
+    for (const track of tracks(3, 100)) player.playItem(track)
+    await nextTick()
+    await nextTick()
+    expect(element.play).toHaveBeenCalledTimes(2)
+    expect(player.src.value).toBe('/audio/2')
+    const pause = () => element.dispatchEvent(new Event('pause'))
+    const abort = () => interrupt(new DOMException('interrupted by pause', 'AbortError'))
+    const [first, second] = order === 'pause first' ? [pause, abort] as const : [abort, pause] as const
+    first()
+    await nextTick()
+    await nextTick()
+    expect(element.play).toHaveBeenCalledTimes(2)
+    expect(player.src.value).toBe('/audio/2')
+    second()
+    await vi.waitFor(() => expect(element.play).toHaveBeenCalledTimes(3))
+    expect(player.src.value).toBe('/audio/102')
+    expect(toast).not.toHaveBeenCalled()
+  } finally {
+    emitter.off('toast', toast)
+    app.unmount()
+  }
+})
+
+it('reports a failure to play the selected track', async () => {
+  const { default: emitter } = await import('@/plugins/eventbus')
+  const { app, player, element } = await startBrowserPlayer()
+  const toast = vi.fn()
+  emitter.on('toast', toast)
+  try {
+    element.play.mockRejectedValueOnce(new DOMException('Unsupported audio format', 'NotSupportedError'))
+    player.playItem(tracks(2, 1)[0]!)
+    await vi.waitFor(() => expect(toast).toHaveBeenCalledWith('Unsupported audio format'))
+  } finally {
+    emitter.off('toast', toast)
     app.unmount()
   }
 })
