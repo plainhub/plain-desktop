@@ -4,6 +4,9 @@ import * as Vue from 'vue'
 import { compileScript, compileTemplate, parse } from 'vue/compiler-sfc'
 import { createI18n } from 'vue-i18n'
 import { transpile } from 'typescript'
+import QrPairPanel from '@/components/QrPairPanel.vue'
+import qrPanelSource from '@/components/QrPairPanel.vue?raw'
+import emitter from '@/plugins/eventbus'
 import NearbyView from '@/views/chat/NearbyView.vue'
 import nearbyViewSource from '@/views/chat/NearbyView.vue?raw'
 import DeviceDiscoveryStatus from '@/components/DeviceDiscoveryStatus.vue'
@@ -69,7 +72,6 @@ vi.mock('@/lib/device/login-peers', async () => ({
   findLoginPeer: (id: string) => id === io.current ? { id } : undefined,
   preloadLoginPeers: async () => {},
 }))
-vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => !io.current }))
 vi.mock('@/lib/device/self-device', () => ({ loadSelfDevice: async () => io.self }))
 vi.mock('@/lib/prefs/browser', () => ({ remove: io.removePref }))
 vi.mock('@/lib/device/pairing', async () => {
@@ -129,6 +131,7 @@ function clientRender(source: string) {
   if (errors.length) throw new Error(errors.join('\n'))
   return new Function('Vue', transpile(code))(Vue)
 }
+QrPairPanel.render = clientRender(qrPanelSource)
 NearbyView.render = clientRender(nearbyViewSource)
 DeviceDiscoveryStatus.render = clientRender(discoveryStatusSource)
 VModal.render = clientRender(modalSource)
@@ -243,6 +246,35 @@ async function mount(current = '', fail = false, fixtures: { paired?: boolean; d
     text: () => nodes(body).map((node) => node.text || node.props['aria-label'] || '').join(' '), searching: () => nodes(body).some((node) => node.props.role === 'progressbar'),
     hasBackButton: () => nodes(body).some((node) => node.props['aria-label'] === 'Back') }
 }
+
+const qrLabels = messages.device_discovery
+
+it('opens local QR pairing on demand and shows the peer after matching confirmation', async () => {
+  const view = await mount('', false, { paired: false })
+  const code = { requestId: 'fixture-request', payload: 'fixture-payload', verificationCode: '123456' }
+  bluetooth.invoke.mockResolvedValue(code)
+  expect(bluetooth.invoke).not.toHaveBeenCalled()
+  await view.clickText(qrLabels.qr_pair_entry)
+  await vi.waitFor(() => expect(view.text()).toContain(code.verificationCode))
+  expect(bluetooth.invoke).toHaveBeenCalledExactlyOnceWith('native_pairing_code')
+  const result = { deviceId: peer.id, deviceName: peer.name, ip: '192.0.2.10', port: 8443, error: '' }
+  emitter.emit('PAIRING_COMPLETED', { ...result, requestId: 'other-request' })
+  await nextTick()
+  expect(view.text()).not.toContain(qrLabels.qr_pair_success)
+  io.request.mockResolvedValue({ data: { peers: [peer] } })
+  emitter.emit('PAIRING_COMPLETED', { ...result, requestId: code.requestId })
+  await vi.waitFor(() => expect(view.text()).toContain(peer.name))
+  expect(view.text()).toContain(qrLabels.qr_pair_success)
+  await view.clickText(qrLabels.qr_pair_title)
+  expect(view.text()).toContain(qrLabels.qr_pair_entry)
+  expect(view.text()).not.toContain(code.verificationCode)
+})
+
+it.each([['remote', false], ['', true], ['remote', true]] as const)('hides QR pairing outside local desktop mode (%s, web %s)', async (current, web) => {
+  const view = await mount(current, false, { web })
+  expect(view.text()).not.toContain(qrLabels.qr_pair_entry)
+  expect(bluetooth.invoke).not.toHaveBeenCalled()
+})
 
 it.each([undefined, self])('does not show the paired heading with no paired peer (self: %j)', async (local) => {
   const view = await mount('', false, { paired: false, devices: [discovered], self: local })

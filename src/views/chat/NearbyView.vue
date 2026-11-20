@@ -75,6 +75,7 @@
             </v-text-button>
           </div>
         </section>
+        <QrPairPanel v-if="isLocalMode()" v-model:open="qrOpen" collapsible @paired="loadPeers().catch(reportFailure)" />
         <p v-if="error" class="nearby-error" role="alert">{{ $t(error) }}</p>
       </div>
       <template v-for="attempt in attempts.values()" :key="attempt.device.id">
@@ -112,6 +113,7 @@ import toast from '@/components/toaster'
 import { useI18n } from 'vue-i18n'
 import DeviceDiscoveryStatus from '@/components/DeviceDiscoveryStatus.vue'
 import MdnsFirewallFix from '@/components/MdnsFirewallFix.vue'
+import QrPairPanel from '@/components/QrPairPanel.vue'
 import RequestApproval from '@/components/RequestApproval.vue'
 import NearbyPairOptions from './NearbyPairOptions.vue'
 import NearbyDeviceItem from './NearbyDeviceItem.vue'
@@ -191,6 +193,7 @@ const loginForms = shallowReactive(new Map<string, LoginForm>())
 const peers = ref<IPeer[]>([])
 const selfDevice = ref<SelfDevice | null>(null)
 const selectedDevice = ref<DiscoveredDevice | null>(null)
+const qrOpen = ref(false)
 const step = ref<'discover' | 'mode' | 'pairing'>('discover')
 const selectedAttempt = computed(() => step.value === 'pairing' && selectedDevice.value ? attempts.get(selectedDevice.value.id) : undefined)
 const switchingPeer = ref('')
