@@ -27,3 +27,7 @@ it('uses the system volume name for the root drive', () => {
   expect(getStorageVolumeTitle({ ...root, name: '/' }, t)).toBe('internal_storage')
   expect(getStorageVolumeTitle({ ...root, name: '' }, t)).toBe('internal_storage')
 })
+
+it('keeps App Data localized even when its disk has a custom label or alias', () => {
+  expect(getStorageVolumeTitle({ ...volume, driveType: 'APP', label: 'Disk label', alias: 'Archive' }, t)).toBe('app_data')
+})

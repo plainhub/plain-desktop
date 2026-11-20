@@ -23,7 +23,10 @@ let unmount: (() => void) | undefined
 afterEach(() => { unmount?.(); vi.clearAllMocks(); vi.unstubAllGlobals() })
 
 it('opens volume rename from its menu, sends the stable volume id and refreshes only after success', async () => {
-  state.mounts = ref([{ id: 'volume-fixture', mountPoint: '/media/photos', name: 'Photos', alias: 'Archive', driveType: 'USB_STORAGE', totalBytes: 0 }])
+  state.mounts = ref([
+    { id: 'volume-fixture', mountPoint: '/media/photos', name: 'Photos', alias: 'Archive', driveType: 'USB_STORAGE', totalBytes: 0 },
+    { id: 'app-data', mountPoint: '/app/data', driveType: 'APP', totalBytes: 0 },
+  ])
   vi.stubGlobal('document', { getElementById: vi.fn(), dispatchEvent: vi.fn() })
   vi.stubGlobal('CustomEvent', class { constructor(public type: string, public detail: unknown) {} })
   const view = renderView(FilesSidebar, {}, {
@@ -33,6 +36,7 @@ it('opens volume rename from its menu, sends the stable volume id and refreshes 
     VDropdownMenu: { props: ['modelValue', 'anchor'], setup(props: any, { slots }: any) { return () => props.modelValue ? h('menu', slots.default?.()) : null } },
   })
   unmount = view.unmount
+  expect(nodes(view.root).some(node => node.props.id === 'volume-/app/data')).toBe(false)
   const button = nodes(view.root).find(node => node.props.id === 'volume-/media/photos')!
   expect(button.props['aria-label']).toBe('actions: Archive')
   expect(button.props['aria-expanded']).toBe(false)

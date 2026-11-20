@@ -27,7 +27,7 @@
           :used-percent="item.usedPercent || 0" :percent-class="percentClass(item.usedPercent)" :active="item.isChecked"
           :show-progress="item.showProgress" @click="openLink(item)"
         >
-          <template #actions>
+          <template v-if="item.type !== DriveType.APP" #actions>
             <v-icon-button
               :id="'volume-' + item.fullPath" v-tooltip="$t('actions')" :aria-label="`${$t('actions')}: ${item.title}`"
               :aria-expanded="volumeMenuVisible && selectedVolume?.fullPath === item.fullPath" class="sm volume-actions"
@@ -80,6 +80,7 @@ import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useTempStore } from '@/stores/temp'
 import { Capability } from '@/lib/data'
+import { DriveType } from '@/lib/status'
 import { hasFeature } from '@/lib/feature'
 import VolumeCard from '@/components/storage/VolumeCard.vue'
 import DiskManagerModal from '@/components/storage/DiskManagerModal.vue'

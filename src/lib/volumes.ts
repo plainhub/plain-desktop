@@ -4,6 +4,7 @@ import type { IStorageMount } from '@/lib/interfaces'
 export type TranslateFn = (key: string, params?: Record<string, any>) => string
 
 export function getStorageVolumeTitle(v: IStorageMount, t: TranslateFn): string {
+  if (v.driveType === DriveType.APP) return t('app_data')
   const alias = String(v.alias ?? '').trim()
   if (alias) return alias
   const mountPoint = String(v?.mountPoint ?? '').trim()
@@ -21,7 +22,6 @@ export function getStorageVolumeTitle(v: IStorageMount, t: TranslateFn): string 
   const model = String(v.diskModel ?? '').trim()
   if (model) return model
   if (name) return name
-  if (v.driveType === DriveType.APP) return t('app_data')
   if (v.driveType === DriveType.SDCARD) return t('sdcard')
   if (v.driveType === DriveType.INTERNAL_STORAGE) return t('internal_storage')
   return mountPoint || path || t('usb_storage')

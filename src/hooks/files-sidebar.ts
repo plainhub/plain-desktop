@@ -11,6 +11,7 @@ import { initMutation, removeFavoriteFolderGQL, setFavoriteFolderAliasGQL, setMo
 import toast from '@/components/toaster'
 import emitter from '@/plugins/eventbus'
 import { useMounts, useFavoriteFolders } from '@/hooks/files'
+import { DriveType } from '@/lib/status'
 import { getStorageVolumeTitle } from '@/lib/volumes'
 import { sortMounts, storageUsedPercent, storageCountText } from '@/lib/storage'
 import { openModal } from '@/components/modal'
@@ -95,7 +96,7 @@ export function useFilesSidebar() {
     const item = selectedVolume.value
     if (!item) return
     const mount = mounts.value.find((entry) => entry.mountPoint === item.fullPath)
-    if (!mount) return
+    if (!mount || mount.driveType === DriveType.APP) return
     openModal(EditValueModal, {
       title: t('name'), placeholder: item.title,
       value: mount.alias || '', allowEmpty: true, borderless: true,
