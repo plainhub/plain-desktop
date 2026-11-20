@@ -167,3 +167,37 @@ it.each(['AUDIO', 'VIDEO'] as const)('does not save remote %s progress on sampli
   expect(onEnded).toHaveBeenCalledOnce()
   release()
 })
+
+it('starts history while metadata is pending and only starts the latest A after A/B/A switches', async () => {
+  const history = useMediaPlayHistory()
+  let selection = 0
+  const reads: Array<(positionMs: number) => void> = []
+  io.fetch.mockImplementation(async (doc: string) => doc === 'history'
+    ? new Promise(resolve => reads.push(ms => resolve({ data: { mediaPlayHistory: [{ positionMs: ms }] } })))
+    : { data: {} })
+  async function select(id: string) {
+    const request = ++selection
+    const video = element()
+    let ready!: (el: HTMLMediaElement) => void
+    const metadata = new Promise<HTMLMediaElement>(resolve => { ready = resolve })
+    const started = history.restoreAndPlay(metadata, { mediaId: id, type: 'VIDEO' }, () => selection === request)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(reads).toHaveLength(request)
+    return { video, ready: () => ready(video), started }
+  }
+  const a = await select('a')
+  const b = await select('b')
+  const latest = await select('a')
+  reads[2]!(7000)
+  expect(latest.video.play).not.toHaveBeenCalled()
+  latest.ready()
+  const release = await latest.started
+  a.ready(); b.ready()
+  reads[1]!(9000); reads[0]!(11000)
+  await Promise.all([a.started, b.started])
+  expect([a.video.currentTime, b.video.currentTime, latest.video.currentTime]).toEqual([0, 0, 7])
+  expect(a.video.play).not.toHaveBeenCalled()
+  expect(b.video.play).not.toHaveBeenCalled()
+  expect(latest.video.play).toHaveBeenCalledOnce()
+  release?.()
+})

@@ -53,7 +53,7 @@ export function useMediaPlayHistory() {
     }
   }
 
-  async function restorePosition(element: HTMLMediaElement, media: PlaybackMedia | undefined, current: () => boolean) {
+  async function readPosition(media: PlaybackMedia | undefined, current: () => boolean) {
     const context = getGraphqlContextKey()
     const active = () => current() && context === getGraphqlContextKey()
     if (media?.mediaId) {
@@ -63,14 +63,25 @@ export function useMediaPlayHistory() {
         { query: `type:${media.type} ids:${JSON.stringify(media.mediaId)}`, offset: 0, limit: 1 }, { fresh: true })
       if (!active()) return
       if (result.errors?.length) throw new Error(result.errors[0]!.message)
-      element.currentTime = (result.data.mediaPlayHistory[0]?.positionMs ?? 0) / 1000
+      return (result.data.mediaPlayHistory[0]?.positionMs ?? 0) / 1000
     }
   }
 
-  async function restoreAndPlay(element: HTMLMediaElement, media: PlaybackMedia | undefined, current: () => boolean) {
+  async function restorePosition(element: HTMLMediaElement, media: PlaybackMedia | undefined, current: () => boolean) {
     const context = getGraphqlContextKey()
-    await restorePosition(element, media, current)
-    if (!current() || context !== getGraphqlContextKey()) return
+    const position = await readPosition(media, current)
+    if (position !== undefined && current() && context === getGraphqlContextKey()) element.currentTime = position
+  }
+
+  async function restoreAndPlay(ready: HTMLMediaElement | Promise<HTMLMediaElement | undefined>, media: PlaybackMedia | undefined, current: () => boolean) {
+    const context = getGraphqlContextKey()
+    const [element, result] = await Promise.all([
+      ready,
+      readPosition(media, current).then(position => ({ position }), (error: unknown) => ({ error })),
+    ])
+    if (!element || !current() || context !== getGraphqlContextKey()) return
+    if ('error' in result) throw result.error
+    if (result.position !== undefined) element.currentTime = result.position
     const release = media ? bind(element, media, current) : undefined
     try { await element.play() }
     catch (error) { release?.(); throw error }

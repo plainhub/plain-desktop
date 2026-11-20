@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { createRenderer, defineComponent, nextTick, reactive, ref } from 'vue'
 import type { ISource } from '@/components/lightbox/types'
 
-const fixture = vi.hoisted(() => ({ invoke: vi.fn(), store: undefined as any }))
+const fixture = vi.hoisted(() => ({ invoke: vi.fn(), startVideo: vi.fn(async (_ready: Promise<HTMLVideoElement | undefined>, _media: unknown, _active: () => boolean) => undefined), store: undefined as any }))
 vi.mock('@tauri-apps/api/core', () => ({ invoke: fixture.invoke }))
 vi.mock('@/lib/api/native-client', () => ({ nativeViewScope: async () => 'document' }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => true }))
@@ -22,7 +22,7 @@ vi.mock('@/stores/main', () => ({ useMainStore: vi.fn() }))
 vi.mock('@/lib/api/query', () => ({ initLazyQuery: vi.fn(), fileInfoGQL: '', tagRelationsGQL: '', tagsGQL: '' }))
 vi.mock('@/hooks/files', () => ({ useRename: vi.fn() }))
 vi.mock('@/hooks/media', () => ({ useDeleteItems: vi.fn() }))
-vi.mock('@/hooks/media-play-history', () => ({ useMediaPlayHistory: vi.fn() }))
+vi.mock('@/hooks/media-play-history', () => ({ useMediaPlayHistory: () => ({ restoreAndPlay: fixture.startVideo }) }))
 vi.mock('@/components/modal', () => ({ openModal: vi.fn() }))
 vi.mock('@/components/DeleteFileConfirm.vue', () => ({ default: {} }))
 vi.mock('@/components/EditValueModal.vue', () => ({ default: {} }))
@@ -285,4 +285,30 @@ it('keeps the original visible when a previous quality selection finishes late',
   finish()
   await flush()
   expect(nav.imgSrc.value).toBe(original)
+})
+
+it('advances through pending video opens and retires obsolete metadata on close and revisit', async () => {
+  mount(3)
+  for (const [i, source] of fixture.store.lightbox.sources.entries()) {
+    Object.assign(source, { path: `/movie/${i}.mp4`, name: `${i}.mp4` })
+  }
+  await nav.changeIndex(0)
+  const first = nav.videoLoad.value!
+  const oldVideo = { pause: vi.fn() }
+  first.loaded({ currentTarget: oldVideo } as unknown as Event)
+  nav.onNext()
+  nav.onNext()
+  await flush()
+  expect(fixture.startVideo).toHaveBeenCalledTimes(3)
+  expect(oldVideo.pause).toHaveBeenCalledOnce()
+  expect(fixture.startVideo.mock.calls.map(call => call[2]())).toEqual([false, false, true])
+  const selected = fixture.store.lightbox.sources[2]
+  expect(selected.playbackUrl).toBeTruthy()
+  const third = nav.videoLoad.value!
+  await nav.changeIndex(0)
+  first.loaded({ currentTarget: oldVideo } as unknown as Event)
+  third.loaded({ currentTarget: oldVideo } as unknown as Event)
+  nav.closeDialog()
+  await expect(fixture.startVideo.mock.calls[3]![0]).resolves.toBeUndefined()
+  expect(fixture.startVideo.mock.calls.every(call => !call[2]())).toBe(true)
 })

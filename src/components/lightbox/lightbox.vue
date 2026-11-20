@@ -35,7 +35,10 @@
             {{ $t('load_failed', { name: current?.name }) }}
           </div>
           <div v-if="current && isVideo(current.name)" v-show="!status.loading && !status.loadError" class="v-video-wrapper" @click.self="onBackdropClick">
-            <video ref="video" controls :src="current.playbackUrl || current.src" @loadedmetadata="onVideoLoaded" @error="onError" @playing="onPlaying" @pause="onPause" @volumechange="onVolumeChange" />
+            <video v-if="videoLoad" :key="videoLoad.key" ref="video" controls :src="current.playbackUrl || current.src"
+              @loadedmetadata="videoLoad.loaded" @error="videoLoad && $event.currentTarget === video && onError($event)"
+              @playing="videoLoad && $event.currentTarget === video && onPlaying()" @pause="videoLoad && $event.currentTarget === video && onPause()"
+              @volumechange="onVolumeChange" />
           </div>
           <div v-else-if="current && isAudio(current.name)" v-show="!status.loading && !status.loadError" class="v-audio-wrapper" @click.self="onBackdropClick">
             <div style="padding: 50px">
@@ -173,7 +176,7 @@ const { loadInfo, refetchInfo, tagsMap, loadTags, itemTags, loadItemTags } =
 const { zoomIn, zoomOut, rotateLeft, rotateRight, resize, onDblclick, onWheel } =
   useLightboxTransform(imgWrapperState, imgState, status)
 
-const { imgSrc, closeDialog, changeIndex, onNext, onPrev } =
+const { imgSrc, videoLoad, closeDialog, changeIndex, onNext, onPrev } =
   useLightboxNavigation(tempStore, imgIndex, current, imgWrapperState, status, tagsMap, loadTags, loadInfo, loadItemTags, toRef(props, 'loop'), emit as (event: string, ...args: any[]) => void, imageViewQuality)
 
 const readOnly = computed(() => tempStore.lightbox.readOnly)
@@ -206,7 +209,7 @@ function onCloseDialog() {
 const { downloadFile, deleteFile, renameFile, handleActionSuccess } =
   useLightboxFileActions(current, refetchInfo, isPhone, lightboxInfoVisible)
 
-const { onLoad, onVideoLoaded, onError, onPlaying, onPause, onVolumeChange } =
+const { onLoad, onError, onPlaying, onPause, onVolumeChange } =
   useLightboxEvents(tempStore, current, video, status, imgState, imgIndex, setImgSize, refetchInfo, onCloseDialog, onNext, onPrev, changeIndex, emit as (event: string, ...args: any[]) => void, toRef(props, 'popup'))
 
 function onBackdropClick() {

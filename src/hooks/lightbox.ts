@@ -222,6 +222,14 @@ export function useLightboxNavigation(
     status.loading = !keepImageVisible
   }
 
+  const history = useMediaPlayHistory()
+  const videoLoad = ref<{ key: number; loaded: (event: Event) => void }>()
+  let retireVideo: (() => void) | undefined
+  function stopVideo() {
+    retireVideo?.()
+    retireVideo = undefined
+    videoLoad.value = undefined
+  }
   let generation = 0
   let stopPreloadWatch: (() => void) | undefined
   const bindings = new Map<ISource, { owner: NativeResourceOwner; promise: Promise<string>; assigned?: string; preview?: string }>()
@@ -276,6 +284,7 @@ export function useLightboxNavigation(
 
   const clearResources = () => {
     generation++
+    stopVideo()
     stopPreloadWatch?.()
     stopPreloadWatch = undefined
     retainSources(new Set())
@@ -371,10 +380,39 @@ export function useLightboxNavigation(
     const source = sources[newIndex]
     if (!source || !tempStore.lightbox.visible) return
     const change = ++generation
+    stopVideo()
     stopPreloadWatch?.()
     stopPreloadWatch = undefined
     const active = () => change === generation && tempStore.lightbox.visible && tempStore.lightbox.sources === sources
+    let metadata: ((event: Event) => void) | undefined
+    if (isVideo(source.name)) {
+      let element: HTMLVideoElement | undefined
+      let release: (() => void) | undefined
+      let resolve!: (video?: HTMLVideoElement) => void
+      const ready = new Promise<HTMLVideoElement | undefined>(done => { resolve = done })
+      metadata = event => {
+        if (!active() || element) return
+        element = event.currentTarget as HTMLVideoElement
+        resolve(element)
+      }
+      retireVideo = () => {
+        resolve()
+        element?.pause()
+        release?.()
+      }
+      const mediaId = source.type === DataType.VIDEO ? source.data?.id : undefined
+      void history.restoreAndPlay(ready, mediaId ? { mediaId, type: 'VIDEO' } : undefined, active).then(stop => {
+        if (active()) release = stop
+        else stop?.()
+      }).catch(error => {
+        if (!active()) return
+        status.loading = false
+        status.loadError = true
+        emitter.emit('toast', error instanceof Error ? error.message : HttpErrorCode.NetworkError)
+      })
+    }
     const oldIndex = imgIndex.value
+    imgIndex.value = newIndex
     const adjacent = neighbours(sources, newIndex)
     const wanted = new Set([source, ...adjacent])
     if (current.value) wanted.add(current.value)
@@ -391,8 +429,8 @@ export function useLightboxNavigation(
       const alreadyDecoded = (isImage(source.name) && decodedUrls.has(displayUrl(source) ?? '')) ||
         (isVideo(source.name) && readyVideoUrls.has(source.src))
       reset(alreadyDecoded)
-      imgIndex.value = newIndex
       current.value = source
+      if (metadata) videoLoad.value = { key: change, loaded: metadata }
       setTimeout(() => {
         if (!active()) return
         const type = source.type ?? ''
@@ -422,6 +460,7 @@ export function useLightboxNavigation(
       }
     } catch (error) {
       if (!active()) return
+      stopVideo()
       release(source)
       trimPreloads()
       status.loading = false
@@ -488,7 +527,7 @@ export function useLightboxNavigation(
     changeIndex(newIndex, ['on-prev', 'on-prev-click'])
   }
 
-  return { imgSrc, reset, closeDialog, changeIndex, onNext, onPrev }
+  return { imgSrc, videoLoad, reset, closeDialog, changeIndex, onNext, onPrev }
 }
 
 export function useLightboxFileActions(
@@ -587,38 +626,6 @@ export function useLightboxEvents(
   popup: Ref<boolean> = ref(false),
 ) {
   let isVideoPlaying = true
-  let videoLoad = 0
-  let releaseVideo: (() => void) | undefined
-  const history = useMediaPlayHistory()
-
-  const onVideoLoaded = async (event: Event) => {
-    const element = event.currentTarget as HTMLVideoElement
-    const source = current.value
-    if (!source) return
-    const load = ++videoLoad
-    releaseVideo?.()
-    releaseVideo = undefined
-    const active = () => load === videoLoad && tempStore.lightbox.visible && current.value === source && video.value === element
-    const mediaId = source.type === DataType.VIDEO ? source.data?.id : undefined
-    try {
-      const release = await history.restoreAndPlay(element, mediaId ? { mediaId, type: 'VIDEO' } : undefined, active)
-      if (active()) releaseVideo = release
-      else release?.()
-    } catch (error) {
-      if (!active()) return
-      status.loading = false
-      status.loadError = true
-      emitter.emit('toast', error instanceof Error ? error.message : HttpErrorCode.NetworkError)
-    }
-  }
-
-  watch(() => tempStore.lightbox.visible, visible => {
-    if (!visible) {
-      videoLoad++
-      releaseVideo?.()
-      releaseVideo = undefined
-    }
-  })
 
   const onLoad = () => {
     status.loading = false
@@ -723,8 +730,6 @@ export function useLightboxEvents(
   })
 
   onBeforeUnmount(() => {
-    videoLoad++
-    releaseVideo?.()
     off(window, 'keydown', onKeyPress)
     off(window, 'resize', onWindowResize)
     emitter.off('item_tags_updated', itemTagsUpdatedHandler)
@@ -733,7 +738,7 @@ export function useLightboxEvents(
     emitter.off('file_renamed', fileRenamedHandler)
   })
 
-  return { onLoad, onVideoLoaded, onError, onPlaying, onPause, onVolumeChange }
+  return { onLoad, onError, onPlaying, onPause, onVolumeChange }
 }
 
 export function useLightboxMouseTouch(
