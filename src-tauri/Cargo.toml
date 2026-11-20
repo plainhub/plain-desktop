@@ -15,6 +15,9 @@ path = "src/main.rs"
 name = "plainapp_lib"
 crate-type = ["rlib"]
 
+[features]
+ai-image-search = ["plain-rs/ai-image-search"]
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
