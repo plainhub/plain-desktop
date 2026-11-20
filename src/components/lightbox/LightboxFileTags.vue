@@ -9,13 +9,14 @@
         :selected="selectedTags"
       />
     </template>
-    <item-tags :tags="selectedTags" />
+    <ItemTags :tags="selectedTags" />
   </LightboxFileInfoItem>
 </template>
 
 <script setup lang="ts">
 import { isTrashedMediaPath } from '@/lib/media/trash-path'
 import { computed } from 'vue'
+import ItemTags from '@/components/ItemTags.vue'
 import type { ISource } from './types'
 import type { ITag } from '@/lib/interfaces'
 
