@@ -38,6 +38,8 @@ export interface IBucket extends IData {
   topItemPaths: string[]
 }
 
+export const smsFilterTypes = ['INBOX', 'SENT', 'DRAFT'] as const satisfies readonly SmsType[]
+
 export type SmsType = 'INBOX' | 'SENT' | 'DRAFT' | 'OUTBOX' | 'FAILED' | 'QUEUED' | 'UNKNOWN'
 
 export interface ISms extends IData {
@@ -168,6 +170,8 @@ export interface ICallGeo {
   carrier: string
   description: string
 }
+
+export const callFilterTypes = ['INCOMING', 'OUTGOING', 'MISSED'] as const satisfies readonly CallType[]
 
 export type CallType =
   | 'INCOMING' | 'OUTGOING' | 'MISSED' | 'VOICEMAIL' | 'REJECTED'

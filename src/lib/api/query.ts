@@ -733,9 +733,9 @@ export const contactCountGQL = `
 export const callCountGQL = `
   query {
     total: callCount(query: "")
-    incoming: callCount(query: "type:1")
-    outgoing: callCount(query: "type:2")
-    missed: callCount(query: "type:3")
+    incoming: callCount(query: "type:INCOMING")
+    outgoing: callCount(query: "type:OUTGOING")
+    missed: callCount(query: "type:MISSED")
   }
 `
 

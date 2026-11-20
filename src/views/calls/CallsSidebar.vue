@@ -15,19 +15,19 @@
           </template>
         </SidebarListItem>
         <SidebarListItem
-          v-for="t in typeTabs"
-          :key="t.value"
-          :title="$t(`call_type.${t.key}`)"
-          :active="t.value === type"
-          @click="openByType(t.value)"
+          v-for="t in callFilterTypes"
+          :key="t"
+          :title="$t(`call_type.${t}`)"
+          :active="t === type"
+          @click="openByType(t)"
         >
           <template #start>
-            <i-material-symbols:call-received v-if="t.value === '1'" />
-            <i-material-symbols:call-made v-else-if="t.value === '2'" />
+            <i-material-symbols:call-received v-if="t === 'INCOMING'" />
+            <i-material-symbols:call-made v-else-if="t === 'OUTGOING'" />
             <i-material-symbols:call-missed v-else />
           </template>
-          <template v-if="getTypeCount(t.value) >= 0" #end>
-            <span class="count">{{ getTypeCount(t.value).toLocaleString() }}</span>
+          <template v-if="getTypeCount(t) >= 0" #end>
+            <span class="count">{{ getTypeCount(t).toLocaleString() }}</span>
           </template>
         </SidebarListItem>
       </ul>
@@ -41,7 +41,7 @@ import router, { replacePath } from '@/plugins/router'
 import { useMainStore } from '@/stores/main'
 import { onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useSearch } from '@/hooks/search'
-import type { IFilter } from '@/lib/interfaces'
+import { callFilterTypes, type CallType, type IFilter } from '@/lib/interfaces'
 import { decodeBase64, encodeBase64 } from '@/lib/strutil'
 import { buildQuery } from '@/lib/search'
 import { useTempStore } from '@/stores/temp'
@@ -58,30 +58,22 @@ const filter = reactive<IFilter>({
 
 const type = ref('')
 const selectedTagId = ref('')
-const typesCount = ref<Map<string, number>>(new Map())
-
-// The query token keeps Android's numeric call type codes; `key` is the locale
-// enum name used for display.
-const typeTabs = [
-  { value: '1', key: 'INCOMING' },
-  { value: '2', key: 'OUTGOING' },
-  { value: '3', key: 'MISSED' },
-]
+const typesCount = ref<Map<CallType, number>>(new Map())
 
 const { fetch } = initLazyQuery({
   handle: (data: { total: number; incoming: number; outgoing: number; missed: number }) => {
     if (data) {
       counter.value.calls = data.total
-      typesCount.value.set('1', data.incoming)
-      typesCount.value.set('2', data.outgoing)
-      typesCount.value.set('3', data.missed)
+      typesCount.value.set('INCOMING', data.incoming)
+      typesCount.value.set('OUTGOING', data.outgoing)
+      typesCount.value.set('MISSED', data.missed)
     }
   },
   document: callCountGQL,
   variables: () => ({}),
 })
 
-function getTypeCount(id: string) {
+function getTypeCount(id: CallType) {
   return typesCount.value.get(id) ?? -1
 }
 
@@ -106,7 +98,7 @@ watch(
   },
 )
 
-function openByType(type: string) {
+function openByType(type: CallType) {
   const q = buildQuery([
     {
       name: 'type',

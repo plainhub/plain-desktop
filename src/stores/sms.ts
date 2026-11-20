@@ -11,7 +11,7 @@ import {
   type QueryResponseContext,
 } from '@/lib/api/query'
 import { initMutation, archiveSmsConversationGQL, unarchiveSmsConversationGQL } from '@/lib/api/mutation'
-import type { ISmsConversation } from '@/lib/interfaces'
+import type { ISmsConversation, SmsType } from '@/lib/interfaces'
 import { useListError } from '@/hooks/list-error'
 import { AccessErrorCode } from '@/lib/api/access-error-code'
 import { useTempStore } from '@/stores/temp'
@@ -42,7 +42,7 @@ export const useSmsStore = defineStore('sms', () => {
   const conversations = ref<ISmsConversation[]>([])
   const conversationCount = ref(0)
   const { listError, setListError } = useListError(conversations, conversationCount)
-  const typesCount = ref<Map<string, number>>(new Map())
+  const typesCount = ref<Map<SmsType, number>>(new Map())
   const q = ref('')
   const noMore = ref(false)
   let generation = 0
@@ -159,7 +159,7 @@ export const useSmsStore = defineStore('sms', () => {
       if (data?.smsBoxCounts) {
         const counts = data.smsBoxCounts
         useTempStore().counter.messages = counts.total
-        typesCount.value = new Map([['1', counts.inbox], ['2', counts.sent], ['3', counts.drafts]])
+        typesCount.value = new Map([['INBOX', counts.inbox], ['SENT', counts.sent], ['DRAFT', counts.drafts]])
         setCached<SmsCountsCache>('sms:counts', counts)
       }
     },
@@ -234,7 +234,7 @@ export const useSmsStore = defineStore('sms', () => {
       const cached = getCached<SmsCountsCache>('sms:counts')
       if (cached) {
         useTempStore().counter.messages = cached.total
-        typesCount.value = new Map([['1', cached.inbox], ['2', cached.sent], ['3', cached.drafts]])
+        typesCount.value = new Map([['INBOX', cached.inbox], ['SENT', cached.sent], ['DRAFT', cached.drafts]])
       }
     }
     return countsQuery.fetch({}, { force, latest: true })

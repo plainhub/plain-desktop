@@ -15,19 +15,19 @@
           </template>
         </SidebarListItem>
         <SidebarListItem
-          v-for="t in typeTabs"
-          :key="t.value"
-          :title="$t(`message_type.${t.key}`)"
-          :active="t.value === type"
-          @click="openByType(t.value)"
+          v-for="t in smsFilterTypes"
+          :key="t"
+          :title="$t(`message_type.${t}`)"
+          :active="t === type"
+          @click="openByType(t)"
         >
           <template #start>
-            <i-material-symbols:inbox-outline-rounded v-if="t.value === '1'" />
-            <i-material-symbols:send-outline-rounded v-else-if="t.value === '2'" />
+            <i-material-symbols:inbox-outline-rounded v-if="t === 'INBOX'" />
+            <i-material-symbols:send-outline-rounded v-else-if="t === 'SENT'" />
             <i-material-symbols:draft-outline-rounded v-else />
           </template>
-          <template v-if="getTypeCount(t.value) >= 0" #end>
-            <span class="count">{{ getTypeCount(t.value).toLocaleString() }}</span>
+          <template v-if="getTypeCount(t) >= 0" #end>
+            <span class="count">{{ getTypeCount(t).toLocaleString() }}</span>
           </template>
         </SidebarListItem>
         <SidebarListItem
@@ -50,7 +50,7 @@ import router, { replacePath } from '@/plugins/router'
 import { useMainStore } from '@/stores/main'
 import { reactive, ref, watch } from 'vue'
 import { useSearch } from '@/hooks/search'
-import type { IFilter } from '@/lib/interfaces'
+import { smsFilterTypes, type SmsType, type IFilter } from '@/lib/interfaces'
 import { decodeBase64, encodeBase64 } from '@/lib/strutil'
 import { buildQuery } from '@/lib/search'
 import { useTempStore } from '@/stores/temp'
@@ -70,15 +70,7 @@ const type = ref('')
 const isArchived = ref(false)
 const selectedTagId = ref('')
 
-// The query token keeps Android's numeric SMS type codes; `key` is the locale
-// enum name used for display.
-const typeTabs = [
-  { value: '1', key: 'INBOX' },
-  { value: '2', key: 'SENT' },
-  { value: '3', key: 'DRAFT' },
-]
-
-function getTypeCount(id: string) {
+function getTypeCount(id: SmsType) {
   return typesCount.value.get(id) ?? -1
 }
 
@@ -104,7 +96,7 @@ watch(
   }
 )
 
-function openByType(type: string) {
+function openByType(type: SmsType) {
   const q = buildQuery([
     {
       name: 'type',

@@ -1,4 +1,4 @@
-import type { IBucket, IFeed, ITag } from '@/lib/interfaces'
+import { smsFilterTypes, callFilterTypes, type IBucket, type IFeed, type ITag } from '@/lib/interfaces'
 import { sortByName } from '@/lib/array'
 
 export function fileSizeOptions(t: (key: string) => string) {
@@ -71,24 +71,12 @@ export function valueOptionsForGroup(opts: {
   }
 
   if (opts.group === 'messages') {
-    // Values keep Android's numeric SMS type codes (server query tokens);
-    // labels use the SmsType enum locale keys.
-    base.type = [
-      { value: '1', label: opts.t('message_type.INBOX') },
-      { value: '2', label: opts.t('message_type.SENT') },
-      { value: '3', label: opts.t('message_type.DRAFT') },
-    ]
+    base.type = smsFilterTypes.map((value) => ({ value, label: opts.t(`message_type.${value}`) }))
     base.tag = (opts.messageTags ?? []).map((t) => t.name)
   }
 
   if (opts.group === 'calls') {
-    // Values keep Android's numeric call type codes (server query tokens);
-    // labels use the CallType enum locale keys.
-    base.type = [
-      { value: '1', label: opts.t('call_type.INCOMING') },
-      { value: '2', label: opts.t('call_type.OUTGOING') },
-      { value: '3', label: opts.t('call_type.MISSED') },
-    ]
+    base.type = callFilterTypes.map((value) => ({ value, label: opts.t(`call_type.${value}`) }))
     base.duration = [
       { value: '>=60', label: '>= 1m' },
       { value: '>=300', label: '>= 5m' },
