@@ -11,7 +11,15 @@
       v-for="item in sortedBuckets" :key="item.id" :title="item.name" :active="item.id === selected" :class="{ 'has-thumb': showThumb }"
       @click="view(mainStore, item.id)">
       <template v-if="showThumb" #start>
-        <BucketThumb :items="item.topItemPaths" />
+        <v-dropdown v-if="props.type === DataType.IMAGE" :model-value="rawBucketId === item.id" borderless @update:model-value="rawBucketId = $event ? item.id : null">
+          <template #trigger>
+            <button type="button" class="bucket-thumb-trigger" :aria-label="`${$t('session_management.view_raw')}: ${item.name}`" :aria-expanded="rawBucketId === item.id">
+              <BucketThumb :items="item.topItemPaths" />
+            </button>
+          </template>
+          <pre class="view-raw">{{ item }}</pre>
+        </v-dropdown>
+        <BucketThumb v-else :items="item.topItemPaths" />
       </template>
       <template #end>
         <span class="count">{{ item.itemCount.toLocaleString() }}</span>
@@ -58,6 +66,7 @@ const { t } = useI18n()
 
 const mainStore = useMainStore()
 const mediaBuckets = ref<IBucket[]>([])
+const rawBucketId = ref<string | null>(null)
 const menuVisible = ref(false)
 const selectedItem = ref<IBucket>()
 
@@ -137,6 +146,14 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.bucket-thumb-trigger {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
 .has-thumb :deep(.start) {
   width: 40px;
   height: 40px;

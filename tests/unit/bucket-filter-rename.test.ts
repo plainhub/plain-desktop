@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { h, ref } from 'vue'
-import { clientTemplate, renderView, nodes, click, flush, content } from '../helpers/vue-node-renderer'
+import { clientTemplate, renderView, nodes, click, fire, flush, content, type Node } from '../helpers/vue-node-renderer'
 
 const state = vi.hoisted(() => ({ modal: vi.fn(), fetch: vi.fn(), refetch: vi.fn(), view: vi.fn(), toast: vi.fn() }))
 vi.mock('@/plugins/router', () => ({ default: { currentRoute: ref({ path: '/images', query: {} }) } }))
@@ -26,22 +26,32 @@ vi.mock('@/components/modal', () => ({ openModal: state.modal }))
 vi.mock('@/components/EditValueModal.vue', () => ({ default: {} }))
 vi.mock('@/components/BucketThumb.vue', () => ({ default: { render: () => null } }))
 import BucketFilter from '@/components/BucketFilter.vue'
+import VDropdown from '@/components/base/VDropdown.vue'
+import VIconButton from '@/components/base/VIconButton.vue'
 import SidebarListItem from '@/components/SidebarListItem.vue'
+clientTemplate(VIconButton, 'src/components/base/VIconButton.vue')
+clientTemplate(VDropdown, 'src/components/base/VDropdown.vue')
 clientTemplate(BucketFilter, 'src/components/BucketFilter.vue')
 clientTemplate(SidebarListItem, 'src/components/SidebarListItem.vue')
 
 let unmount: (() => void) | undefined
 afterEach(() => { unmount?.(); vi.clearAllMocks(); vi.unstubAllGlobals() })
 
-async function openRename(type = 'IMAGE', selected = '431') {
-  vi.stubGlobal('document', { getElementById: vi.fn(), dispatchEvent: vi.fn() })
+function mountBuckets(type: string, selected: string) {
+  const events = { addEventListener: vi.fn(), removeEventListener: vi.fn() }
+  vi.stubGlobal('window', events)
+  vi.stubGlobal('document', { ...events, getElementById: vi.fn(), dispatchEvent: vi.fn() })
   vi.stubGlobal('CustomEvent', class { constructor(public type: string, public detail: unknown) {} })
   const view = renderView(BucketFilter, { type, selected }, {
-    SidebarListItem,
-    VIconButton: { setup(_: unknown, { slots, attrs }: any) { return () => h('button', attrs, slots.default?.()) } },
+    SidebarListItem, VDropdown, VIconButton, VCircularProgress: { render: () => null },
     VDropdownMenu: { props: ['modelValue', 'anchor'], setup(props: any, { slots }: any) { return () => props.modelValue ? h('menu', slots.default?.()) : null } },
-  })
+  }, element => Object.assign(element, { getBoundingClientRect: () => ({ width: 40, height: 40, bottom: 40, right: 40 }) }))
   unmount = view.unmount
+  return view
+}
+
+async function openRename(type = 'IMAGE', selected = '431') {
+  const view = mountBuckets(type, selected)
   expect(content(view.root)).toContain('Photos12')
   const button = nodes(view.root).find(node => node.props['aria-label'] === 'actions: Photos')
   expect(button, 'folder actions entry').toBeDefined()
@@ -107,4 +117,28 @@ it('does not report success or refresh after a rejected mutation', async () => {
   expect(done).not.toHaveBeenCalled()
   expect(state.refetch).not.toHaveBeenCalled()
   expect(state.view).not.toHaveBeenCalled()
+})
+
+
+it('opens raw image bucket data from the thumbnail and selects the album from its name', async () => {
+  const view = mountBuckets('IMAGE', '')
+  const elements = nodes(view.root)
+  function clickThrough(node: Node) {
+    const event = { stopPropagation: vi.fn(), preventDefault: vi.fn() }
+    for (let target: Node | undefined = node; target; target = target.parent) {
+      fire(target, 'onClick', event)
+      if (event.stopPropagation.mock.calls.length) break
+    }
+  }
+  const thumbnail = elements.find(node => node.props['aria-label'] === 'session_management.view_raw: Photos')!
+  expect(thumbnail.tag).toBe('button')
+  expect(String(thumbnail.props.class).split(' ')).not.toContain('btn-icon')
+  clickThrough(thumbnail)
+  await flush()
+  expect(JSON.parse(content(nodes(view.portal).find(node => node.tag === 'pre')!))).toEqual({
+    id: '431', name: 'Photos', itemCount: 12, topItemPaths: ['/fixture/Photos/image.jpg'],
+  })
+  expect(state.view).not.toHaveBeenCalled()
+  clickThrough(elements.find(node => node.props.class === 'title')!)
+  expect(state.view).toHaveBeenCalledWith(expect.anything(), '431')
 })
