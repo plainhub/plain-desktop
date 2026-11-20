@@ -231,7 +231,7 @@ function selectDevice(device: DiscoveredDevice) {
   else void startChat(device)
 }
 function canSwitchTo(peer: IPeer) {
-  return __IS_TAURI__ ? !!findLoginPeer(peer.id) : (origin || !currentClientId.value) && window.location.protocol === 'https:' && peer.managed === true
+  return __IS_TAURI__ ? !!findLoginPeer(peer.id) : (origin || !currentClientId.value) && peer.managed === true
 }
 function connectPeer(peer: IPeer, action: string) {
   if (action === 'switch') {

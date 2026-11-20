@@ -182,12 +182,12 @@ afterEach(async () => {
   bluetooth.supported = false
 })
 
-async function mount(current = '', fail = false, fixtures: { paired?: boolean; devices?: DiscoveredDevice[]; self?: SelfDevice; web?: boolean; online?: boolean; status?: DiscoveryStatus } = {}) {
+async function mount(current = '', fail = false, fixtures: { paired?: boolean; devices?: DiscoveredDevice[]; self?: SelfDevice; web?: boolean; online?: boolean; status?: DiscoveryStatus; protocol?: 'http:' | 'https:' } = {}) {
   io.current = current
   io.devices = fixtures.devices ?? []
   io.status = fixtures.status ?? DiscoveryStatus.SEARCHING
   io.self = fixtures.self ?? null
-  const location = { href: '/nearby?q=keep#hash', protocol: 'https:', reload: vi.fn() }
+  const location = { href: '/nearby?q=keep#hash', protocol: fixtures.protocol ?? 'https:', reload: vi.fn() }
   vi.stubGlobal('window', { location })
   vi.stubGlobal('__IS_TAURI__', !fixtures.web)
   let paired = fixtures.paired ?? true
@@ -497,8 +497,10 @@ it('shows a removal error and leaves the current session available for retry', a
 })
 
 
-it.each(['', 'remote'])('switches devices from the full Nearby Devices dialog without changing the Web URL (%s)', async (current) => {
-  const view = await mount(current, false, { web: true, self })
+it.each([
+  ['', 'https:'], ['remote', 'https:'], ['', 'http:'], ['remote', 'http:'],
+] as const)('switches devices without changing the Web URL (current: %s, scheme: %s)', async (current, protocol) => {
+  const view = await mount(current, false, { web: true, self, protocol })
   expect(view.text()).toContain('Nearby Devices')
   expect(io.start).toHaveBeenCalledOnce()
   await view.clickText('Switch')
