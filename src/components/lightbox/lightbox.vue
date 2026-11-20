@@ -147,9 +147,7 @@ import {
   getImageDisplayUrl,
 } from '@/hooks/lightbox'
 import LightboxMoveToFolders from './LightboxMoveToFolders.vue'
-import OrganizeConfirmModal from './OrganizeConfirmModal.vue'
 import { useOrganizeUndo } from '@/hooks/organize-undo'
-import { promptModal } from '@/components/modal'
 import { DataType } from '@/lib/data'
 
 const props = defineProps({
@@ -185,7 +183,7 @@ const showMoveToFolders = computed(
   () => !readOnly.value && current.value?.type === DataType.IMAGE && !isTrashedMediaPath(current.value?.path),
 )
 
-const { count: organizeCount, undoLast, undoAll, clear: clearOrganizeUndo } = useOrganizeUndo()
+const { count: organizeCount, undoLast, clear: clearOrganizeUndo } = useOrganizeUndo()
 
 function onUndoLast() {
   undoLast()
@@ -201,13 +199,7 @@ function onUndoKeydown(event: KeyboardEvent) {
 onMounted(() => window.addEventListener('keydown', onUndoKeydown))
 onUnmounted(() => window.removeEventListener('keydown', onUndoKeydown))
 
-async function onCloseDialog() {
-  if (organizeCount.value > 0) {
-    const undo = await promptModal<boolean>(OrganizeConfirmModal, { count: organizeCount.value })
-    if (undo) {
-      undoAll()
-    }
-  }
+function onCloseDialog() {
   clearOrganizeUndo()
   closeDialog()
 }
@@ -223,7 +215,7 @@ const imgSrc = computed(() => {
 })
 
 const { onLoad, onVideoLoaded, onError, onPlaying, onPause, onVolumeChange } =
-  useLightboxEvents(tempStore, current, video, status, imgState, imgIndex, setImgSize, refetchInfo, updateViewOriginImageState, closeDialog, onNext, onPrev, changeIndex, emit as (event: string, ...args: any[]) => void, toRef(props, 'popup'))
+  useLightboxEvents(tempStore, current, video, status, imgState, imgIndex, setImgSize, refetchInfo, updateViewOriginImageState, onCloseDialog, onNext, onPrev, changeIndex, emit as (event: string, ...args: any[]) => void, toRef(props, 'popup'))
 
 function onBackdropClick() {
   if (props.popup) return
@@ -234,7 +226,7 @@ async function onOpenInWindow() {
   if (props.popup || !__IS_TAURI__ || readOnly.value || !current.value) return
   const source = current.value
   const opening = openMediaInWindow(source)
-  closeDialog()
+  onCloseDialog()
   await opening
 }
 

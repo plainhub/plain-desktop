@@ -17,9 +17,8 @@ export interface OrganizeAction {
 
 /**
  * Session-scoped undo stack for organizing media in the lightbox.
- * Actions are recorded silently; the user can step back one at a time
- * (Ctrl/⌘+Z or the undo button) and gets a single summary confirmation
- * with "undo all" when finishing the session (closing the lightbox).
+ * Actions take effect immediately and can be undone one at a time
+ * (Ctrl/⌘+Z or the undo button) until the lightbox closes.
  */
 const stack = ref<OrganizeAction[]>([])
 
@@ -60,24 +59,9 @@ export function useOrganizeUndo() {
     return action
   }
 
-  /** Undo every recorded action of this session in reverse order. */
-  function undoAll() {
-    const restore = initMutation({ document: restoreMediaItemsGQL }, showActionError)
-    const move = initMutation({ document: moveMediaItemsGQL }, showActionError)
-    while (stack.value.length) {
-      const action = stack.value.pop()!
-      if (action.kind === 'trash') {
-        restore.mutate({ type: action.type, query: action.query })
-      } else if (action.origDir) {
-        move.mutate({ type: action.type, query: action.query, destDir: action.origDir })
-      }
-      emitter.emit('media_items_actioned', { type: action.type, action: 'undo', query: action.query })
-    }
-  }
-
   function clear() {
     stack.value = []
   }
 
-  return { count, record, removeRecorded, undoLast, undoAll, clear }
+  return { count, record, removeRecorded, undoLast, clear }
 }

@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { createRenderer, ref, ssrContextKey } from 'vue'
 
-const fixture = vi.hoisted(() => ({ source: undefined as any, owner: undefined as any, invoke: vi.fn(), close: vi.fn() }))
+const fixture = vi.hoisted(() => ({ source: undefined as any, owner: undefined as any, invoke: vi.fn(), close: vi.fn(), clearUndo: vi.fn(), undoLast: vi.fn(), prompt: vi.fn(), count: 0 }))
 vi.mock('@tauri-apps/api/core', () => ({ invoke: fixture.invoke }))
 vi.mock('@/lib/api/native-client', () => ({ nativeViewScope: async () => 'document' }))
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => false }))
@@ -13,15 +13,15 @@ vi.mock('@/lib/api/file', () => ({ getFileName: (path: string) => path }))
 vi.mock('@/hooks/lightbox', async () => {
   const { ref } = await import('vue')
   return {
-    useLightboxState: () => ({ current: ref(fixture.source), tempStore: { lightbox: { readOnly: false } }, imageViewQuality: ref('original') }),
+    useLightboxState: () => ({ current: ref(fixture.source), tempStore: { lightbox: { readOnly: false, visible: true } }, imageViewQuality: ref('original') }),
     useLightboxQueries: () => ({}), useLightboxTransform: () => ({}),
     useLightboxNavigation: () => ({ closeDialog: fixture.close }),
     useLightboxFileActions: () => ({}), useLightboxEvents: () => ({}), useLightboxMouseTouch: () => ({}),
     getImageDisplayUrl: vi.fn(),
   }
 })
-vi.mock('@/hooks/organize-undo', () => ({ useOrganizeUndo: () => ({ count: ref(0) }) }))
-vi.mock('@/components/modal', () => ({ promptModal: vi.fn() }))
+vi.mock('@/hooks/organize-undo', () => ({ useOrganizeUndo: () => ({ count: ref(fixture.count), clear: fixture.clearUndo, undoLast: fixture.undoLast }) }))
+vi.mock('@/components/modal', () => ({ promptModal: fixture.prompt }))
 vi.mock('@/components/lightbox/LightboxMoveToFolders.vue', () => ({ default: {} }))
 vi.mock('@/components/lightbox/OrganizeConfirmModal.vue', () => ({ default: {} }))
 import { createNativeResourceOwner } from '@/hooks/native-resource-url'
@@ -32,7 +32,7 @@ const renderer = createRenderer<object, object>({
   setText: vi.fn(), setElementText: vi.fn(), parentNode: () => null, nextSibling: () => null, patchProp: vi.fn(),
 })
 let unmount: (() => void) | undefined
-afterEach(() => { unmount?.(); vi.unstubAllGlobals() })
+afterEach(() => { unmount?.(); vi.unstubAllGlobals(); vi.clearAllMocks(); fixture.count = 0 })
 
 it('captures the native peer reference for a popup before releasing the lightbox owner', async () => {
   vi.stubGlobal('__IS_TAURI__', true)
@@ -52,4 +52,26 @@ it('captures the native peer reference for a popup before releasing the lightbox
   expect(activate).toBeGreaterThan(-1)
   expect(close).toBeGreaterThan(activate)
   expect(calls[activate][1].source).toMatchObject({ path: '/peer/image.png', src: '', __cid: '706c6169-89f1-81c6-8bc7-6b67c2ffa178' })
+})
+
+it('keeps single-step undo but closes an edited lightbox without prompting', () => {
+  fixture.count = 2
+  fixture.close.mockImplementation(() => {})
+  const handlers = new Map<string, (event: KeyboardEvent) => void>()
+  vi.stubGlobal('window', {
+    addEventListener: (name: string, handler: (event: KeyboardEvent) => void) => handlers.set(name, handler),
+    removeEventListener: vi.fn(),
+  })
+  const app = renderer.createApp(Lightbox)
+  app.provide('isPhone', false); app.provide('isTablet', false); app.provide(ssrContextKey, { modules: new Set() })
+  const component = app.mount({}) as any; unmount = () => app.unmount()
+  const event = { key: 'z', metaKey: true, preventDefault: vi.fn() } as unknown as KeyboardEvent
+
+  handlers.get('keydown')?.(event)
+  expect(fixture.undoLast).toHaveBeenCalledOnce()
+  component.$.setupState.onCloseDialog()
+  expect(fixture.prompt).not.toHaveBeenCalled()
+  expect(fixture.clearUndo).toHaveBeenCalledOnce()
+  expect(fixture.close).toHaveBeenCalledOnce()
+  expect(fixture.undoLast).toHaveBeenCalledOnce()
 })
