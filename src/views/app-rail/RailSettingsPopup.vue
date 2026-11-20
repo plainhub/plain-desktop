@@ -18,7 +18,6 @@
           <i-lucide:pencil />
         </button>
         <button
-          v-if="canSwitchDevice"
           v-tooltip="$t('device_discovery.change_device')"
           class="switch-device-btn"
           :aria-label="$t('device_discovery.change_device')"
@@ -134,7 +133,6 @@ const currentSession = computed(() => findLoginPeer(getRemoteClientId()))
 const router = useRouter()
 const open = ref(false)
 const isTauri = __IS_TAURI__
-const canSwitchDevice = isTauri || window.location.protocol === 'https:'
 const showAbout = isTauri && !isMacPlatform()
 
 const { locale, availableLocales, handleLocaleSwitch } = useLocaleSwitch()
