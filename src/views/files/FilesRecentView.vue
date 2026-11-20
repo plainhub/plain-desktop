@@ -32,7 +32,7 @@
       />
     </template>
   </VirtualList>
-  <NoDataPlaceholder v-if="!loading && items.length === 0" :loading="loading" :access="app.access" feature="FILES" />
+  <NoDataPlaceholder :placeholder-key="listError" v-if="!loading && items.length === 0" :loading="loading" :access="app.access" feature="FILES" />
 </template>
 
 <script setup lang="ts">
@@ -41,7 +41,7 @@ import VirtualList from '@/components/virtualscroll'
 import { useFilesRecent } from '@/hooks/files-recent'
 
 const {
-  app, items, loading, isPhone,
+  app, items, listError, loading, isPhone,
   selectedIds, allChecked, realAllChecked, checked, total,
   shiftEffectingIds, shouldSelect, imageErrorIds, extensionImageErrorIds,
   toggleAllChecked, toggleSelect, handleItemClick, handleMouseOver,

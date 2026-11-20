@@ -13,6 +13,7 @@
     <MessageChatList
       v-model:scroll-ref="chatScrollRef"
       :items="thread.sortedItems.value"
+      :list-error="thread.listError.value"
       :detail-loading="thread.detailLoading.value"
       :loading="thread.loading.value"
       :loading-more="thread.loadingMore.value"

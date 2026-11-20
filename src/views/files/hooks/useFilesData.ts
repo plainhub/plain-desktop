@@ -1,5 +1,5 @@
+import { useListError } from '@/hooks/list-error'
 import { computed, reactive, ref, onDeactivated, onUnmounted, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
 import { type IFile, enrichFile } from '@/lib/file'
@@ -8,14 +8,12 @@ import { filesGQL, indexedFilesGQL } from '@/lib/api/query'
 import { useRoute } from 'vue-router'
 import { decodeBase64 } from '@/lib/strutil'
 import type { IFileFilter } from '@/lib/interfaces'
-import toast from '@/components/toaster'
 import { GqlError } from '@/lib/api/gql-error'
 import { gqlFetch, getGraphqlContextKey } from '@/lib/api/gql-client'
 import { searchFiles } from '@/lib/api/file-search'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 
 export function useFilesData() {
-  const { t } = useI18n()
   const mainStore = useMainStore()
   const { fileSortBy } = storeToRefs(mainStore)
   const route = useRoute()
@@ -48,6 +46,7 @@ export function useFilesData() {
   applyRouteQuery()
 
   const totalRef = ref(0)
+  const { listError, setListError } = useListError(items, totalRef)
 
   const loading = ref(false)
   const searchStatus = ref<'idle' | 'running' | 'completed' | 'incomplete'>('idle')
@@ -68,6 +67,7 @@ export function useFilesData() {
   async function fetch(vars?: Record<string, any>, options?: { latest?: boolean; force?: boolean }) {
     cancel()
     const current = sequence
+    setListError('')
     searchStatus.value = 'idle'
     loading.value = true
     const limit = indexed.value || filter.text || q.value.includes('file_size:') ? 1000 : 10000
@@ -92,7 +92,7 @@ export function useFilesData() {
         loading.value = false
         searchStatus.value = 'incomplete'
         settled()
-        toast(t(error.message), 'error')
+        setListError(error.message)
       })
       return
     }
@@ -103,7 +103,7 @@ export function useFilesData() {
       items.value = result.data.files.map(enrichFile)
       totalRef.value = Number(result.data.count ?? items.value.length)
     } catch (error) {
-      if (current === sequence && !(error instanceof GqlError && error.canceled)) toast(t(error instanceof Error ? error.message : String(error)), 'error')
+      if (current === sequence && !(error instanceof GqlError && error.canceled)) setListError(error instanceof Error ? error.message : String(error))
     } finally {
       if (current === sequence) { loading.value = false; settled() }
     }
@@ -120,7 +120,7 @@ export function useFilesData() {
   onUnmounted(() => { cancel(); stopAttached() })
 
   return {
-    filter, q, items, loading, firstInit, refreshing, sorting,
+    filter, q, items, listError, loading, firstInit, refreshing, sorting,
     isActive, rootDir, indexed, fileSortBy, totalRef,
     parseQ, buildQ, applyRouteQuery, fetch, route, cancel, searchStatus,
   }

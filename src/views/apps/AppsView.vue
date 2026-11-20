@@ -51,7 +51,7 @@
         <AppSkeletonItem v-for="i in 20" :key="i" :index="i" :is-phone="isPhone" />
       </template>
     </div>
-    <NoDataPlaceholder v-if="!loading && items.length === 0" :loading="loading" :access="app.access" feature="APPS" />
+    <NoDataPlaceholder :placeholder-key="listError" v-if="!loading && items.length === 0" :loading="loading" :access="app.access" feature="APPS" />
     <v-pagination v-if="total > limit" :page="page" :go="gotoPage" :total="total" :limit="limit" :page-size="limit" :on-change-page-size="onChangePageSize" />
     <input ref="fileInput" style="display: none" type="file" accept=".apk,.apkm,.apks,.xapk" multiple @change="uploadChanged" />
   </div>
@@ -71,7 +71,7 @@ const isPhone = inject('isPhone') as boolean
 const sortItems = getSortItems()
 
 const {
-  items, page, limit, q, loading, fetch, sorting, isActive, app, appSortBy,
+  items, listError, page, limit, q, loading, fetch, sorting, isActive, app, appSortBy,
   selectedIds, allChecked, realAllChecked, selectRealAll, allCheckedAlertVisible,
   clearSelection, toggleAllChecked, toggleSelect, total, checked,
   shiftEffectingIds, handleItemClick, handleMouseOver, shouldSelect,

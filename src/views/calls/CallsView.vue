@@ -46,7 +46,7 @@
         <CallSkeletonItem v-for="i in 20" :key="i" :index="i" :is-phone="isPhone" />
       </template>
     </div>
-    <NoDataPlaceholder v-if="!loading && items.length === 0" :loading="loading" :access="app.access" feature="CALLS" />
+    <NoDataPlaceholder :placeholder-key="listError" v-if="!loading && items.length === 0" :loading="loading" :access="app.access" feature="CALLS" />
     <v-pagination v-if="total > limit" :page="page" :go="gotoPage" :total="total" :limit="limit" :page-size="limit" :on-change-page-size="onChangePageSize" />
   </div>
 </template>
@@ -61,7 +61,7 @@ import { useCallsActions } from './hooks/useCallsActions'
 const isPhone = inject('isPhone') as boolean
 
 const {
-  items, page, limit, q, loading, tags, dataType, app,
+  items, listError, page, limit, q, loading, tags, dataType, app,
   deleteItems, confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems,
   selectedIds, allChecked, realAllChecked, selectRealAll, allCheckedAlertVisible,
   clearSelection, toggleAllChecked, toggleSelect, total, checked,

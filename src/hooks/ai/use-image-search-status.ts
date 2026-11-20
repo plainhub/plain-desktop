@@ -1,3 +1,4 @@
+import { AccessErrorCode } from '@/lib/api/access-error-code'
 import { ref, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
@@ -11,7 +12,8 @@ export function useImageSearchStatus() {
 
   initQuery({
     handle: (data: { imageSearchStatus: IImageSearchStatus }, error: string) => {
-      if (error) toast(t(error), 'error')
+      if (error === AccessErrorCode.NoPermission) status.value = null
+      else if (error) toast(t(error), 'error')
       else if (data) status.value = { ...data.imageSearchStatus }
     },
     document: imageSearchStatusGQL,

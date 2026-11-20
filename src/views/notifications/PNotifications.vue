@@ -52,7 +52,7 @@
           @delete="deleteItem(item)"
         />
       </section>
-      <NoDataPlaceholder v-else :loading="loading" :access="app.access" feature="NOTIFICATIONS" />
+      <NoDataPlaceholder :placeholder-key="listError" v-else :loading="loading" :access="app.access" feature="NOTIFICATIONS" />
     </div>
   </div>
 </template>
@@ -67,7 +67,7 @@ import { useNotifications } from './notifications'
 const warningMenuVisible = ref(false)
 
 const {
-  store, app, notificationVolume, notifications, loading,
+  store, app, notificationVolume, notifications, listError, loading,
   hasNotificationWarning, notificationWarningMessage, notificationWarningAction,
   replyingId, replySending,
   startReply, cancelReply, sendReply, deleteItem, clearAll,

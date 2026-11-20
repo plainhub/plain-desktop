@@ -53,7 +53,7 @@
         </div>
       </template>
     </VirtualList>
-    <NoDataPlaceholder v-if="!loading && items.length === 0" :loading="loading" :access="app.access" feature="FILES" />
+    <NoDataPlaceholder :placeholder-key="listError" v-if="!loading && items.length === 0" :loading="loading" :access="app.access" feature="FILES" />
     <input ref="fileInput" style="display: none" type="file" multiple @change="uploadChanged" />
     <input ref="dirFileInput" style="display: none" type="file" multiple webkitdirectory mozdirectory directory @change="dirUploadChanged" />
   </div>
@@ -100,7 +100,7 @@ const sortItems = getSortItems()
 const sources = ref([])
 
 // --- Data & fetch ---
-const { filter, q, items, loading, firstInit, refreshing, sorting, isActive, rootDir, indexed, fileSortBy, totalRef, buildQ, applyRouteQuery, fetch, route, cancel, searchStatus } = useFilesData()
+const { filter, q, items, listError, loading, firstInit, refreshing, sorting, isActive, rootDir, indexed, fileSortBy, totalRef, buildQ, applyRouteQuery, fetch, route, cancel, searchStatus } = useFilesData()
 
 const { expanded: systemExpanded, visibleItems, systemItems } = useSystemFiles(
   items, () => filter.parent,

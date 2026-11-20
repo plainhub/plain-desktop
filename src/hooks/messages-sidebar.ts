@@ -29,7 +29,7 @@ export function useMessagesSidebar() {
   const { app, urlTokenKey } = storeToRefs(useTempStore())
   const route = useRoute()
   const smsStore = useSmsStore()
-  const { conversations, noMore } = storeToRefs(smsStore)
+  const { conversations, noMore, listError } = storeToRefs(smsStore)
 
   const isArchived = computed(() => route.path.startsWith('/messages/archived'))
   const loading = computed(() => isArchived.value ? smsStore.archivedLoading : smsStore.normalLoading)
@@ -136,7 +136,7 @@ export function useMessagesSidebar() {
 
   return {
     mainStore, app, route, isArchived,
-    sortMenuVisible, noMore, conversations, sortedConversations, loading,
+    sortMenuVisible, noMore, conversations, sortedConversations, loading, listError,
     getConversationDisplayName,
     loadMore, openConversation, openSendSms, openExport,
     archiveConversations, unarchiveConversations,

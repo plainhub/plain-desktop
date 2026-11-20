@@ -1,7 +1,7 @@
+import { useListError } from '@/hooks/list-error'
 import { showActionError } from '@/hooks/show-action-error'
 import { ClipboardErrorCode } from '@/lib/api/clipboard-error-code'
 import { computed, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import emitter from '@/plugins/eventbus'
 import { useMainStore } from '@/stores/main'
@@ -9,27 +9,29 @@ import { useTempStore } from '@/stores/temp'
 import { initLazyQuery, clipboardItemsGQL } from '@/lib/api/query'
 import { initMutation, deleteClipboardItemsGQL, setClipboardGQL } from '@/lib/api/mutation'
 import type { IClipboardItem } from '@/lib/interfaces'
-import toast from '@/components/toaster'
 
 export function useClipboardData() {
   const mainStore = useMainStore()
   const { app } = storeToRefs(useTempStore())
-  const { t } = useI18n()
 
   const page = ref(1)
   const limit = computed(() => mainStore.pageSize)
   const items = ref<IClipboardItem[]>([])
   const total = ref(0)
+  const { listError, setListError } = useListError(items, total)
   /** Phone-side master switch — the CLIPBOARD API permission served by the resident app query. */
   const clipboardSync = computed(() => app.value?.access?.includes('CLIPBOARD') ?? false)
 
   const { loading, fetch } = initLazyQuery({
     handle: (data: { clipboardItems: IClipboardItem[]; clipboardItemCount: number }, error: string) => {
       if (error === ClipboardErrorCode.ClipboardSyncDisabled) {
-        // Switch turned off after load; the app query state reflects it, stay quiet.
-      } else if (error) {
-        toast(t(error), 'error')
-      } else if (data) {
+        items.value = []
+        total.value = 0
+        setListError('clipboard_disabled_on_device')
+        return
+      }
+      setListError(error)
+      if (!error && data) {
         items.value = data.clipboardItems
         total.value = data.clipboardItemCount
       }
@@ -95,7 +97,7 @@ export function useClipboardData() {
   watch(clipText, () => { clipTextError.value = false })
 
   return {
-    app, items, total, page, limit, loading, clipboardSync,
+    app, items, listError, total, page, limit, loading, clipboardSync,
     load, open, gotoPage, onChangePageSize, deleteItem,
     clipText, clipTextError, setClipLoading, pasteClipboardText, sendToPhone,
   }

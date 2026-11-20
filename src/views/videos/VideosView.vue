@@ -111,7 +111,7 @@ v-for="(item, i) in items" :key="item.id" :item="item" :index="i" :is-phone="isP
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useMediaListError } from '@/hooks/media-list-error'
+import { useListError } from '@/hooks/list-error'
 import { formatDurationMs, formatSeconds, formatFileSize } from '@/lib/format'
 import { videosGQL, initLazyQuery } from '@/lib/api/query'
 import { getFileId, getFileUrl, getFileExtension, getFileName } from '@/lib/api/file'
@@ -181,7 +181,7 @@ const onImageError = (id: string) => { imageErrorIds.value.push(id) }
 
 const effectiveQ = computed(() => q.value)
 
-const { listError, setListError } = useMediaListError(items, total)
+const { listError, setListError } = useListError(items, total)
 
 const queryVariables = (refresh = false) => ({
   ...mediaListPage(page.value, limit.value, refresh && scrollMode.value),

@@ -1,3 +1,5 @@
+import { AccessErrorCode } from '@/lib/api/access-error-code'
+import { useListError } from '@/hooks/list-error'
 import type { SmsSendResult } from '@/lib/api/subscription-results'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { computed, nextTick, ref, type Ref } from 'vue'
@@ -41,6 +43,7 @@ export function useMessageThread(
   const { tags, fetch: fetchTags } = useTags(DataType.SMS)
 
   const items = ref<ISms[]>([])
+  const { listError, setListError } = useListError(items)
   const detailLoading = ref(false)
   const noMoreOlder = ref(false)
   const loadingMore = ref(false)
@@ -62,6 +65,7 @@ export function useMessageThread(
   const contactAddress = computed(() => participantAddresses.value.join(', '))
 
   const sortedItems = computed(() => {
+    if (listError.value === AccessErrorCode.NoPermission) return []
     const base = sortByDate(items.value)
     const baseIds = new Set(base.map((item) => item.id))
     const pending = visiblePendingSms(pendingSmsItems.value, threadId.value)
@@ -82,10 +86,10 @@ export function useMessageThread(
     handle: (data: { sms: ISms[]; smsCount: number }, error: string, context?: QueryResponseContext) => {
       const meta = context?.meta as ThreadRequestMeta | undefined
       if (!meta || meta.threadId !== threadId.value) return
+      setListError(error)
       if (error) {
         detailLoading.value = false
         loadingMore.value = false
-        toast(t(error), 'error')
         return
       }
       if (!data) return
@@ -300,7 +304,7 @@ export function useMessageThread(
   }
 
   return {
-    items,
+    listError, items,
     sortedItems,
     pendingSmsItems,
     pendingMmsItems,

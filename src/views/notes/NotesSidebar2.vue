@@ -60,7 +60,7 @@
         <v-pagination v-if="total > limit" :page="page" :go="gotoPage" :total="total" :limit="limit" :page-size="limit" :on-change-page-size="onChangePageSize" />
       </template>
     </VirtualList>
-    <NoDataPlaceholder v-if="!loading && items.length === 0" :loading="loading" />
+    <NoDataPlaceholder :placeholder-key="listError" v-if="!loading && items.length === 0" :loading="loading" />
   </Sidebar2>
 </template>
 
@@ -75,7 +75,7 @@ import { useNotesActions } from './hooks/useNotesActions'
 const isPhone = inject('isPhone') as boolean
 
 const {
-  items, filter, page, limit, q, loading, fetch, tags, dataType, route,
+  items, listError, filter, page, limit, q, loading, fetch, tags, dataType, route,
   selectedIds, allChecked, realAllChecked, selectRealAll, allCheckedAlertVisible,
   clearSelection, toggleAllChecked, toggleSelect, total, checked,
   shiftEffectingIds, handleItemClick, handleMouseOver, shouldSelect,

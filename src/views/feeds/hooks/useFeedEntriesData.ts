@@ -1,3 +1,4 @@
+import { AccessErrorCode } from '@/lib/api/access-error-code'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { computed, onActivated, onDeactivated, reactive, ref, watch } from 'vue'
 import toast from '@/components/toaster'
@@ -39,7 +40,7 @@ export function useFeedEntriesData(onDelete: () => void) {
   const isActive = ref(false)
 
   const selectable = useSelectable(items)
-  const { page: listPage, loading: listLoading, loadMore, fetch: fetchList, noMore } = useList(items, q, selectable.total)
+  const { page: listPage, listError, loading: listLoading, loadMore, fetch: fetchList, noMore } = useList(items, q, selectable.total)
 
   const gotoPage = (value: number) => {
     page.value = value
@@ -58,7 +59,10 @@ export function useFeedEntriesData(onDelete: () => void) {
 
   const { fetch: fetchFeedsTags } = initLazyQuery({
     handle: async (data: { tags: ITag[]; feeds: IFeed[] }, error: string) => {
-      if (error) {
+      if (error === AccessErrorCode.NoPermission) {
+        tags.value = []
+        feeds.value = []
+      } else if (error) {
         toast(t(error), 'error')
       } else if (data) {
         tags.value = data.tags
@@ -126,7 +130,7 @@ export function useFeedEntriesData(onDelete: () => void) {
 
   return {
     items, filter, page, limit, q, tags, feeds, feedsMap, feedsSyncing,
-    listLoading, loadMore, noMore, fetch, dataType, route,
+    listError, listLoading, loadMore, noMore, fetch, dataType, route,
     ...selectable,
   }
 }

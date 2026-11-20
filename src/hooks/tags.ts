@@ -1,3 +1,4 @@
+import { AccessErrorCode } from '@/lib/api/access-error-code'
 import type { ITag } from '@/lib/interfaces'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -10,7 +11,9 @@ export const useTags = (type: string, onLoad: () => void = () => {}) => {
 
   const { loading, fetch } = initLazyQuery({
     handle: async (data: any, error: string) => {
-      if (error) {
+      if (error === AccessErrorCode.NoPermission) {
+        tags.value = []
+      } else if (error) {
         toast(t(error), 'error')
       } else {
         if (data) {

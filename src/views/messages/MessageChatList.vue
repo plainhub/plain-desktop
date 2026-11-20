@@ -14,7 +14,7 @@
         <MessageChatBubble :item="item" :tags="tags" :type="type" :url-token-key="urlTokenKey" @trash="(item: ISms) => $emit('trash', item)" />
       </div>
     </template>
-    <NoDataPlaceholder v-if="!detailLoading && items.length === 0" :loading="loading" :access="access" feature="SMS" />
+    <NoDataPlaceholder :placeholder-key="listError" v-if="!detailLoading && items.length === 0" :loading="loading" :access="access" feature="SMS" />
   </div>
 </template>
 
@@ -26,6 +26,7 @@ import NoDataPlaceholder from '@/components/NoDataPlaceholder.vue'
 import MessageChatBubble from './MessageChatBubble.vue'
 
 const props = defineProps<{
+  listError: string
   items: ISms[]
   detailLoading: boolean
   loading: boolean

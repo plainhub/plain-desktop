@@ -12,7 +12,8 @@ import {
 } from '@/lib/api/query'
 import { initMutation, archiveSmsConversationGQL, unarchiveSmsConversationGQL } from '@/lib/api/mutation'
 import type { ISmsConversation } from '@/lib/interfaces'
-import emitter from '@/plugins/eventbus'
+import { useListError } from '@/hooks/list-error'
+import { AccessErrorCode } from '@/lib/api/access-error-code'
 import { useTempStore } from '@/stores/temp'
 import { deleteCachedByPrefix, getCached, setCached } from '@/lib/api/cache'
 import { mergeConversationPage } from '@/lib/sms-conversation-sync'
@@ -40,6 +41,7 @@ function isParticipantSchemaError(error: string): boolean {
 export const useSmsStore = defineStore('sms', () => {
   const conversations = ref<ISmsConversation[]>([])
   const conversationCount = ref(0)
+  const { listError, setListError } = useListError(conversations, conversationCount)
   const typesCount = ref<Map<string, number>>(new Map())
   const q = ref('')
   const noMore = ref(false)
@@ -59,6 +61,14 @@ export const useSmsStore = defineStore('sms', () => {
     }
   }
 
+  function failConversations(error: string) {
+    setListError(error)
+    if (error === AccessErrorCode.NoPermission) {
+      typesCount.value.clear()
+      deleteCachedByPrefix('sms:')
+    }
+  }
+
   function handleNormal(
     data: { smsConversations: ISmsConversation[]; smsConversationCount: number },
     error: string,
@@ -71,11 +81,12 @@ export const useSmsStore = defineStore('sms', () => {
         participantFieldsSupported.value = false
         void fetchNormalLegacy(context?.variables, meta)
       } else {
-        emitter.emit('toast', error)
+        failConversations(error)
       }
       return
     }
     if (!data) return
+    setListError('')
     if (meta.enhanced) participantFieldsSupported.value = true
 
     const incoming = data.smsConversations.map((item) => ({ ...item }))
@@ -125,11 +136,12 @@ export const useSmsStore = defineStore('sms', () => {
           meta: { ...meta, enhanced: false },
         })
       } else {
-        emitter.emit('toast', error)
+        failConversations(error)
       }
       return
     }
     if (!data) return
+    setListError('')
     if (meta.enhanced) participantFieldsSupported.value = true
     const items = filterTombstones(data.archivedSmsConversations.map((item) => ({ ...item })), 'archived')
     conversations.value = items
@@ -336,7 +348,7 @@ export const useSmsStore = defineStore('sms', () => {
 
   return {
     conversations,
-    conversationCount,
+    conversationCount, listError,
     typesCount,
     noMore,
     loading,

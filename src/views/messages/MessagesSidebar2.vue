@@ -87,7 +87,7 @@
     </VirtualList>
 
     <template v-if="!loading && conversations.length === 0">
-      <NoDataPlaceholder :loading="loading" :access="app.access" feature="SMS" />
+      <NoDataPlaceholder :placeholder-key="listError" :loading="loading" :access="app.access" feature="SMS" />
     </template>
   </Sidebar2>
 </template>
@@ -101,7 +101,7 @@ import ConversationSkeletonList from './ConversationSkeletonList.vue'
 
 const {
   mainStore, app, route, isArchived,
-  sortMenuVisible, noMore, conversations, sortedConversations, loading,
+  sortMenuVisible, noMore, conversations, sortedConversations, loading, listError,
   getConversationDisplayName,
   loadMore, openConversation, openSendSms, openExport,
   archiveConversations, unarchiveConversations,

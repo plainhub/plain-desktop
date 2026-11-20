@@ -61,7 +61,7 @@ v-for="(item, i) in items" :key="item.id" :item="item" :index="i" :is-phone="isP
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useMediaListError } from '@/hooks/media-list-error'
+import { useListError } from '@/hooks/list-error'
 import { audiosGQL, initLazyQuery } from '@/lib/api/query'
 import type { IAudio, IAudioWithFileId } from '@/lib/interfaces'
 import { DataType, Capability } from '@/lib/data'
@@ -158,7 +158,7 @@ function handleAddToPlaylist(e: MouseEvent, item: IAudioWithFileId) {
   setTimeout(() => { addToPlaylist(e, item); setTimeout(() => { animatingIds.value = animatingIds.value.filter((id) => id !== item.id) }, 200) }, 150)
 }
 
-const { listError, setListError } = useMediaListError(items, total)
+const { listError, setListError } = useListError(items, total)
 
 const queryVariables = (refresh = false) => ({
   ...mediaListPage(page.value, limit.value, refresh && scrollMode.value),

@@ -57,7 +57,7 @@
         <v-circular-progress v-if="!noMore" indeterminate class="sm" />
       </template>
     </VirtualList>
-    <NoDataPlaceholder v-if="!listLoading && items.length === 0" :loading="listLoading" />
+    <NoDataPlaceholder :placeholder-key="listError" v-if="!listLoading && items.length === 0" :loading="listLoading" />
   </Sidebar2>
 </template>
 
@@ -77,7 +77,7 @@ const tempStore = useTempStore()
 
 const {
   items, filter, q, tags, feedsMap, feedsSyncing,
-  listLoading, loadMore, noMore, fetch, dataType, route, limit,
+  listError, listLoading, loadMore, noMore, fetch, dataType, route, limit,
   selectedIds, allChecked, realAllChecked, selectRealAll, allCheckedAlertVisible,
   clearSelection, toggleAllChecked, toggleSelect, total, checked,
   shiftEffectingIds, handleItemClick, handleMouseOver, shouldSelect,

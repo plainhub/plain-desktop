@@ -1,3 +1,4 @@
+import { AccessErrorCode } from '@/lib/api/access-error-code'
 import { showActionError } from '@/hooks/show-action-error'
 import { HttpErrorCode } from '@/lib/api/http-error-code'
 import { GqlError } from '@/lib/api/gql-error'
@@ -77,7 +78,8 @@ export function useFeedsSidebar() {
 
   const { refetch } = initQuery({
     handle: (data: { feeds: IFeed[] }, error: string) => {
-      if (error) toast(t(error), 'error')
+      if (error === AccessErrorCode.NoPermission) feeds.value = []
+      else if (error) toast(t(error), 'error')
       else if (data) feeds.value = data.feeds
     },
     document: feedsGQL,

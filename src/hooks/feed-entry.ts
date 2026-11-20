@@ -1,3 +1,4 @@
+import { AccessErrorCode } from '@/lib/api/access-error-code'
 import { showActionError } from '@/hooks/show-action-error'
 import { useRoute } from 'vue-router'
 import { onActivated, onDeactivated, inject, ref } from 'vue'
@@ -52,7 +53,8 @@ export function useFeedEntry() {
 
   const { refetch: refetchTags } = initQuery({
     handle: (data: { tags: ITag[] }, error: string) => {
-      if (error) toast(t(error), 'error')
+      if (error === AccessErrorCode.NoPermission) tags.value = []
+      else if (error) toast(t(error), 'error')
       else if (data) tags.value = data.tags
     },
     document: tagsGQL,

@@ -1,3 +1,4 @@
+import { useListError } from '@/hooks/list-error'
 import { showActionError } from '@/hooks/show-action-error'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import toast from '@/components/toaster'
@@ -33,6 +34,7 @@ export function useFilesRecent() {
 
   const { selectedIds, allChecked, realAllChecked, clearSelection, retainSelection, toggleAllChecked, toggleSelect, total, checked, shiftEffectingIds, handleItemClick, handleMouseOver, selectAll, shouldSelect } =
     useSelectable(items)
+  const { listError, setListError } = useListError(items, total)
   const { downloadFile, downloadFiles, downloadDir } = useDownload(urlTokenKey)
   const { open: openMedia } = useOpenMedia()
   const { view } = useView(sources, (s: ISource[], index: number) => {
@@ -64,8 +66,8 @@ export function useFilesRecent() {
 
   const { loading, fetch } = initLazyQuery({
     handle: async (data: any, error: string) => {
-      if (error) toast(t(error), 'error')
-      else {
+      setListError(error)
+      if (!error) {
         const files = data.recentFiles.map((item: any) => enrichFile(item))
         items.value = files
         total.value = files.length
@@ -138,7 +140,7 @@ export function useFilesRecent() {
   })
 
   return {
-    app, items, loading, isPhone,
+    app, items, listError, loading, isPhone,
     selectedIds, allChecked, realAllChecked, checked, total,
     shiftEffectingIds, shouldSelect, imageErrorIds, extensionImageErrorIds,
     toggleAllChecked, toggleSelect, handleItemClick, handleMouseOver,

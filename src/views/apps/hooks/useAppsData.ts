@@ -1,12 +1,11 @@
+import { useListError } from '@/hooks/list-error'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { computed, onActivated, onDeactivated, ref, watch } from 'vue'
-import toast from '@/components/toaster'
 import { packagesGQL, initLazyQuery, packageStatusesGQL } from '@/lib/api/query'
 import { useRoute } from 'vue-router'
 import { replacePath } from '@/plugins/router'
 import { useMainStore } from '@/stores/main'
 import { useTempStore, type IUploadItem } from '@/stores/temp'
-import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import type { IPackageItem, IPackage, IPackageStatus } from '@/lib/interfaces'
 import { decodeBase64 } from '@/lib/strutil'
@@ -17,7 +16,6 @@ import { getFileUrlByPath } from '@/lib/api/file'
 export function useAppsData() {
   const mainStore = useMainStore()
   const { app, urlTokenKey } = storeToRefs(useTempStore())
-  const { t } = useI18n()
   const { appSortBy } = storeToRefs(mainStore)
   const route = useRoute()
   const page = ref(parseInt(route.query.page?.toString() ?? '1'))
@@ -28,6 +26,7 @@ export function useAppsData() {
   const sorting = ref(false)
 
   const selectable = useSelectable(items)
+  const { listError, setListError } = useListError(items, selectable.total)
 
   const gotoPage = (p: number) => {
     const qVal = route.query.q
@@ -47,9 +46,8 @@ export function useAppsData() {
   const { loading, fetch } = initLazyQuery({
     handle: (data: { packages: IPackage[]; packageCount: number }, error: string) => {
       sorting.value = false
-      if (error) {
-        toast(t(error), 'error')
-      } else if (data) {
+      setListError(error)
+      if (!error && data) {
         items.value = data.packages.map((it: IPackage) => ({
           ...it,
           isUninstalling: false,
@@ -91,7 +89,7 @@ export function useAppsData() {
   onDeactivated(() => stopPermissionsUpdated?.())
 
   return {
-    items, page, limit, q, loading, fetch, sorting, isActive,
+    items, listError, page, limit, q, loading, fetch, sorting, isActive,
     app, urlTokenKey, appSortBy, route,
     gotoPage, onChangePageSize, sort, applyRouteQuery,
     pageKeyDown, pageKeyUp,

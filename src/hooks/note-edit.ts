@@ -1,3 +1,4 @@
+import { AccessErrorCode } from '@/lib/api/access-error-code'
 import { showActionError } from '@/hooks/show-action-error'
 import { useRoute } from 'vue-router'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
@@ -81,7 +82,8 @@ export function useNoteEdit() {
   const tags = ref<ITag[]>()
   const { refetch: refetchTags } = initQuery({
     handle: (data: { tags: ITag[] }, error: string) => {
-      if (error) toast(t(error), 'error')
+      if (error === AccessErrorCode.NoPermission) tags.value = []
+      else if (error) toast(t(error), 'error')
       else if (data) tags.value = data.tags
     },
     document: tagsGQL,

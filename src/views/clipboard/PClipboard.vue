@@ -39,7 +39,7 @@
         v-if="!items.length"
         :loading="loading"
         :access="clipboardSync ? ['CLIPBOARD'] : []"
-        :placeholder-key="clipboardSync ? '' : 'clipboard_disabled_on_device'"
+        :placeholder-key="clipboardSync ? listError : 'clipboard_disabled_on_device'"
         :show-settings-link="clipboardSync ? undefined : true"
         feature="CLIPBOARD"
       />
@@ -65,7 +65,7 @@ import { useClipboardData } from './clipboard'
 
 const store = useMainStore()
 
-const { items, total, page, limit, loading, clipboardSync, load, open, gotoPage, onChangePageSize, deleteItem, clipText, clipTextError, setClipLoading, pasteClipboardText, sendToPhone } = useClipboardData()
+const { items, listError, total, page, limit, loading, clipboardSync, load, open, gotoPage, onChangePageSize, deleteItem, clipText, clipTextError, setClipLoading, pasteClipboardText, sendToPhone } = useClipboardData()
 
 watch(() => store.quick === 'clipboard', (visible) => {
   if (visible) open()

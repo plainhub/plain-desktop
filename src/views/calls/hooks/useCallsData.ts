@@ -1,12 +1,11 @@
+import { useListError } from '@/hooks/list-error'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { computed, onActivated, onDeactivated, reactive, ref, watch } from 'vue'
-import toast from '@/components/toaster'
 import { callsGQL, initLazyQuery } from '@/lib/api/query'
 import { useRoute } from 'vue-router'
 import { replacePath } from '@/plugins/router'
 import { useMainStore } from '@/stores/main'
 import { useTempStore } from '@/stores/temp'
-import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import type { ICall, IFilter, IItemTagsUpdatedEvent, IItemsTagsUpdatedEvent } from '@/lib/interfaces'
 import { decodeBase64 } from '@/lib/strutil'
@@ -21,7 +20,6 @@ import { useKeyEvents } from '@/hooks/key-events'
 export function useCallsData() {
   const mainStore = useMainStore()
   const { app } = storeToRefs(useTempStore())
-  const { t } = useI18n()
   const { parseQ } = useSearch()
   const filter = reactive<IFilter>({ tagIds: [] })
   const dataType = DataType.CALL
@@ -34,6 +32,7 @@ export function useCallsData() {
   const { tags, fetch: fetchTags } = useTags(dataType)
 
   const selectable = useSelectable(items)
+  const { listError, setListError } = useListError(items, selectable.total)
 
   const { deleteItems, confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems } = useDelete(deleteCallsGQL, () => {
     selectable.clearSelection()
@@ -60,9 +59,8 @@ export function useCallsData() {
 
   const { loading, fetch } = initLazyQuery({
     handle: (data: { calls: ICall[]; callCount: number }, error: string) => {
-      if (error) {
-        toast(t(error), 'error')
-      } else if (data) {
+      setListError(error)
+      if (!error && data) {
         items.value = data.calls
         selectable.total.value = data.callCount
       }
@@ -119,7 +117,7 @@ export function useCallsData() {
   })
 
   return {
-    items, filter, page, limit, q, loading, fetch, tags, dataType, app,
+    items, listError, filter, page, limit, q, loading, fetch, tags, dataType, app,
     deleteItems, confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems,
     gotoPage, onChangePageSize,
     ...selectable,

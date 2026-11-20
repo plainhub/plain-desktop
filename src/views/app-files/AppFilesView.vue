@@ -16,7 +16,7 @@
       <FileSkeletonItem v-for="i in 10" :key="i" :index="i" :is-phone="isPhone" />
     </div>
   </div>
-  <NoDataPlaceholder v-if="items.length === 0 && !loading" :loading="loading" />
+  <NoDataPlaceholder :placeholder-key="listError" v-if="items.length === 0 && !loading" :loading="loading" />
   <div v-else class="scroller-wrapper app-files-list">
     <div class="scroller main-list" :class="{ 'select-mode': checked }">
       <AppFileItem
@@ -60,7 +60,7 @@ const isPhone = inject('isPhone') as boolean
 const { urlTokenKey } = storeToRefs(useTempStore())
 const { open: openMedia } = useOpenMedia()
 
-const { items, total, loading, firstInit, fetch, loadMore, refresh } = useAppFilesData()
+const { items, listError, total, loading, firstInit, fetch, loadMore, refresh } = useAppFilesData()
 
 const sel = useSelectable(items)
 const { selectedIds, allChecked, realAllChecked, checked, toggleAllChecked, toggleSelect, shiftEffectingIds, handleItemClick, handleMouseOver, shouldSelect, clearSelection } = sel

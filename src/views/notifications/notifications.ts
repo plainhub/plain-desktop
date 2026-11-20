@@ -1,3 +1,4 @@
+import { useListError } from '@/hooks/list-error'
 import { showActionError } from '@/hooks/show-action-error'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { onUnmounted, onMounted, ref } from 'vue'
@@ -19,11 +20,13 @@ export function useNotifications() {
   const { hasWarning: hasNotificationWarning, warningMessage: notificationWarningMessage, warningAction: notificationWarningAction } = useNotificationWarning()
 
   const notifications = ref<INotification[]>([])
+  const { listError, setListError } = useListError(notifications)
 
   const { loading, refetch } = initQuery({
     handle: (data: any, error: string) => {
       // A failed query can still hand back a truthy `data`; reading
       // data.notifications off it then throws inside the handler.
+      setListError(error)
       if (error || !data?.notifications) return
       notifications.value = data.notifications.map((it: any) => ({ ...it, icon: getFileUrlByPath(urlTokenKey.value, 'pkgicon://' + it.appId) }))
     },
@@ -85,7 +88,7 @@ export function useNotifications() {
   })
 
   return {
-    store, app, notificationVolume, notifications, loading,
+    store, app, notificationVolume, notifications, listError, loading,
     hasNotificationWarning, notificationWarningMessage, notificationWarningAction,
     replyingId, replySending,
     startReply, cancelReply, sendReply, deleteItem, clearAll,

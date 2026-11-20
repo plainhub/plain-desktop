@@ -105,7 +105,7 @@ v-for="(item, i) in items" :key="item.id" :item="item" :index="i" :is-phone="isP
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useMediaListError } from '@/hooks/media-list-error'
+import { useListError } from '@/hooks/list-error'
 import { imagesGQL, initLazyQuery } from '@/lib/api/query'
 import { getFileId, getFileUrl, getFileName } from '@/lib/api/file'
 import { formatFileSize } from '@/lib/format'
@@ -173,7 +173,7 @@ watch(() => mainStore.imagesScrollPaging, () => { page.value = 1; items.value = 
 
 const effectiveQ = computed(() => q.value)
 
-const { listError, setListError } = useMediaListError(items, total)
+const { listError, setListError } = useListError(items, total)
 
 const queryVariables = (refresh = false) => ({
   ...mediaListPage(page.value, limit.value, refresh && scrollMode.value),

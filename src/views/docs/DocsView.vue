@@ -75,7 +75,7 @@
 <script setup lang="ts">
 import { showActionError } from '@/hooks/show-action-error'
 import { computed, ref, watch } from 'vue'
-import { useMediaListError } from '@/hooks/media-list-error'
+import { useListError } from '@/hooks/list-error'
 import { docsGQL, initLazyQuery } from '@/lib/api/query'
 import { deleteMediaItemsGQL, initMutation } from '@/lib/api/mutation'
 import type { IDoc } from '@/lib/interfaces'
@@ -148,7 +148,7 @@ const {
   uploadDir, uploadDirEditable, editUploadDir,
 } = mp
 
-const { listError, setListError } = useMediaListError(items, total)
+const { listError, setListError } = useListError(items, total)
 
 const queryVariables = (refresh = false) => ({
   ...mediaListPage(page.value, limit.value, refresh && scrollMode.value),

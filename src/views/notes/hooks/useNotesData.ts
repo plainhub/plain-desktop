@@ -1,10 +1,9 @@
+import { useListError } from '@/hooks/list-error'
 import { computed, onActivated, onDeactivated, reactive, ref, watch } from 'vue'
-import toast from '@/components/toaster'
 import { notesGQL, initLazyQuery } from '@/lib/api/query'
 import { useRoute } from 'vue-router'
 import { replacePath } from '@/plugins/router'
 import { useMainStore } from '@/stores/main'
-import { useI18n } from 'vue-i18n'
 import type { INote, IItemTagsUpdatedEvent, IItemsTagsUpdatedEvent, INotesActionedEvent, IFilter } from '@/lib/interfaces'
 import { decodeBase64 } from '@/lib/strutil'
 import { useSelectable } from '@/hooks/list'
@@ -16,7 +15,6 @@ import { useKeyEvents } from '@/hooks/key-events'
 
 export function useNotesData(onDelete: () => void) {
   const mainStore = useMainStore()
-  const { t } = useI18n()
   const { parseQ } = useSearch()
   const filter = reactive<IFilter>({ tagIds: [], trash: false })
   const dataType = DataType.NOTE
@@ -29,6 +27,7 @@ export function useNotesData(onDelete: () => void) {
   const { tags, fetch: fetchTags } = useTags(dataType)
 
   const selectable = useSelectable(items)
+  const { listError, setListError } = useListError(items, selectable.total)
 
   const gotoPage = (p: number) => {
     const qVal = route.query.q
@@ -53,9 +52,8 @@ export function useNotesData(onDelete: () => void) {
 
   const { loading, fetch } = initLazyQuery({
     handle: (data: { notes: INote[]; noteCount: number }, error: string) => {
-      if (error) {
-        toast(t(error), 'error')
-      } else if (data) {
+      setListError(error)
+      if (!error && data) {
         items.value = data.notes
         selectable.total.value = data.noteCount
       }
@@ -124,7 +122,7 @@ export function useNotesData(onDelete: () => void) {
   })
 
   return {
-    items, filter, page, limit, q, loading, fetch, tags, dataType, route,
+    items, listError, filter, page, limit, q, loading, fetch, tags, dataType, route,
     gotoPage, onChangePageSize, ...selectable,
   }
 }

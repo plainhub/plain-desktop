@@ -1,7 +1,6 @@
+import { useListError } from '@/hooks/list-error'
 import { ref } from 'vue'
 import { appFilesGQL, initLazyQuery } from '@/lib/api/query'
-import toast from '@/components/toaster'
-import { useI18n } from 'vue-i18n'
 
 export interface IAppFile {
   id: string
@@ -27,10 +26,10 @@ export function getAppFileFid(item: IAppFile): string {
 const PAGE_SIZE = 50
 
 export function useAppFilesData() {
-  const { t } = useI18n()
 
   const items = ref<IAppFile[]>([])
   const total = ref(0)
+  const { listError, setListError } = useListError(items, total)
   const page = ref(1)
   const noMore = ref(false)
   const firstInit = ref(true)
@@ -38,9 +37,8 @@ export function useAppFilesData() {
   const { loading, fetch } = initLazyQuery({
     handle: (data: { appFiles: IAppFile[]; appFileCount: number }, error: string) => {
       firstInit.value = false
-      if (error) {
-        toast(t(error), 'error')
-      } else if (data) {
+      setListError(error)
+      if (!error && data) {
         const newItems = data.appFiles ?? []
         if (page.value > 1) {
           items.value = items.value.concat(newItems)
@@ -71,5 +69,5 @@ export function useAppFilesData() {
     fetch()
   }
 
-  return { items, total, loading, firstInit, noMore, fetch, loadMore, refresh }
+  return { items, listError, total, loading, firstInit, noMore, fetch, loadMore, refresh }
 }
