@@ -11,6 +11,7 @@ import type { FileIndexMode, FileIndexVolume } from '@/lib/api/file-index'
 import { click, clientTemplate, content, fire, flush, ModalShell, nodes, renderView, type Node } from '../helpers/vue-node-renderer'
 
 const mocks = vi.hoisted(() => ({ request: vi.fn(), pick: vi.fn(), close: vi.fn(), notify: vi.fn(), stop: vi.fn() }))
+vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('@/lib/api/gql-client', () => ({ bindGraphqlClient: () => mocks.request }))
 vi.mock('@/components/modal', () => ({ promptModal: mocks.pick, closeById: mocks.close, modalQueue: { value: [{ id: 7 }] } }))
 vi.mock('@/components/toaster', () => ({ default: mocks.notify }))

@@ -4,6 +4,8 @@ export default {
   logging_in: '登入中',
   connect: '連接',
   login: {
+    INVALID_LOGIN_REQUEST: "登入要求無效。",
+    TIMEOUT: "登入連線逾時，請再試一次。",
     PEER_IDENTITY_CHANGED: '要連線的裝置簽章已變更',
     identity_changed_hint: '與上次連線時儲存的簽章不同。確認後，請重新登入。',
     confirm_identity_change: '確認變更，重新登入',

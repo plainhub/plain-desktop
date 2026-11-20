@@ -64,7 +64,7 @@
         @duplicate-item="duplicateItem"
       />
     </div>
-    <NoDataPlaceholder v-if="!loading && items.length === 0" :loading="loading" :access="app.access" feature="DOCS" />
+    <NoDataPlaceholder v-if="!loading && items.length === 0" :loading="loading" :access="app.access" :placeholder-key="listError" feature="DOCS" />
     <v-pagination v-if="!scrollMode && total > limit" :page="page" :go="gotoPage" :total="total" :limit="limit" :page-size="limit" :on-change-page-size="onChangePageSize" />
     <div v-if="scrollMode" ref="sentinel" class="scroll-sentinel"></div>
     <input ref="fileInput" style="display: none" type="file" multiple accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx,.pdf,.txt,.md,.csv,.json,.xml,.js,.ts,.py,.java,.kt,.swift,.c,.cpp,.h,.cs,.go,.rs,.rb,.sh,.yaml,.yml,.toml,.ini,.cfg,.log" @change="uploadChanged" />
@@ -75,7 +75,7 @@
 <script setup lang="ts">
 import { showActionError } from '@/hooks/show-action-error'
 import { computed, ref, watch } from 'vue'
-import toast from '@/components/toaster'
+import { useMediaListError } from '@/hooks/media-list-error'
 import { docsGQL, initLazyQuery } from '@/lib/api/query'
 import { deleteMediaItemsGQL, initMutation } from '@/lib/api/mutation'
 import type { IDoc } from '@/lib/interfaces'
@@ -148,6 +148,8 @@ const {
   uploadDir, uploadDirEditable, editUploadDir,
 } = mp
 
+const { listError, setListError } = useMediaListError(items, total)
+
 const queryVariables = (refresh = false) => ({
   ...mediaListPage(page.value, limit.value, refresh && scrollMode.value),
   query: q.value,
@@ -157,9 +159,8 @@ const queryVariables = (refresh = false) => ({
 const { loading, fetch } = initLazyQuery({
   handle: (data: { items: IDoc[]; total: number }, error: string, context) => {
     mp.sorting.value = false
-    if (error) {
-      toast(error, 'error')
-    } else if (data) {
+    setListError(error)
+    if (!error && data) {
       const raw = data.items
       if (scrollMode.value && Number(context?.variables?.offset ?? 0) > 0) { items.value = items.value.concat(raw) } else { items.value = raw }
       total.value = data.total

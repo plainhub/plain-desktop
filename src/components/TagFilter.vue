@@ -39,6 +39,7 @@
 </template>
 
 <script setup lang="ts">
+import { AccessErrorCode } from '@/lib/api/access-error-code'
 import { showActionError } from '@/hooks/show-action-error'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { initQuery, tagsGQL } from '@/lib/api/query'
@@ -73,7 +74,9 @@ watch(tagMenuVisible, (v) => {
 
 const { refetch } = initQuery({
   handle: (data: any, error: string) => {
-    if (error) {
+    if (error === AccessErrorCode.NoPermission) {
+      tags.value = []
+    } else if (error) {
       toast(t(error), 'error')
     } else {
       if (data) {

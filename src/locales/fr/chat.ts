@@ -1,4 +1,8 @@
 export default {
+  pair_failed: "Échec de l’association.",
+  pair_expired: "La demande d’association a expiré. Associez à nouveau les appareils.",
+  pair_rejected: "La demande d’association a été refusée.",
+  pair_too_many_attempts: "Trop de tentatives d’association. Réessayez dans une minute.",
   pairing_identity_changed: "La clé publique de cet appareil a changé, peut-être après une réinstallation. Vérifiez son empreinte complète avant de lui faire confiance.",
   pairing_trust: "Faire confiance",
   pairing_compare_code: 'N’autorisez l’association que si les codes correspondent.',

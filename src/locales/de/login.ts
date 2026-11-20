@@ -4,6 +4,8 @@ export default {
   logging_in: 'Melde mich an',
   connect: 'Verbinden',
   login: {
+    INVALID_LOGIN_REQUEST: "Die Anmeldeanfrage ist ungültig.",
+    TIMEOUT: "Die Anmeldung hat zu lange gedauert. Bitte versuche es erneut.",
     PEER_IDENTITY_CHANGED: 'Die Signatur des Geräts, mit dem Sie sich verbinden, hat sich geändert',
     identity_changed_hint: 'Die Signatur unterscheidet sich von der zuletzt gespeicherten Signatur. Bestätigen Sie, um sich erneut anzumelden.',
     confirm_identity_change: 'Änderung bestätigen und neu anmelden',

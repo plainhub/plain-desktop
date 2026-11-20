@@ -1,4 +1,8 @@
 export default {
+  pair_failed: "페어링에 실패했습니다.",
+  pair_expired: "페어링 요청이 만료되었습니다. 다시 페어링하세요.",
+  pair_rejected: "페어링 요청이 거부되었습니다.",
+  pair_too_many_attempts: "페어링 시도 횟수가 너무 많습니다. 1분 후에 다시 시도하세요.",
   pairing_identity_changed: "기기의 공개 키가 변경되었습니다. 앱을 재설치했을 수 있습니다. 전체 지문을 확인한 후 신뢰하세요.",
   pairing_trust: "신뢰",
   pairing_compare_code: '코드가 일치할 때만 페어링을 허용하세요.',

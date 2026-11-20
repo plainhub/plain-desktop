@@ -1,4 +1,8 @@
 export default {
+  pair_failed: "No se pudieron vincular los dispositivos.",
+  pair_expired: "La solicitud de vinculación ha caducado. Vuelve a vincular los dispositivos.",
+  pair_rejected: "Se ha rechazado la solicitud de vinculación.",
+  pair_too_many_attempts: "Demasiados intentos de vinculación. Inténtalo de nuevo en un minuto.",
   pairing_identity_changed: "La clave pública del dispositivo ha cambiado. Puede haberse reinstalado. Compara la huella completa antes de confiar.",
   pairing_trust: "Confiar",
   pairing_compare_code: 'Permite el emparejamiento solo si coinciden los códigos.',

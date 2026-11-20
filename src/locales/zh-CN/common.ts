@@ -247,7 +247,7 @@ export default {
   from: '来自',
   type: '类型',
   time: '时间',
-  NO_PERMISSION: '手机上未开启功能，请到手机应用 > "访问设置"里打开。',
+  NO_PERMISSION: '当前没有访问权限。请到手机应用 > “访问设置”里打开相应开关。',
   clipboard_direction_off: '不同步',
   clipboard_direction_send: "仅发送",
   clipboard_direction_receive: "仅接收",

@@ -4,6 +4,8 @@ export default {
   logging_in: 'Connexion en cours',
   connect: 'Connecter',
   login: {
+    INVALID_LOGIN_REQUEST: "La demande de connexion est invalide.",
+    TIMEOUT: "Le délai de connexion a expiré. Réessayez.",
     PEER_IDENTITY_CHANGED: 'La signature de l’appareil auquel vous vous connectez a changé',
     identity_changed_hint: 'La signature diffère de celle enregistrée lors de la dernière connexion. Confirmez pour vous reconnecter.',
     confirm_identity_change: 'Confirmer et se reconnecter',

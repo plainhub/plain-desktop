@@ -1,4 +1,8 @@
 export default {
+  pair_failed: "Kopplung fehlgeschlagen.",
+  pair_expired: "Die Kopplungsanfrage ist abgelaufen. Kopple die Geräte erneut.",
+  pair_rejected: "Die Kopplungsanfrage wurde abgelehnt.",
+  pair_too_many_attempts: "Zu viele Kopplungsversuche. Versuche es in einer Minute erneut.",
   pairing_identity_changed: "Der öffentliche Geräteschlüssel hat sich geändert, möglicherweise durch eine Neuinstallation. Vor dem Vertrauen den vollständigen Fingerabdruck vergleichen.",
   pairing_trust: "Vertrauen",
   pairing_compare_code: 'Erlaube die Kopplung nur, wenn die Codes übereinstimmen.',

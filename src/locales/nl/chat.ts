@@ -1,4 +1,8 @@
 export default {
+  pair_failed: "Koppelen mislukt.",
+  pair_expired: "Het koppelverzoek is verlopen. Koppel de apparaten opnieuw.",
+  pair_rejected: "Het koppelverzoek is geweigerd.",
+  pair_too_many_attempts: "Te veel koppelpogingen. Probeer het over een minuut opnieuw.",
   pairing_identity_changed: "De openbare apparaatsleutel is gewijzigd, mogelijk door een herinstallatie. Vergelijk de volledige vingerafdruk voordat je het apparaat vertrouwt.",
   pairing_trust: "Vertrouwen",
   pairing_compare_code: 'Sta koppelen alleen toe als de codes overeenkomen.',

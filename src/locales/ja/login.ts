@@ -4,6 +4,8 @@ export default {
   logging_in: 'ログイン中',
   connect: '接続',
   login: {
+    INVALID_LOGIN_REQUEST: "ログインリクエストが無効です。",
+    TIMEOUT: "ログインがタイムアウトしました。もう一度お試しください。",
     PEER_IDENTITY_CHANGED: '接続先デバイスの署名が変更されました',
     identity_changed_hint: '前回の接続時に保存した署名と異なります。変更を確認して再ログインしてください。',
     confirm_identity_change: '変更を確認して再ログイン',

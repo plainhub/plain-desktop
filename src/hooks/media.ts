@@ -1,3 +1,4 @@
+import { AccessErrorCode } from '@/lib/api/access-error-code'
 import { showActionError } from '@/hooks/show-action-error'
 import { useI18n } from 'vue-i18n'
 import toast from '@/components/toaster'
@@ -150,7 +151,10 @@ export const useBucketsTags = (type: DataType) => {
   const { t } = useI18n()
   const { fetch } = initLazyQuery({
     handle: async (data: { tags: ITag[]; mediaBuckets: IBucket[] }, error: string) => {
-      if (error) {
+      if (error === AccessErrorCode.NoPermission) {
+        tags.value = []
+        buckets.value = []
+      } else if (error) {
         toast(t(error), 'error')
       } else {
         if (data) {

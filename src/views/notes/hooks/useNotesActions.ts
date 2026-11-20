@@ -13,6 +13,7 @@ import { useMainStore } from '@/stores/main'
 import { DataType } from '@/lib/data'
 import type { Ref } from 'vue'
 import { download } from '@/lib/api/file'
+import { useI18n } from 'vue-i18n'
 import toast from '@/components/toaster'
 import { ZipWriter } from '@/lib/zip-writer'
 
@@ -28,6 +29,7 @@ interface UseNotesActionsOptions {
 
 export function useNotesActions(opts: UseNotesActionsOptions) {
   const { items, selectedIds, realAllChecked, q, total, clearSelection, fetch } = opts
+  const { t } = useI18n()
   const mainStore = useMainStore()
   const dataType = DataType.NOTE
 
@@ -56,7 +58,7 @@ export function useNotesActions(opts: UseNotesActionsOptions) {
       download(url, 'notes.zip')
       setTimeout(() => URL.revokeObjectURL(url), 2000)
     } catch (error) {
-      toast(error instanceof Error ? error.message : 'FAILED', 'error')
+      toast(t(error instanceof Error ? error.message : 'FAILED'), 'error')
     }
   }
 

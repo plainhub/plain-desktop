@@ -1,4 +1,8 @@
 export default {
+  pair_failed: "Eşleştirme başarısız oldu.",
+  pair_expired: "Eşleştirme isteğinin süresi doldu. Cihazları yeniden eşleştirin.",
+  pair_rejected: "Eşleştirme isteği reddedildi.",
+  pair_too_many_attempts: "Çok fazla eşleştirme denemesi yapıldı. Bir dakika sonra tekrar deneyin.",
   pairing_identity_changed: "Cihazın açık anahtarı değişti. Uygulama yeniden yüklenmiş olabilir. Güvenmeden önce parmak izinin tamamını karşılaştırın.",
   pairing_trust: "Güven",
   pairing_compare_code: 'Yalnızca kodlar eşleşirse eşleştirmeye izin verin.',

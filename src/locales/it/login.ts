@@ -4,6 +4,8 @@ export default {
   logging_in: 'Accesso in corso',
   connect: 'Connetti',
   login: {
+    INVALID_LOGIN_REQUEST: "La richiesta di accesso non è valida.",
+    TIMEOUT: "Il tempo per accedere è scaduto. Riprova.",
     PEER_IDENTITY_CHANGED: 'La firma del dispositivo a cui ti connetti è cambiata',
     identity_changed_hint: 'La firma è diversa da quella salvata durante l’ultima connessione. Conferma per accedere di nuovo.',
     confirm_identity_change: 'Conferma e accedi di nuovo',

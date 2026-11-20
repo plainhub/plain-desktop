@@ -4,6 +4,8 @@ export default {
   logging_in: 'Giriş yapılıyor',
   connect: 'Bağlan',
   login: {
+    INVALID_LOGIN_REQUEST: "Oturum açma isteği geçersiz.",
+    TIMEOUT: "Oturum açma zaman aşımına uğradı. Tekrar deneyin.",
     PEER_IDENTITY_CHANGED: 'Bağlandığınız cihazın imzası değişti',
     identity_changed_hint: 'İmza, son bağlantıda kaydedilenden farklı. Yeniden giriş yapmak için onaylayın.',
     confirm_identity_change: 'Değişikliği onayla ve yeniden giriş yap',

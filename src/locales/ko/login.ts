@@ -4,6 +4,8 @@ export default {
   logging_in: '로그인 중',
   connect: '연결',
   login: {
+    INVALID_LOGIN_REQUEST: "로그인 요청이 유효하지 않습니다.",
+    TIMEOUT: "로그인 시간이 초과되었습니다. 다시 시도하세요.",
     PEER_IDENTITY_CHANGED: '연결하려는 기기의 서명이 변경되었습니다',
     identity_changed_hint: '마지막 연결 때 저장된 서명과 다릅니다. 변경을 확인한 후 다시 로그인하세요.',
     confirm_identity_change: '변경 확인 후 다시 로그인',

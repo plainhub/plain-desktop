@@ -40,6 +40,7 @@
         :loading="loading"
         :access="clipboardSync ? ['CLIPBOARD'] : []"
         :placeholder-key="clipboardSync ? '' : 'clipboard_disabled_on_device'"
+        :show-settings-link="clipboardSync ? undefined : true"
         feature="CLIPBOARD"
       />
       <v-pagination

@@ -1,4 +1,8 @@
 export default {
+  pair_failed: "Ghép đôi không thành công.",
+  pair_expired: "Yêu cầu ghép đôi đã hết hạn. Vui lòng ghép đôi lại.",
+  pair_rejected: "Yêu cầu ghép đôi đã bị từ chối.",
+  pair_too_many_attempts: "Đã thử ghép đôi quá nhiều lần. Vui lòng thử lại sau một phút.",
   pairing_identity_changed: "Khóa công khai của thiết bị đã thay đổi, có thể do cài đặt lại ứng dụng. Hãy đối chiếu toàn bộ dấu vân tay trước khi tin cậy.",
   pairing_trust: "Tin cậy",
   pairing_compare_code: 'Chỉ cho phép ghép đôi nếu hai mã trùng nhau.',

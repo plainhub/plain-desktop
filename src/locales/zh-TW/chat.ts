@@ -1,4 +1,8 @@
 export default {
+  pair_failed: "配對失敗。",
+  pair_expired: "配對要求已過期，請重新配對。",
+  pair_rejected: "配對要求已遭拒絕。",
+  pair_too_many_attempts: "配對嘗試次數過多，請於一分鐘後再試。",
   nearby_bluetooth_idle: '透過藍牙探索更多附近的 PlainApp 裝置。',
   nearby_bluetooth_enable: '啟用藍牙',
   nearby_bluetooth_starting: '正在等待藍牙，區域網路搜尋會繼續。',

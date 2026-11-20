@@ -51,7 +51,7 @@ v-for="(item, i) in items" :key="item.id" :item="item" :index="i" :is-phone="isP
         <AudioSkeletonItem v-for="i in 20" :key="i" :index="i" :is-phone="isPhone" />
       </template>
     </div>
-    <NoDataPlaceholder v-if="(loaded || !loading) && items.length === 0" :loading="loading && !loaded" :access="app.access" feature="AUDIO" />
+    <NoDataPlaceholder v-if="(loaded || !loading) && items.length === 0" :loading="loading && !loaded" :access="app.access" :placeholder-key="listError" feature="AUDIO" />
     <v-pagination v-if="!scrollMode && total > limit" :page="page" :go="gotoPage" :total="total" :limit="limit" :page-size="limit" :on-change-page-size="onChangePageSize" />
     <div v-if="scrollMode" ref="sentinel" class="scroll-sentinel"></div>
     <input ref="fileInput" style="display: none" type="file" accept="audio/*" multiple @change="uploadChanged" />
@@ -61,7 +61,7 @@ v-for="(item, i) in items" :key="item.id" :item="item" :index="i" :is-phone="isP
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import toast from '@/components/toaster'
+import { useMediaListError } from '@/hooks/media-list-error'
 import { audiosGQL, initLazyQuery } from '@/lib/api/query'
 import type { IAudio, IAudioWithFileId } from '@/lib/interfaces'
 import { DataType, Capability } from '@/lib/data'
@@ -158,6 +158,8 @@ function handleAddToPlaylist(e: MouseEvent, item: IAudioWithFileId) {
   setTimeout(() => { addToPlaylist(e, item); setTimeout(() => { animatingIds.value = animatingIds.value.filter((id) => id !== item.id) }, 200) }, 150)
 }
 
+const { listError, setListError } = useMediaListError(items, total)
+
 const queryVariables = (refresh = false) => ({
   ...mediaListPage(page.value, limit.value, refresh && scrollMode.value),
   query: effectiveQ.value,
@@ -168,7 +170,8 @@ const { loading, fetch } = initLazyQuery({
   handle: (data: { items: IAudio[]; total: number }, error: string, context) => {
     loaded.value = true
     mp.sorting.value = false
-    if (error) { toast(mp.q.value, 'error') } else if (data) {
+    setListError(error)
+    if (!error && data) {
       const raw = data.items.map((it) => ({ ...it, fileId: getFileId(urlTokenKey.value, it.path, it.id) }))
       if (scrollMode.value && Number(context?.variables?.offset ?? 0) > 0) { items.value = items.value.concat(raw) }
       else { items.value = raw }

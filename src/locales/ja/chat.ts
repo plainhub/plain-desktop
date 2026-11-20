@@ -1,4 +1,8 @@
 export default {
+  pair_failed: "ペアリングに失敗しました。",
+  pair_expired: "ペアリング要求の有効期限が切れました。もう一度ペアリングしてください。",
+  pair_rejected: "ペアリング要求が拒否されました。",
+  pair_too_many_attempts: "ペアリングの試行回数が多すぎます。1分後にもう一度お試しください。",
   pairing_identity_changed: "相手の公開鍵が変わりました。アプリを再インストールした可能性があります。完全なフィンガープリントを照合してから信頼してください。",
   pairing_trust: "信頼する",
   pairing_compare_code: 'コードが一致する場合のみ、ペア設定を許可してください。',

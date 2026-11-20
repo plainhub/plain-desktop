@@ -95,7 +95,7 @@ v-for="(item, i) in items" :key="item.id" :item="item" :index="i" :is-phone="isP
       <image-video-list-skeleton v-if="loading && items.length === 0" :limit="limit" :is-phone="isPhone" />
     </div>
 
-    <NoDataPlaceholder v-if="!loading && items.length === 0" :loading="loading" :access="app.access" feature="IMAGES" />
+    <NoDataPlaceholder v-if="!loading && items.length === 0" :loading="loading" :access="app.access" :placeholder-key="listError" feature="IMAGES" />
     <v-pagination v-if="!scrollMode && total > limit" :page="page" :go="gotoPage" :total="total" :limit="limit" :page-size="limit" :on-change-page-size="onChangePageSize" />
     <div v-if="scrollMode" ref="sentinel" class="scroll-sentinel"><v-circular-progress v-if="loading && items.length > 0" indeterminate class="sm" /></div>
     <input ref="fileInput" style="display: none" type="file" accept="image/*" multiple @change="uploadChanged" />
@@ -105,7 +105,7 @@ v-for="(item, i) in items" :key="item.id" :item="item" :index="i" :is-phone="isP
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import toast from '@/components/toaster'
+import { useMediaListError } from '@/hooks/media-list-error'
 import { imagesGQL, initLazyQuery } from '@/lib/api/query'
 import { getFileId, getFileUrl, getFileName } from '@/lib/api/file'
 import { formatFileSize } from '@/lib/format'
@@ -173,6 +173,8 @@ watch(() => mainStore.imagesScrollPaging, () => { page.value = 1; items.value = 
 
 const effectiveQ = computed(() => q.value)
 
+const { listError, setListError } = useMediaListError(items, total)
+
 const queryVariables = (refresh = false) => ({
   ...mediaListPage(page.value, limit.value, refresh && scrollMode.value),
   query: effectiveQ.value,
@@ -182,7 +184,8 @@ const queryVariables = (refresh = false) => ({
 const { loading, fetch } = initLazyQuery({
   handle: async (data: { images: IImage[]; imageCount: number }, error: string, context) => {
     mp.sorting.value = false
-    if (error) { toast(error, 'error') } else if (data) {
+    setListError(error)
+    if (!error && data) {
       const list = data.images.map((it) => ({ ...it, fileId: getFileId(urlTokenKey.value, it.path, it.id) }))
       if (scrollMode.value && Number(context?.variables?.offset ?? 0) > 0) {
         const existingIds = new Set(items.value.map((i) => i.id))

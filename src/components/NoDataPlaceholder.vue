@@ -33,7 +33,7 @@ const props = withDefaults(
     online?: boolean
     /** Local mode: open the settings page directly on this peer instead of via the desktop server. */
     peerId?: string
-    /** Force the settings link on/off; defaults to showing it for placeholder/no_permission states. */
+    /** Override the access-settings action for feature-specific placeholders. */
     showSettingsLink?: boolean
   }>(),
   {
@@ -48,7 +48,7 @@ const props = withDefaults(
 
 const { t } = useI18n()
 const dataKey = computed(() => props.placeholderKey || noDataKey(props.loading, props.access ?? [], props.feature ?? '', props.online))
-const showSettingsLink = computed(() => !!props.feature && (props.showSettingsLink ?? (dataKey.value === AccessErrorCode.NoPermission || !!props.placeholderKey)))
+const showSettingsLink = computed(() => !!props.feature && (props.showSettingsLink ?? (dataKey.value === AccessErrorCode.NoPermission)))
 
 const { mutate, loading: mutating } = initMutation({ document: requestAccessGQL }, showActionError)
 

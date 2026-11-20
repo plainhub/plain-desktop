@@ -1,4 +1,8 @@
 export default {
+  pair_failed: "Abbinamento non riuscito.",
+  pair_expired: "La richiesta di abbinamento è scaduta. Abbina di nuovo i dispositivi.",
+  pair_rejected: "La richiesta di abbinamento è stata rifiutata.",
+  pair_too_many_attempts: "Troppi tentativi di abbinamento. Riprova tra un minuto.",
   pairing_identity_changed: "La chiave pubblica del dispositivo è cambiata, forse dopo una reinstallazione. Confronta tutta la sua impronta prima di considerarlo attendibile.",
   pairing_trust: "Considera attendibile",
   pairing_compare_code: 'Consenti l’associazione solo se i codici coincidono.',

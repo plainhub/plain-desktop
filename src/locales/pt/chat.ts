@@ -1,4 +1,8 @@
 export default {
+  pair_failed: "Falha no emparelhamento.",
+  pair_expired: "A solicitação de emparelhamento expirou. Emparelhe os dispositivos novamente.",
+  pair_rejected: "A solicitação de emparelhamento foi recusada.",
+  pair_too_many_attempts: "Muitas tentativas de emparelhamento. Tente novamente em um minuto.",
   pairing_identity_changed: "A chave pública do dispositivo mudou, possivelmente após uma reinstalação. Compare a impressão digital completa antes de confiar.",
   pairing_trust: "Confiar",
   pairing_compare_code: 'Só permita o emparelhamento se os códigos coincidirem.',

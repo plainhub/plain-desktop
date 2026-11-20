@@ -4,6 +4,8 @@ export default {
   logging_in: 'Inloggen...',
   connect: 'Verbinden',
   login: {
+    INVALID_LOGIN_REQUEST: "Het aanmeldverzoek is ongeldig.",
+    TIMEOUT: "Het aanmelden duurde te lang. Probeer het opnieuw.",
     PEER_IDENTITY_CHANGED: 'De handtekening van het apparaat waarmee je verbinding maakt is gewijzigd',
     identity_changed_hint: 'De handtekening verschilt van die bij de vorige verbinding. Bevestig om opnieuw in te loggen.',
     confirm_identity_change: 'Wijziging bevestigen en opnieuw inloggen',

@@ -31,7 +31,7 @@ vi.mock('@/hooks/media-page', () => ({ useMediaPage: (options: any) => {
 } }))
 vi.mock('@/components/media/MediaToolbar.vue', () => ({ default: { render: () => h('header') } }))
 vi.mock('@/components/media/MediaPageActions.vue', () => ({ default: { render: () => null } }))
-vi.mock('@/components/NoDataPlaceholder.vue', () => ({ default: { render: () => null } }))
+vi.mock('@/components/NoDataPlaceholder.vue', () => ({ default: { props: ['placeholderKey'], setup: (props: any) => () => h('span', props.placeholderKey) } }))
 vi.mock('@/views/docs/DocListItem.vue', () => ({ default: { props: { item: { type: Object, required: true } }, setup: (props: { item: { path: string; title: string } }) =>
   () => h('div', { class: 'doc-row', 'data-path': props.item.path }, props.item.title),
 } }))
@@ -64,4 +64,23 @@ it('replaces all loaded rows after a successful rename, without losing the curre
   expect(html.match(/class="doc-row"/g)).toHaveLength(4)
   expect(html).not.toContain('Agenda.md')
   expect(html).toMatch(/data-path="\/docs\/Schedule\.md"[^>]*>Schedule\.md/)
+})
+
+it('replaces revoked content with the permission placeholder without a toast', async () => {
+  state.store = reactive({ docSortBy: 'NAME_ASC', docsScrollPaging: true })
+  state.page = ref(1)
+  state.beforeRender = () => {
+    state.handle({ items: [{ id: '1', title: 'Fixture', path: '/docs/fixture' }], total: 1 }, '')
+    state.handle(null, 'NETWORK_ERROR')
+    expect(state.options.items.value).toHaveLength(1)
+    state.handle(null, 'NO_PERMISSION')
+    expect(state.options.items.value).toHaveLength(0)
+  }
+  const app = createSSRApp(DocsView)
+  app.config.globalProperties.$t = (key: string) => key
+  app.directive('tooltip', {})
+  const html = await renderToString(app)
+  expect(html).toContain('NO_PERMISSION')
+  expect(html).not.toContain('class="doc-row"')
+  expect((await import('@/components/toaster')).default).not.toHaveBeenCalled()
 })

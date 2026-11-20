@@ -4,6 +4,8 @@ export default {
   logging_in: 'Đang đăng nhập',
   connect: 'Kết nối',
   login: {
+    INVALID_LOGIN_REQUEST: "Yêu cầu đăng nhập không hợp lệ.",
+    TIMEOUT: "Đã hết thời gian chờ đăng nhập. Vui lòng thử lại.",
     PEER_IDENTITY_CHANGED: 'Chữ ký của thiết bị bạn đang kết nối đã thay đổi',
     identity_changed_hint: 'Chữ ký khác với chữ ký đã lưu ở lần kết nối trước. Xác nhận để đăng nhập lại.',
     confirm_identity_change: 'Xác nhận thay đổi và đăng nhập lại',

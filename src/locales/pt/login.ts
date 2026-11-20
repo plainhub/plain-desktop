@@ -4,6 +4,8 @@ export default {
   logging_in: 'Entrando',
   connect: 'Conectar',
   login: {
+    INVALID_LOGIN_REQUEST: "A solicitação de login é inválida.",
+    TIMEOUT: "O tempo de espera para o login terminou. Tente novamente.",
     PEER_IDENTITY_CHANGED: 'A assinatura do dispositivo ao qual você está se conectando mudou',
     identity_changed_hint: 'A assinatura é diferente da salva na última conexão. Confirme para entrar novamente.',
     confirm_identity_change: 'Confirmar alteração e entrar novamente',

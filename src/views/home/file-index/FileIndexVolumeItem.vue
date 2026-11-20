@@ -17,11 +17,13 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { saveFileIndexVolume, type FileIndexVolume } from '@/lib/api/file-index'
+import { useI18n } from 'vue-i18n'
 import toast from '@/components/toaster'
 import type { IStorageMount } from '@/lib/interfaces'
 import { useScanAction } from '../home'
 import FileIndexVolumeCard from './FileIndexVolumeCard.vue'
 
+const { t } = useI18n()
 const props = defineProps<{ volume: FileIndexVolume; title: string; mount?: IStorageMount }>()
 const emit = defineEmits<{ settings: []; settled: [] }>()
 const { fileIndexScanProgress, rebuild, loading, pause, resume, stop } = useScanAction(props.volume.id)
@@ -36,7 +38,7 @@ async function create() {
     await saveFileIndexVolume({ ...props.volume, indexMode: 'BLOCKLIST' })
     emit('settled')
   } catch (error) {
-    toast(error instanceof Error ? error.message : String(error), 'error')
+    toast(t(error instanceof Error ? error.message : String(error)), 'error')
   } finally {
     saving.value = false
   }

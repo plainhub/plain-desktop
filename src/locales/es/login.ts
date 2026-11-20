@@ -4,6 +4,8 @@ export default {
   logging_in: 'Iniciando sesión',
   connect: 'Conectar',
   login: {
+    INVALID_LOGIN_REQUEST: "La solicitud de inicio de sesión no es válida.",
+    TIMEOUT: "Se agotó el tiempo de espera para iniciar sesión. Inténtalo de nuevo.",
     PEER_IDENTITY_CHANGED: 'La firma del dispositivo al que te conectas ha cambiado',
     identity_changed_hint: 'La firma es distinta a la guardada durante la última conexión. Confirma para volver a iniciar sesión.',
     confirm_identity_change: 'Confirmar y volver a iniciar sesión',

@@ -31,6 +31,7 @@
 </template>
 
 <script setup lang="ts">
+import { AccessErrorCode } from '@/lib/api/access-error-code'
 import { computed, onMounted, onUnmounted, ref, type PropType } from 'vue'
 import { initQuery, mediaBucketsGQL } from '@/lib/api/query'
 import type { IBucket, IMediaItemsActionedEvent } from '@/lib/interfaces'
@@ -74,7 +75,9 @@ const { view } = useBuckets(props.type)
 
 const { refetch } = initQuery({
   handle: (data: { mediaBuckets: IBucket[] }, error: string) => {
-    if (error) {
+    if (error === AccessErrorCode.NoPermission) {
+      mediaBuckets.value = []
+    } else if (error) {
       toast(t(error), 'error')
     } else {
       if (data) {
