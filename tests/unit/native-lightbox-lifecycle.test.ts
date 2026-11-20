@@ -39,6 +39,7 @@ let nav: ReturnType<typeof useLightboxNavigation>
 let caseId = 0
 let id = 0
 let status: { loading: boolean; loadError: boolean; dragging: boolean; gesturing: boolean }
+const quality = ref<'fast' | 'original'>('original')
 let loop = ref(false)
 const images: { src: string; onload: (() => void) | null; onerror: (() => void) | null; removeAttribute: () => void }[] = []
 const videos: any[] = []
@@ -51,7 +52,7 @@ function mount(count = 100) {
       status = reactive({ loading: false, loadError: false, dragging: false, gesturing: false })
       loop = ref(false)
       nav = useLightboxNavigation(fixture.store, ref(0), ref(), reactive({}) as any,
-        status, new Map(), vi.fn(), vi.fn(), vi.fn(), loop, vi.fn(), ref('original'))
+        status, new Map(), vi.fn(), vi.fn(), vi.fn(), loop, vi.fn(), quality)
       return () => null
     },
   }))
@@ -60,6 +61,7 @@ function mount(count = 100) {
 async function flush() { for (let i = 0; i < 16; i++) await nextTick() }
 
 beforeEach(() => {
+  quality.value = 'original'
   caseId++; id = 0; live.clear(); vi.clearAllMocks()
   vi.stubGlobal('__IS_TAURI__', true)
   vi.stubGlobal('window', { fileIdMap: new Map() })
@@ -246,4 +248,41 @@ it('does not discard a newer binding when an evicted preload fails late', async 
   expect(neighbour.src).toBe(renewedUrl)
   expect(status.loadError).toBe(false)
   expect(fixture.invoke.mock.calls.filter(([command, args]) => command === 'native_resource_open' && args.path === neighbour.path)).toHaveLength(2)
+})
+
+it('switches the displayed native image between preview and original on the current slide', async () => {
+  mount(1)
+  fixture.store.lightbox.index = 0
+  await flush()
+  const original = fixture.store.lightbox.sources[0].src
+  quality.value = 'fast'
+  await flush()
+  const previews = fixture.invoke.mock.calls.filter(([command, args]) => command === 'native_resource_open' && args.thumbnail === 'LG')
+  expect(previews).toHaveLength(1)
+  expect(nav.imgSrc.value).toMatch(/^plain-resource:/)
+  expect(nav.imgSrc.value).not.toBe(original)
+  quality.value = 'original'
+  await flush()
+  expect(nav.imgSrc.value).toBe(original)
+  nav.closeDialog()
+  await flush()
+  expect(live.size).toBe(0)
+})
+
+it('keeps the original visible when a previous quality selection finishes late', async () => {
+  mount(1)
+  fixture.store.lightbox.index = 0
+  await flush()
+  const original = fixture.store.lightbox.sources[0].src
+  const invoke = fixture.invoke.getMockImplementation()!
+  let finish!: () => void
+  fixture.invoke.mockImplementation((command: string, args: any) => command === 'native_resource_open' && args.thumbnail === 'LG'
+    ? new Promise(resolve => { finish = () => resolve(invoke(command, args)) }) : invoke(command, args))
+  quality.value = 'fast'
+  await flush()
+  quality.value = 'original'
+  await flush()
+  finish()
+  await flush()
+  expect(nav.imgSrc.value).toBe(original)
 })

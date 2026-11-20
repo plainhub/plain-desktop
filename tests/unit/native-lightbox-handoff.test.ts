@@ -17,7 +17,6 @@ vi.mock('@/hooks/lightbox', async () => {
     useLightboxQueries: () => ({}), useLightboxTransform: () => ({}),
     useLightboxNavigation: () => ({ closeDialog: fixture.close }),
     useLightboxFileActions: () => ({}), useLightboxEvents: () => ({}), useLightboxMouseTouch: () => ({}),
-    getImageDisplayUrl: vi.fn(),
   }
 })
 vi.mock('@/hooks/organize-undo', () => ({ useOrganizeUndo: () => ({ count: ref(fixture.count), clear: fixture.clearUndo, undoLast: fixture.undoLast }) }))

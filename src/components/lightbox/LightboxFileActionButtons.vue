@@ -1,47 +1,35 @@
 <template>
   <div class="file-action-buttons">
-    <template v-if="!confirming">
-      <template v-if="!readOnly && !current?.isFromChat && !inZip">
-        <template v-if="canTrash">
-          <template v-if="isTrashed">
-            <v-outlined-button v-if="canDelete" :disabled="deleting" @click.stop="requestDelete">
-              <i-material-symbols:delete-forever-outline-rounded />
-              {{ $t('delete') }}
-            </v-outlined-button>
-            <v-outlined-button :class="{ loading: restoreLoading(`ids:${current?.data?.id}`) }" @click.stop="restoreItem">
-              <i-material-symbols:restore-from-trash-outline-rounded />
-              {{ $t('restore') }}
-            </v-outlined-button>
-          </template>
-          <template v-else>
-            <v-outlined-button :class="{ loading: trashLoading(`ids:${current?.data?.id}`) }" @click.stop="trashMediaItem">
-              <i-material-symbols:delete-outline-rounded />
-              {{ $t('move_to_trash') }}
-            </v-outlined-button>
-            <v-outlined-button v-if="canMove" @click.stop="$emit('rename-file')">
-              <i-material-symbols:edit-outline-rounded />
-              {{ $t('rename') }}
-            </v-outlined-button>
-          </template>
-        </template>
-        <template v-else>
-          <v-outlined-button v-if="canDelete" :disabled="deleting" @click.stop="requestDelete">
-            <i-material-symbols:delete-forever-outline-rounded />
-            {{ $t('delete') }}
-          </v-outlined-button>
-          <v-outlined-button v-if="canMove" @click.stop="$emit('rename-file')">
-            <i-material-symbols:edit-outline-rounded />
-            {{ $t('rename') }}
-          </v-outlined-button>
-        </template>
+    <template v-if="!readOnly && current && !current.isFromChat && !inZip">
+      <template v-if="canDelete && (!canTrash || isTrashed)">
+        <v-outlined-button :id="deleteAnchor" :disabled="deleting" @click.stop="requestDelete">
+          <i-material-symbols:delete-forever-outline-rounded />
+          {{ $t('delete') }}
+        </v-outlined-button>
+        <v-dropdown-menu v-model="confirming" :anchor="deleteAnchor">
+          <inline-delete-confirm :name="current.name || current.data?.title || current.path" :loading="deleting" @confirm="onConfirmDelete" @cancel="confirming = false" />
+        </v-dropdown-menu>
+      </template>
+      <v-outlined-button v-if="canTrash && isTrashed" :class="{ loading: restoreLoading(`ids:${current.data?.id}`) }" @click.stop="restoreItem">
+        <i-material-symbols:restore-from-trash-outline-rounded />
+        {{ $t('restore') }}
+      </v-outlined-button>
+      <template v-else>
+        <v-outlined-button v-if="canTrash" :class="{ loading: trashLoading(`ids:${current.data?.id}`) }" @click.stop="trashMediaItem">
+          <i-material-symbols:delete-outline-rounded />
+          {{ $t('move_to_trash') }}
+        </v-outlined-button>
+        <v-outlined-button v-if="canMove" @click.stop="$emit('rename-file')">
+          <i-material-symbols:edit-outline-rounded />
+          {{ $t('rename') }}
+        </v-outlined-button>
       </template>
     </template>
-    <inline-delete-confirm v-else :name="current?.name || current?.data?.title || current?.path" :loading="deleting" @confirm="onConfirmDelete" @cancel="confirming = false" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, useId, watch } from 'vue'
 import { isZipPath } from '@/lib/file'
 import { DataType } from '@/lib/data'
 import { useMediaRestore, useMediaTrash, useFileTrashState } from '@/hooks/media-trash'
@@ -58,6 +46,7 @@ const props = defineProps<{
 
 const emit = defineEmits(['rename-file', 'action-success'])
 
+const deleteAnchor = useId()
 const confirming = ref(false)
 const deleting = ref(false)
 watch(() => props.current?.path, () => { confirming.value = false }, { flush: 'sync' })

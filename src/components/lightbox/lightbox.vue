@@ -144,7 +144,6 @@ import {
   useLightboxFileActions,
   useLightboxEvents,
   useLightboxMouseTouch,
-  getImageDisplayUrl,
 } from '@/hooks/lightbox'
 import LightboxMoveToFolders from './LightboxMoveToFolders.vue'
 import { useOrganizeUndo } from '@/hooks/organize-undo'
@@ -168,13 +167,13 @@ const {
   imgWrapperState, status, imgWrapperStyle,
 } = useLightboxState(isPhone)
 
-const { loadInfo, refetchInfo, updateViewOriginImageState, tagsMap, loadTags, itemTags, loadItemTags } =
-  useLightboxQueries(current, fileInfo, imgState)
+const { loadInfo, refetchInfo, tagsMap, loadTags, itemTags, loadItemTags } =
+  useLightboxQueries(current, fileInfo)
 
 const { zoomIn, zoomOut, rotateLeft, rotateRight, resize, onDblclick, onWheel } =
   useLightboxTransform(imgWrapperState, imgState, status)
 
-const { closeDialog, changeIndex, onNext, onPrev } =
+const { imgSrc, closeDialog, changeIndex, onNext, onPrev } =
   useLightboxNavigation(tempStore, imgIndex, current, imgWrapperState, status, tagsMap, loadTags, loadInfo, loadItemTags, toRef(props, 'loop'), emit as (event: string, ...args: any[]) => void, imageViewQuality)
 
 const readOnly = computed(() => tempStore.lightbox.readOnly)
@@ -207,15 +206,8 @@ function onCloseDialog() {
 const { downloadFile, deleteFile, renameFile, handleActionSuccess } =
   useLightboxFileActions(current, refetchInfo, isPhone, lightboxInfoVisible)
 
-// HEIC always needs server-side conversion, so it must keep the resize query even in "original" mode.
-const imgSrc = computed(() => {
-  const s = current.value
-  if (!s) return ''
-  return getImageDisplayUrl(s, imageViewQuality.value)
-})
-
 const { onLoad, onVideoLoaded, onError, onPlaying, onPause, onVolumeChange } =
-  useLightboxEvents(tempStore, current, video, status, imgState, imgIndex, setImgSize, refetchInfo, updateViewOriginImageState, onCloseDialog, onNext, onPrev, changeIndex, emit as (event: string, ...args: any[]) => void, toRef(props, 'popup'))
+  useLightboxEvents(tempStore, current, video, status, imgState, imgIndex, setImgSize, refetchInfo, onCloseDialog, onNext, onPrev, changeIndex, emit as (event: string, ...args: any[]) => void, toRef(props, 'popup'))
 
 function onBackdropClick() {
   if (props.popup) return

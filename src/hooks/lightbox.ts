@@ -92,30 +92,13 @@ export function useLightboxState(isPhone: boolean) {
 export function useLightboxQueries(
   current: Ref<ISource | undefined>,
   fileInfo: Ref<any>,
-  imgState: { naturalWidth: number; naturalHeight: number },
 ) {
-  function updateViewOriginImageState() {
-    if (current.value && fileInfo.value && isImage(current.value.name) && current.value.path === fileInfo.value.path) {
-      if (isSvg(current.value.name)) {
-        current.value.viewOriginImage = true
-      } else if (isHeic(current.value.name)) {
-        // HEIC files must always go through server-side conversion; raw HEIC is not displayable in most browsers
-      } else {
-        const { width, height } = fileInfo.value.data
-        if (width === imgState.naturalWidth && height === imgState.naturalHeight) {
-          current.value.viewOriginImage = true
-        }
-      }
-    }
-  }
-
   const {
     fetch: loadInfo,
   } = initLazyQuery({
     handle: (data: any, error: string) => {
       if (!error && data) {
         fileInfo.value = data.fileInfo
-        updateViewOriginImageState()
       }
     },
     document: fileInfoGQL,
@@ -153,7 +136,7 @@ export function useLightboxQueries(
     }),
   })
 
-  return { loadInfo, refetchInfo: () => { loadInfo(); loadItemTags() }, updateViewOriginImageState, tagsMap, loadTags, itemTags, loadItemTags }
+  return { loadInfo, refetchInfo: () => { loadInfo(); loadItemTags() }, tagsMap, loadTags, itemTags, loadItemTags }
 }
 
 export function useLightboxTransform(
@@ -209,16 +192,8 @@ export function useLightboxTransform(
   return { zoomIn, zoomOut, rotateLeft, rotateRight, resize, onDblclick, onWheel }
 }
 
-// The single source of truth for which URL a source displays at, given the quality
-// setting. Shared by the preloader and the visible <img> so they always agree.
-export function getImageDisplayUrl(source: ISource, quality: 'fast' | 'original'): string {
-  // A native resource URL serves the original file; the server-side
-  // thumbnail query has no native equivalent.
-  if (isNativeResourceUrl(source.src)) {
-    return source.src
-  }
-  const useOriginal = !isHeic(source.name) && (isSvg(source.name) || source.viewOriginImage || quality === 'original')
-  return useOriginal ? source.src : source.src + '&size=LG'
+function usesImagePreview(source: ISource, quality: 'fast' | 'original') {
+  return isHeic(source.name) || (quality === 'fast' && !isSvg(source.name) && !source.viewOriginImage)
 }
 
 export function useLightboxNavigation(
@@ -249,7 +224,7 @@ export function useLightboxNavigation(
 
   let generation = 0
   let stopPreloadWatch: (() => void) | undefined
-  const bindings = new Map<ISource, { owner: NativeResourceOwner; promise: Promise<string>; assigned?: string }>()
+  const bindings = new Map<ISource, { owner: NativeResourceOwner; promise: Promise<string>; assigned?: string; preview?: string }>()
   const decodedUrls = new Set<string>()
   const readyVideoUrls = new Set<string>()
   const preloads = new Map<string, () => void>()
@@ -268,9 +243,23 @@ export function useLightboxNavigation(
     }
   }
 
+  const displayUrl = (source: ISource) => {
+    if (!isImage(source.name) || !usesImagePreview(source, imageViewQuality.value)) return source.src
+    if (isNativeResourceUrl(source.src)) return bindings.get(source)?.preview
+    return source.src + '&size=LG'
+  }
+
+  const resolveDisplayUrl = async (source: ISource) => {
+    const url = displayUrl(source)
+    if (url !== undefined) return url
+    const binding = bindings.get(source)!
+    const version = source.updatedAt ? '&v=' + encodeURIComponent(source.updatedAt) : ''
+    binding.preview = await resolveFileUrlByPath(binding.owner, tempStore.urlTokenKey, source.path, source.size, '&size=LG' + version)
+    return binding.preview
+  }
+
   const trimPreloads = () => {
-    const retained = new Set([...bindings.keys()].map(source => isImage(source.name)
-      ? getImageDisplayUrl(source, imageViewQuality.value) : source.src))
+    const retained = new Set([...bindings.keys()].map(displayUrl))
     for (const [url, dispose] of preloads) {
       if (retained.has(url)) continue
       preloads.delete(url)
@@ -332,7 +321,8 @@ export function useLightboxNavigation(
     try {
       await pending
       if (!bindings.has(source) || !tempStore.lightbox.visible || !source.src) return
-      const url = isImage(source.name) ? getImageDisplayUrl(source, imageViewQuality.value) : source.src
+      const url = await resolveDisplayUrl(source)
+      if (bindings.get(source)?.promise !== pending || url !== displayUrl(source)) return
       if (preloads.has(url)) return
       if (isImage(source.name)) {
         const img = new Image()
@@ -398,7 +388,7 @@ export function useLightboxNavigation(
         source.playbackUrl = url
         source.transcoded = transcoded
       }
-      const alreadyDecoded = (isImage(source.name) && decodedUrls.has(getImageDisplayUrl(source, imageViewQuality.value))) ||
+      const alreadyDecoded = (isImage(source.name) && decodedUrls.has(displayUrl(source) ?? '')) ||
         (isVideo(source.name) && readyVideoUrls.has(source.src))
       reset(alreadyDecoded)
       imgIndex.value = newIndex
@@ -440,6 +430,31 @@ export function useLightboxNavigation(
     }
   }
 
+  const imgSrc = ref<string>()
+  watch([current, imageViewQuality], async ([source], previous, onCleanup) => {
+    let active = true
+    onCleanup(() => { active = false })
+    if (source !== previous[0]) imgSrc.value = undefined
+    if (!source || !isImage(source.name)) return
+    if (source === previous[0]) {
+      trimPreloads()
+      for (const neighbour of neighbours(tempStore.lightbox.sources, imgIndex.value)) void preloadSource(neighbour)
+    }
+    try {
+      const url = await resolveDisplayUrl(source)
+      if (active) {
+        status.loadError = false
+        imgSrc.value = url
+      }
+    } catch (error) {
+      if (active) {
+        status.loading = false
+        status.loadError = true
+        emit('on-error', error)
+      }
+    }
+  })
+
   watch(() => [tempStore.lightbox.sources, tempStore.lightbox.index, tempStore.lightbox.visible] as const,
     ([sources, index, visible], previous) => {
       if (!visible) { clearResources(); return }
@@ -473,7 +488,7 @@ export function useLightboxNavigation(
     changeIndex(newIndex, ['on-prev', 'on-prev-click'])
   }
 
-  return { reset, closeDialog, changeIndex, onNext, onPrev }
+  return { imgSrc, reset, closeDialog, changeIndex, onNext, onPrev }
 }
 
 export function useLightboxFileActions(
@@ -564,7 +579,6 @@ export function useLightboxEvents(
   imgIndex: Ref<number>,
   setImgSize: () => void,
   refetchInfo: () => void,
-  updateViewOriginImageState: () => void,
   closeDialog: () => void,
   onNext: () => void,
   onPrev: () => void,
@@ -610,7 +624,6 @@ export function useLightboxEvents(
     status.loading = false
     if (current.value && isImage(current.value.name)) {
       setImgSize()
-      updateViewOriginImageState()
     }
   }
 
