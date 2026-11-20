@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { HttpErrorCode } from '@/lib/api/http-error-code'
 import type { SmsSendResult } from '@/lib/api/subscription-results'
 import { nextTick, onMounted, onUnmounted, ref, computed, reactive, watch } from 'vue'
@@ -91,7 +92,7 @@ export function useSendSms(initialNumber: string, initialBody: string) {
   const loading = ref(false)
   let pendingSmsRequestId: string | null = null
   let unsubscribeSmsResults: (() => void) | undefined
-  const { mutate: mutateMms, loading: mmsLoading, onDone: onMmsDone } = initMutation({ document: sendSmsGQL })
+  const { mutate: mutateMms, loading: mmsLoading, onDone: onMmsDone } = initMutation({ document: sendSmsGQL }, showActionError)
   const sendDeadline = createSmsSendDeadline((requestId) => {
     if (pendingSmsRequestId !== requestId) return
     pendingSmsRequestId = null

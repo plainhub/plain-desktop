@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { ClipboardErrorCode } from '@/lib/api/clipboard-error-code'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -68,7 +69,7 @@ export function useClipboardData() {
     fetch()
   }
 
-  const { mutate: deleteClipboardItems } = initMutation({ document: deleteClipboardItemsGQL })
+  const { mutate: deleteClipboardItems } = initMutation({ document: deleteClipboardItemsGQL }, showActionError)
 
   const deleteItem = (item: IClipboardItem) => {
     items.value = items.value.filter((it) => it.id !== item.id)
@@ -79,7 +80,7 @@ export function useClipboardData() {
   const clipText = ref('')
   const clipTextError = ref(false)
 
-  const { mutate: mutateSetClipboard, loading: setClipLoading, onDone: onSetClipDone } = initMutation({ document: setClipboardGQL })
+  const { mutate: mutateSetClipboard, loading: setClipLoading, onDone: onSetClipDone } = initMutation({ document: setClipboardGQL }, showActionError)
   onSetClipDone(() => { clipText.value = '' })
 
   function pasteClipboardText() {

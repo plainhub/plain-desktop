@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import toast from '@/components/toaster'
@@ -66,10 +67,10 @@ export function useScreenMirrorService() {
   const fetchState = () => { active = true; return fetchMirrorState(undefined, { latest: true, meta: ++activation }) }
 
   // --- Mutations ---
-  const { mutate: startMirror, loading: startLoading, onDone: onStartDone, onError: onStartError } = initMutation({ document: startScreenMirrorGQL }, false)
+  const { mutate: startMirror, loading: startLoading, onDone: onStartDone, onError: onStartError } = initMutation({ document: startScreenMirrorGQL })
   const { mutate: stopMirror, loading: stopLoading, onDone: onStopDone, onError: onStopError } = initMutation({ document: stopScreenMirrorGQL })
-  const { mutate: updateQuality, onDone: onQualityDone } = initMutation({ document: updateScreenMirrorQualityGQL })
-  const { mutate: requestAudio, onDone: onAudioDone, onError: onAudioError } = initMutation({ document: requestScreenMirrorAudioGQL }, false)
+  const { mutate: updateQuality, onDone: onQualityDone } = initMutation({ document: updateScreenMirrorQualityGQL }, showActionError)
+  const { mutate: requestAudio, onDone: onAudioDone, onError: onAudioError } = initMutation({ document: requestScreenMirrorAudioGQL })
   const { mutate: relaunchMutate, loading: relaunchLoading, onError: onRelaunchError } = initMutation({ document: relaunchAppGQL })
 
   // Start / Stop

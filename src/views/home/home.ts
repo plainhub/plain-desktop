@@ -1,13 +1,12 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { rebuildFileIndexGQL } from '@/lib/api/file-index'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { ref, computed, watch, onActivated, onDeactivated, onUnmounted } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
 import { callGQL, initMutation, pauseFileIndexGQL, resumeFileIndexGQL, stopFileIndexGQL } from '@/lib/api/mutation'
 import { homeStatsGQL, simsGQL, initQuery, fileIndexScanProgressGQL, type HomeStatKey } from '@/lib/api/query'
-import toast from '@/components/toaster'
 import { Capability } from '@/lib/data'
 import type { IHomeStats, IStorageMount, IContact, ISim, IFileIndexScanProgress } from '@/lib/interfaces'
 import { useContactPicker } from '@/hooks/contact-picker'
@@ -23,17 +22,13 @@ const STAT_CAPABILITY: Partial<Record<HomeStatKey, Capability>> = {
 const ALL_HOME_STAT_KEYS: HomeStatKey[] = ['audios', 'images', 'videos', 'docs', 'packages', 'notes', 'feedEntries', 'messages', 'calls', 'contacts']
 
 export function useHomeData() {
-  const { t } = useI18n()
-  const mainStore = useMainStore()
   const tempStore = useTempStore()
   const { counter, app: appState } = storeToRefs(tempStore)
   const mounts = ref<IStorageMount[]>([])
 
   const { refetch } = initQuery({
     handle: (data: IHomeStats, error: string) => {
-      if (error) {
-        toast(t(error), 'error')
-      } else if (data) {
+      if (!error && data) {
         mounts.value = data.mounts ?? []
         if (data.smsCount !== undefined) counter.value.messages = data.smsCount
         if (data.contactCount !== undefined) counter.value.contacts = data.contactCount
@@ -85,7 +80,7 @@ export function usePhoneAction() {
   const callNumberError = ref(false)
   const sims = ref<ISim[]>([])
 
-  const { mutate: mutateCall, loading: callLoading } = initMutation({ document: callGQL })
+  const { mutate: mutateCall, loading: callLoading } = initMutation({ document: callGQL }, showActionError)
 
   initQuery({
     document: simsGQL,
@@ -137,10 +132,10 @@ export function useScanAction(volumeId: string) {
     if (progress.volumeId === volumeId) fileIndexScanProgress.value = progress
   })
   onUnmounted(unsubscribe)
-  const pause = initMutation({ document: pauseFileIndexGQL })
-  const resume = initMutation({ document: resumeFileIndexGQL })
-  const stop = initMutation({ document: stopFileIndexGQL })
-  const rebuild = initMutation({ document: rebuildFileIndexGQL })
+  const pause = initMutation({ document: pauseFileIndexGQL }, showActionError)
+  const resume = initMutation({ document: resumeFileIndexGQL }, showActionError)
+  const stop = initMutation({ document: stopFileIndexGQL }, showActionError)
+  const rebuild = initMutation({ document: rebuildFileIndexGQL }, showActionError)
   return {
     fileIndexScanProgress,
     loading: computed(() => pause.loading.value || resume.loading.value || stop.loading.value || rebuild.loading.value),

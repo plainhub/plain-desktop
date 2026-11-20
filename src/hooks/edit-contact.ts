@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { initMutation, createContactGQL, updateContactGQL } from '@/lib/api/mutation'
@@ -48,12 +49,12 @@ export function useEditContact(data: IContact | undefined, sources: any[], done:
 
   const { mutate: create, loading: createLoading, onDone: createDone } = initMutation({
     document: createContactGQL,
-  })
+  }, showActionError)
   createDone(() => { done(); popModal() })
 
   const { mutate: edit, loading: editLoading, onDone: editDone } = initMutation({
     document: updateContactGQL,
-  })
+  }, showActionError)
   editDone(() => { done(); popModal() })
 
   if (data) {

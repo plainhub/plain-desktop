@@ -1,10 +1,11 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { initMutation, trashSmsGQL, restoreSmsGQL } from '@/lib/api/mutation'
 import emitter from '@/plugins/eventbus'
 
 export const useSmsTrash = () => {
   const { mutate, onDone: onTrashed } = initMutation({
     document: trashSmsGQL,
-  })
+  }, showActionError)
 
   const pending: string[] = []
 
@@ -25,7 +26,7 @@ export const useSmsTrash = () => {
 export const useSmsRestore = () => {
   const { mutate, onDone: onRestored } = initMutation({
     document: restoreSmsGQL,
-  })
+  }, showActionError)
 
   const pending: string[] = []
 

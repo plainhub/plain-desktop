@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import type { IData } from '@/lib/interfaces'
 import { computed, ref, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -226,7 +227,7 @@ export const useDelete = (gql: string, done: () => void) => {
   const deleteCount = ref(0)
   const deleteQuery = ref('')
 
-  const { mutate, loading: deleteLoading, onDone } = initMutation({ document: gql })
+  const { mutate, loading: deleteLoading, onDone } = initMutation({ document: gql }, showActionError)
 
   onDone(() => {
     confirmingDelete.value = false

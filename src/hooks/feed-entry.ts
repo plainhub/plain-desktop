@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { useRoute } from 'vue-router'
 import { onActivated, onDeactivated, inject, ref } from 'vue'
 import toast from '@/components/toaster'
@@ -46,7 +47,7 @@ export function useFeedEntry() {
     replacePath(mainStore, q ? `/feeds?q=${q}` : '/feeds')
   }
 
-  const { mutate: saveToNotes, onDone: onSaveToNotesDone } = initMutation({ document: saveFeedEntriesToNotesGQL })
+  const { mutate: saveToNotes, onDone: onSaveToNotesDone } = initMutation({ document: saveFeedEntriesToNotesGQL }, showActionError)
   onSaveToNotesDone(() => toast(t('saved')))
 
   const { refetch: refetchTags } = initQuery({
@@ -58,7 +59,7 @@ export function useFeedEntry() {
     variables: { type: dataType },
   })
 
-  const { mutate: syncFeedEntryContent, loading: syncContentLoading, onDone: syncContentDone } = initMutation({ document: syncFeedEntryContentGQL })
+  const { mutate: syncFeedEntryContent, loading: syncContentLoading, onDone: syncContentDone } = initMutation({ document: syncFeedEntryContentGQL }, showActionError)
   syncContentDone(async (r: { data: { syncFeedEntryContent: IFeedEntryDetail } }) => {
     entry.value = r.data.syncFeedEntryContent
     markdown.value = await render(entry.value.content || entry.value.description)

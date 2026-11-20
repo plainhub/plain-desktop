@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { HttpErrorCode } from '@/lib/api/http-error-code'
 import { computed, onUnmounted, ref } from 'vue'
 import toast from '@/components/toaster'
@@ -65,9 +66,9 @@ export function useMessageSend(
     pendingFiles.value.some((f) => !f.type.startsWith('image/') && f.size > MMS_WARN_SIZE),
   )
 
-  const { mutate: mutateCall } = initMutation({ document: callGQL })
+  const { mutate: mutateCall } = initMutation({ document: callGQL }, showActionError)
   const smsSending = ref(false)
-  const { mutate: mutateSendMessage, loading: messageSendLoading } = initMutation({ document: sendSmsGQL })
+  const { mutate: mutateSendMessage, loading: messageSendLoading } = initMutation({ document: sendSmsGQL }, showActionError)
   const invalidSelectedSim = computed(() => selectedSimId.value >= 0
     && (!simsLoaded.value || !sims.value.some((sim) => sim.subscriptionId === selectedSimId.value)))
   const sendLoading = computed(() => smsSending.value || messageSendLoading.value)

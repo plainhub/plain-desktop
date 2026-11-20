@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { GqlError } from '@/lib/api/gql-error'
 import { encodeBase64 } from '@/lib/strutil'
 import { ref } from 'vue'
@@ -59,7 +60,7 @@ export function useNotesActions(opts: UseNotesActionsOptions) {
     }
   }
 
-  const { mutate: doDeleteNote, onDone: onDeleteNoteDone } = initMutation({ document: deleteNoteGQL })
+  const { mutate: doDeleteNote, onDone: onDeleteNoteDone } = initMutation({ document: deleteNoteGQL }, showActionError)
   const pendingDeleteNote = ref<INote | null>(null)
 
   onDeleteNoteDone(() => {

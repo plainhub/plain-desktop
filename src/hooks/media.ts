@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { useI18n } from 'vue-i18n'
 import toast from '@/components/toaster'
 import { promptModal } from '@/components/modal'
@@ -21,7 +22,7 @@ export const useDeleteItems = () => {
   const deleteQuery = ref('')
   const deleteType = ref('')
 
-  const { mutate: doBulkDelete, loading: deleteLoading, onDone: onBulkDeleteDone } = initMutation({ document: deleteMediaItemsGQL })
+  const { mutate: doBulkDelete, loading: deleteLoading, onDone: onBulkDeleteDone } = initMutation({ document: deleteMediaItemsGQL }, showActionError)
   onBulkDeleteDone(() => {
     const type = deleteType.value
     const q = deleteQuery.value
@@ -29,7 +30,7 @@ export const useDeleteItems = () => {
     emitter.emit('media_items_actioned', { type, action: 'DELETE', query: q })
   })
 
-  const { mutate: doDeleteItem, onDone: onDeleteItemDone } = initMutation({ document: deleteMediaItemsGQL })
+  const { mutate: doDeleteItem, onDone: onDeleteItemDone } = initMutation({ document: deleteMediaItemsGQL }, showActionError)
   let pendingDeleteCallback: (() => void) | null = null
   onDeleteItemDone(() => { pendingDeleteCallback?.(); pendingDeleteCallback = null })
 
@@ -75,7 +76,7 @@ export const useMoveItems = () => {
   const moveType = ref('')
   const moveQuery = ref('')
 
-  const { mutate: doMove, loading: moveLoading, onDone: onMoveDone } = initMutation({ document: moveMediaItemsGQL })
+  const { mutate: doMove, loading: moveLoading, onDone: onMoveDone } = initMutation({ document: moveMediaItemsGQL }, showActionError)
   onMoveDone(() => {
     const type = moveType.value
     const q = moveQuery.value

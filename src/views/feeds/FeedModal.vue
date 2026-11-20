@@ -34,6 +34,7 @@
   </v-modal>
 </template>
 <script setup lang="ts">
+import { showActionError } from '@/hooks/show-action-error'
 import { initMutation, updateFeedGQL } from '@/lib/api/mutation'
 import type { IFeed } from '@/lib/interfaces'
 import { nextTick, ref, type PropType } from 'vue'
@@ -56,7 +57,7 @@ const props = defineProps({
 
 const { mutate, loading, onDone } = initMutation({
   document: updateFeedGQL,
-})
+}, showActionError)
 inputValue.value = props.data?.name ?? ''
 fetchContent.value = props.data?.fetchContent ?? false
 

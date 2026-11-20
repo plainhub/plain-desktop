@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { initMutation, restoreNotesGQL, trashNotesGQL } from '@/lib/api/mutation'
 import { DataType } from '@/lib/data'
 import emitter from '@/plugins/eventbus'
@@ -7,7 +8,7 @@ import { reactive } from 'vue'
 export const useNotesTrash = (clearSelection: () => void, fetch: () => void) => {
   const { mutate, onDone: onTrashed } = initMutation({
     document: trashNotesGQL,
-  })
+  }, showActionError)
 
   const loading = reactive(new Map())
 
@@ -33,7 +34,7 @@ export const useNotesTrash = (clearSelection: () => void, fetch: () => void) => 
 export const useNotesRestore = (clearSelection: () => void, fetch: () => void) => {
   const { mutate, onDone: onRestored } = initMutation({
     document: restoreNotesGQL,
-  })
+  }, showActionError)
 
   const loading = reactive(new Map())
 

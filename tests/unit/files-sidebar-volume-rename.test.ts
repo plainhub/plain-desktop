@@ -54,6 +54,7 @@ it('opens volume rename from its menu, sends the stable volume id and refreshes 
   state.fetch.mockResolvedValueOnce({ errors: [{ message: 'Write refused' }] })
   await mutation.mutate(options.getVariables('New name'))
   expect(state.refetch).not.toHaveBeenCalled()
+  expect((await import('@/plugins/eventbus')).default.emit).toHaveBeenCalledExactlyOnceWith('toast', 'Write refused')
   state.fetch.mockResolvedValueOnce({ data: { setMountAlias: true } })
   await mutation.mutate(options.getVariables('New name'))
   expect(state.fetch).toHaveBeenLastCalledWith(expect.stringContaining('setMountAlias'), { id: 'volume-fixture', alias: 'New name' }, { dedupe: false })

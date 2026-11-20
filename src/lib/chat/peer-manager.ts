@@ -3,8 +3,8 @@ import { peerCacher } from './peer-cacher'
 import { chatCacher } from './chat-cacher'
 
 class PeerManager {
-  private readonly deleteMut = initMutation({ document: deletePeerGQL }, false)
-  private readonly unpairMut = initMutation({ document: unpairPeerGQL }, false)
+  private readonly deleteMut = initMutation({ document: deletePeerGQL })
+  private readonly unpairMut = initMutation({ document: unpairPeerGQL })
 
   async deletePeer(peerId: string): Promise<boolean> {
     const r = await this.deleteMut.mutate({ peerId })

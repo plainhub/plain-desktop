@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import toast from '@/components/toaster'
@@ -19,9 +20,9 @@ const STATE_MAP: Record<string, 'work' | 'shortBreak' | 'longBreak'> = {
 export function usePomodoro() {
   const { t } = useI18n()
 
-  const { mutate: startPomodoroMutation } = initMutation({ document: startPomodoroGQL })
-  const { mutate: stopPomodoroMutation } = initMutation({ document: stopPomodoroGQL })
-  const { mutate: pausePomodoroMutation } = initMutation({ document: pausePomodoroGQL })
+  const { mutate: startPomodoroMutation } = initMutation({ document: startPomodoroGQL }, showActionError)
+  const { mutate: stopPomodoroMutation } = initMutation({ document: stopPomodoroGQL }, showActionError)
+  const { mutate: pausePomodoroMutation } = initMutation({ document: pausePomodoroGQL }, showActionError)
 
   const settings = ref<PomodoroSettings>({
     workDurationMin: 25,

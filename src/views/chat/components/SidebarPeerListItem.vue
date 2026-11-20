@@ -40,6 +40,7 @@
 </template>
 
 <script setup lang="ts">
+import { showActionError } from '@/hooks/show-action-error'
 import type { IPeer } from '@/lib/interfaces'
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -104,7 +105,7 @@ function showMenu() {
   menuVisible.value = true
 }
 
-const { mutate: deletePeer } = initMutation({ document: deletePeerGQL })
+const { mutate: deletePeer } = initMutation({ document: deletePeerGQL }, showActionError)
 
 function doDelete() {
   if (deleteLoading.value) return

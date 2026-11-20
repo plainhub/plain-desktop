@@ -39,6 +39,7 @@
 </template>
 
 <script setup lang="ts">
+import { showActionError } from '@/hooks/show-action-error'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { initQuery, tagsGQL } from '@/lib/api/query'
 import { replacePath } from '@/plugins/router'
@@ -102,7 +103,7 @@ function renameTag(item: ITag) {
     mutation: () =>
       initMutation({
         document: updateTagGQL,
-      }),
+      }, showActionError),
     getVariables: (value: string) => {
       return { id: item.id, name: value }
     },
@@ -112,7 +113,7 @@ function renameTag(item: ITag) {
   })
 }
 
-const { mutate: deleteTagMutate, loading: deleteLoading, onDone: onDeleteDone } = initMutation({ document: deleteTagGQL })
+const { mutate: deleteTagMutate, loading: deleteLoading, onDone: onDeleteDone } = initMutation({ document: deleteTagGQL }, showActionError)
 
 onDeleteDone(() => {
   if (selectedItem.value) {
@@ -133,7 +134,7 @@ function add() {
     title: t('add_tag'),
     placeholder: t('name'),
     mutation: () => {
-      const m = initMutation({ document: createTagGQL })
+      const m = initMutation({ document: createTagGQL }, showActionError)
       m.onDone(() => emitter.emit('refetch_tags', props.type))
       return m
     },

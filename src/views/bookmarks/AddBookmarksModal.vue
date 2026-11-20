@@ -26,6 +26,7 @@
 </template>
 
 <script setup lang="ts">
+import { showActionError } from '@/hooks/show-action-error'
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { BookmarkGroup } from '@/stores/bookmarks'
@@ -61,7 +62,7 @@ const validUrls = computed(() => {
 
 const { mutate: mutateAdd, onDone: onAddDone, loading: saving } = initMutation({
   document: addBookmarksGQL,
-})
+}, showActionError)
 
 onAddDone((r: any) => {
   if (r.data?.addBookmarks) {

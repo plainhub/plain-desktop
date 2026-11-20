@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { chatContentInput } from '@/lib/chat/chat-content'
 import { ref, shallowRef, watch, onUnmounted, type ComputedRef } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -43,16 +44,16 @@ export function useChatMessages(chatId: ComputedRef<string>, channelId: Computed
     variables: () => ({ target: chatId.value }),
   })
 
-  const { mutate: sendMutate, loading: sendLoading } = initMutation({ document: sendChatItemsGQL }, false)
+  const { mutate: sendMutate, loading: sendLoading } = initMutation({ document: sendChatItemsGQL })
 
   const { mutate: deleteItem, loading: deleteLoading, onDone: deleteDone } = initMutation({
     document: deleteChatItemGQL,
-  })
+  }, showActionError)
   deleteDone(() => {
     chatItems.value = chatItems.value.filter((i) => i.id !== deleteId.value)
   })
 
-  const { mutate: retryMutate } = initMutation({ document: retryChatItemGQL })
+  const { mutate: retryMutate } = initMutation({ document: retryChatItemGQL }, showActionError)
 
   async function doSend(tempId: string, toId: string, content: IChatItem['content']) {
     const r = await sendMutate({ targets: [toId], content: chatContentInput(content) })

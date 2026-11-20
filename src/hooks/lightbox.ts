@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { HttpErrorCode } from '@/lib/api/http-error-code'
 import { computed, ref, reactive, watch, onMounted, onBeforeUnmount, type Ref } from 'vue'
 import { on, off, isArray } from '@/components/lightbox/utils/index'
@@ -493,7 +494,7 @@ export function useLightboxFileActions(
     download(source.src, (source.name || getFileName(source.path)).replace(' ', '-'), source.isFromChat, source.path)
   }
 
-  const { mutate: deleteFiles, onError: onDeleteError } = initMutation({ document: deleteFilesGQL })
+  const { mutate: deleteFiles, onError: onDeleteError } = initMutation({ document: deleteFilesGQL }, showActionError)
   onDeleteError(refetchInfo)
 
   async function deleteFile(): Promise<boolean> {

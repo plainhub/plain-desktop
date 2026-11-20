@@ -39,6 +39,7 @@
 </template>
 
 <script setup lang="ts">
+import { showActionError } from '@/hooks/show-action-error'
 import { computed, ref, type PropType } from 'vue'
 import { addToTagsGQL, removeFromTagsGQL, createTagGQL, initMutation } from '@/lib/api/mutation'
 import type { ITag } from '@/lib/interfaces'
@@ -84,9 +85,9 @@ function getTagState(tag: ITag): 'all' | 'some' | 'none' {
   return 'some'
 }
 
-const { mutate: addToTags, loading: adding, onDone: onAdded } = initMutation({ document: addToTagsGQL })
-const { mutate: removeFromTags, loading: removing, onDone: onRemoved } = initMutation({ document: removeFromTagsGQL })
-const { mutate: createTag, loading: creating, onDone: onCreated } = initMutation({ document: createTagGQL })
+const { mutate: addToTags, loading: adding, onDone: onAdded } = initMutation({ document: addToTagsGQL }, showActionError)
+const { mutate: removeFromTags, loading: removing, onDone: onRemoved } = initMutation({ document: removeFromTagsGQL }, showActionError)
+const { mutate: createTag, loading: creating, onDone: onCreated } = initMutation({ document: createTagGQL }, showActionError)
 
 const onDone = () => {
   emitter.emit('items_tags_updated', { type: props.type })

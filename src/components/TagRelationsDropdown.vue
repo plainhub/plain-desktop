@@ -37,6 +37,7 @@
 </template>
 
 <script setup lang="ts">
+import { showActionError } from '@/hooks/show-action-error'
 import { computed, ref, type PropType } from 'vue'
 import { initMutation, updateTagRelationsGQL, createTagGQL } from '@/lib/api/mutation'
 import type { ITag, ITagRelationItem } from '@/lib/interfaces'
@@ -64,7 +65,7 @@ const canCreate = computed(() => {
   return q.length > 0 && !props.tags.some((t) => t.name.toLowerCase() === q.toLowerCase())
 })
 
-const { mutate, loading, onDone } = initMutation({ document: updateTagRelationsGQL })
+const { mutate, loading, onDone } = initMutation({ document: updateTagRelationsGQL }, showActionError)
 
 onDone(() => {
   emitter.emit('item_tags_updated', { item: props.item, type: props.type })
@@ -85,7 +86,7 @@ function toggleTag(tag: ITag) {
 function createAndAdd() {
   const name = query.value.trim()
   if (!name) return
-  const m = initMutation({ document: createTagGQL })
+  const m = initMutation({ document: createTagGQL }, showActionError)
   m.onDone((result) => {
     const newTag: ITag = result.data?.createTag
     if (!newTag) return

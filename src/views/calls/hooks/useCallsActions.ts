@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { ref, type Ref } from 'vue'
 import type { ICall, ITag, ISim } from '@/lib/interfaces'
 import { callGQL, deleteCallsGQL, initMutation } from '@/lib/api/mutation'
@@ -17,7 +18,7 @@ export function useCallsActions(opts: UseCallsActionsOptions) {
 
   const callId = ref('')
   const sims = ref<ISim[]>([])
-  const { mutate: mutateCall, loading: callLoading } = initMutation({ document: callGQL })
+  const { mutate: mutateCall, loading: callLoading } = initMutation({ document: callGQL }, showActionError)
 
   initQuery({
     document: simsGQL,
@@ -31,7 +32,7 @@ export function useCallsActions(opts: UseCallsActionsOptions) {
     mutateCall({ number: item.number, showDialer: false })
   }
 
-  const { mutate: doDeleteCall, onDone: onDeleteCallDone } = initMutation({ document: deleteCallsGQL })
+  const { mutate: doDeleteCall, onDone: onDeleteCallDone } = initMutation({ document: deleteCallsGQL }, showActionError)
   const pendingDeleteCall = ref<ICall | null>(null)
 
   onDeleteCallDone(() => {

@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { HttpErrorCode } from '@/lib/api/http-error-code'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch, type Ref } from 'vue'
 import { useTempStore } from '@/stores/temp'
@@ -21,7 +22,7 @@ function beginSelection() {
 
 export function usePlayAudio(onApplied: (track: IAudioItem) => void, enqueue = false) {
   const store = useAudioPlaylistStore()
-  const { mutate, loading } = initMutation({ document: enqueue ? enqueueAndSelectAudioGQL : selectAudioGQL })
+  const { mutate, loading } = initMutation({ document: enqueue ? enqueueAndSelectAudioGQL : selectAudioGQL }, showActionError)
   function play(variables: { mediaId: string; query?: string }, active = beginSelection()) {
     const command = pendingSelection.then(async () => {
       if (!active()) return
@@ -112,11 +113,11 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
       if (intent === playbackIntent && context === getGraphqlContextKey()) _play(0)
     })
   })
-  const { mutate: clear, loading: clearLoading, onDone: onClearDone } = initMutation({ document: clearAudioQueueGQL })
-  const { mutate: updateMode } = initMutation({ document: updateAudioPlayModeGQL })
+  const { mutate: clear, loading: clearLoading, onDone: onClearDone } = initMutation({ document: clearAudioQueueGQL }, showActionError)
+  const { mutate: updateMode } = initMutation({ document: updateAudioPlayModeGQL }, showActionError)
   const history = useMediaPlayHistory()
-  const { mutate: reorderAudioQueue } = initMutation({ document: reorderAudioQueueGQL })
-  const { mutate: deleteAudio } = initMutation({ document: removeAudioFromQueueGQL })
+  const { mutate: reorderAudioQueue } = initMutation({ document: reorderAudioQueueGQL }, showActionError)
+  const { mutate: deleteAudio } = initMutation({ document: removeAudioFromQueueGQL }, showActionError)
 
   onClearDone(() => {
     audioPlayback.value = { mediaId: null, path: null }

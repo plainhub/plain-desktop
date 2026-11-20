@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { ref, computed } from 'vue'
 import { initMutation } from '@/lib/api/mutation'
 import { moveMediaItemsGQL } from '@/lib/api/mutation'
@@ -49,10 +50,10 @@ export function useOrganizeUndo() {
     const action = stack.value.pop()
     if (!action) return null
     if (action.kind === 'trash') {
-      const { mutate } = initMutation({ document: restoreMediaItemsGQL })
+      const { mutate } = initMutation({ document: restoreMediaItemsGQL }, showActionError)
       mutate({ type: action.type, query: action.query })
     } else if (action.origDir) {
-      const { mutate } = initMutation({ document: moveMediaItemsGQL })
+      const { mutate } = initMutation({ document: moveMediaItemsGQL }, showActionError)
       mutate({ type: action.type, query: action.query, destDir: action.origDir })
     }
     emitter.emit('media_items_actioned', { type: action.type, action: 'undo', query: action.query })
@@ -61,8 +62,8 @@ export function useOrganizeUndo() {
 
   /** Undo every recorded action of this session in reverse order. */
   function undoAll() {
-    const restore = initMutation({ document: restoreMediaItemsGQL })
-    const move = initMutation({ document: moveMediaItemsGQL })
+    const restore = initMutation({ document: restoreMediaItemsGQL }, showActionError)
+    const move = initMutation({ document: moveMediaItemsGQL }, showActionError)
     while (stack.value.length) {
       const action = stack.value.pop()!
       if (action.kind === 'trash') {

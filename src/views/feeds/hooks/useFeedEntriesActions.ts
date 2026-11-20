@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { encodeBase64 } from '@/lib/strutil'
 import { ref } from 'vue'
 import type { IFeedEntry, ITag } from '@/lib/interfaces'
@@ -45,13 +46,13 @@ export function useFeedEntriesActions(opts: UseFeedEntriesActionsOptions) {
 
   const { mutate: saveToNotes, loading: savingNotes, onDone: onSaveToNotesDone } = initMutation({
     document: saveFeedEntriesToNotesGQL,
-  })
+  }, showActionError)
 
   onSaveToNotesDone(() => { toast(t('saved')) })
 
   const { mutate: doSyncFeeds } = initMutation({
     document: syncFeedsGQL,
-  })
+  }, showActionError)
 
   function saveFeedsToNotes() {
     if (!realAllChecked.value) {
@@ -70,7 +71,7 @@ export function useFeedEntriesActions(opts: UseFeedEntriesActionsOptions) {
     doSyncFeeds({ id: null })
   }
 
-  const { mutate: doDeleteEntry, onDone: onDeleteEntryDone } = initMutation({ document: deleteFeedEntryGQL })
+  const { mutate: doDeleteEntry, onDone: onDeleteEntryDone } = initMutation({ document: deleteFeedEntryGQL }, showActionError)
   const pendingDeleteEntry = ref<IFeedEntry | null>(null)
 
   onDeleteEntryDone(() => {

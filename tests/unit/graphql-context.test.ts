@@ -466,12 +466,24 @@ it('leaves selected-peer 500s and origin 502s to ordinary handling', async () =>
 })
 
 it('preserves structured mutation error codes independently of diagnostic text', async () => {
-  const mutation = initMutation({ document: 'mutation { logout }' }, false)
+  const mutation = initMutation({ document: 'mutation { logout }' })
   const failed = vi.fn()
   mutation.onError(failed)
   vi.mocked(nativeGraphql).mockResolvedValueOnce({ errors: [{ message: 'approval diagnostic', extensions: { code: 'REJECTED' } }] })
   await mutation.mutate()
   expect(failed).toHaveBeenCalledWith(expect.objectContaining({ code: AuthErrorCode.Rejected, message: 'approval diagnostic' }))
+  expect(emitter.emit).not.toHaveBeenCalled()
+})
+
+it('delivers transport failures to the caller without a global toast', async () => {
+  const failed = vi.fn()
+  const mutation = initMutation({ document: 'mutation { logout }' })
+  mutation.onError(failed)
+  vi.mocked(nativeGraphql).mockRejectedValueOnce(new Error('transport unavailable'))
+  expect(await mutation.mutate()).toBeUndefined()
+  expect(failed).toHaveBeenCalledTimes(1)
+  expect(emitter.emit).not.toHaveBeenCalled()
+  expect(mutation.loading.value).toBe(false)
 })
 
 it('keeps network diagnostic text from becoming a business failure', async () => {

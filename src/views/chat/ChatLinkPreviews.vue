@@ -48,6 +48,7 @@
 </template>
 
 <script setup lang="ts">
+import { showActionError } from '@/hooks/show-action-error'
 import { computed, reactive, ref } from 'vue'
 import { getChatFileId, getFileUrl } from '@/lib/api/file'
 import { addBookmarksGQL, initMutation } from '@/lib/api/mutation'
@@ -60,7 +61,7 @@ const tempStore = useTempStore()
 const failed = reactive(new Set<string>())
 const openMenu = ref('')
 const savingUrls = reactive(new Set<string>())
-const { mutate: saveBookmark } = initMutation({ document: addBookmarksGQL })
+const { mutate: saveBookmark } = initMutation({ document: addBookmarksGQL }, showActionError)
 
 async function addBookmark(url: string) {
   if (savingUrls.has(url)) return

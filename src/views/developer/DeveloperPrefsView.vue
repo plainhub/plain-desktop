@@ -25,6 +25,7 @@
 </template>
 
 <script setup lang="ts">
+import { showActionError } from '@/hooks/show-action-error'
 import { ref, onActivated, onDeactivated } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useTempStore } from '@/stores/temp'
@@ -55,7 +56,7 @@ const { loading, refetch } = initQuery({
   document: prefsGQL,
 })
 
-const { mutate: deleteMutate } = initMutation({ document: removePrefGQL })
+const { mutate: deleteMutate } = initMutation({ document: removePrefGQL }, showActionError)
 
 async function deleteEntry(key: string) {
   deletingKey.value = key

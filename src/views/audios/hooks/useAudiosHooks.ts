@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { initMutation, addAudioToQueueGQL, removeAudioFromQueueGQL } from '@/lib/api/mutation'
 import emitter from '@/plugins/eventbus'
 import { ref, type Ref, computed } from 'vue'
@@ -11,7 +12,7 @@ import { usePlayAudio } from '@/hooks/audio-player'
 export const useAddToPlaylist = (items: Ref<IAudio[]>, clearSelection: () => void) => {
   const { mutate, loading, onDone } = initMutation({
     document: addAudioToQueueGQL,
-  })
+  }, showActionError)
 
   const {
     mutate: removeFromPlaylist,
@@ -19,7 +20,7 @@ export const useAddToPlaylist = (items: Ref<IAudio[]>, clearSelection: () => voi
     onDone: removeDone,
   } = initMutation({
     document: removeAudioFromQueueGQL,
-  })
+  }, showActionError)
 
   const { t } = useI18n()
   const playlistStore = useAudioPlaylistStore()

@@ -16,6 +16,7 @@
 </template>
 
 <script setup lang="ts">
+import { showActionError } from '@/hooks/show-action-error'
 import { computed } from 'vue'
 import type { PropType } from 'vue'
 import { formatDiskGQL, initMutation } from '@/lib/api/mutation'
@@ -34,7 +35,7 @@ const diskLabel = computed(() => props.label || props.path)
 
 const { mutate, loading, onDone: onFormatDone } = initMutation({
   document: formatDiskGQL,
-})
+}, showActionError)
 
 function doFormat() {
   mutate({ path: props.path }).catch(() => {

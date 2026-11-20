@@ -1,4 +1,3 @@
-import { HttpErrorCode } from '@/lib/api/http-error-code'
 import { ref } from 'vue'
 import { GqlError } from './gql-error'
 import { gqlFetch } from './gql-client'
@@ -15,7 +14,6 @@ import {
   bookmarkGroupFragment,
   contactFragment,
 } from './fragments'
-import emitter from '@/plugins/eventbus'
 
 // --- Mutation Wrapper ---
 
@@ -24,28 +22,20 @@ export interface InitMutationParams {
   origin?: boolean
 }
 
-export function initMutation(params: InitMutationParams, handleError = true) {
+export function initMutation(params: InitMutationParams, onFailure?: (error: unknown) => void) {
   const loading = ref(false)
   const doneCallbacks: Array<(result: any) => void> = []
-  const errorCallbacks: Array<(error: any) => void> = []
+  const errorCallbacks: Array<(error: any) => void> = onFailure ? [onFailure] : []
 
   async function mutate(variables?: any): Promise<any> {
     loading.value = true
     try {
       const r = await gqlFetch(params.document, variables, { dedupe: false, ...(params.origin ? { origin: true } : {}) })
-      if (r.errors?.length) {
-        const message = r.errors[0].message
-        if (handleError) emitter.emit('toast', message)
-        const err = GqlError.fromGraphql(r.errors[0])
-        for (const cb of errorCallbacks) cb(err)
-        return undefined
-      }
+      if (r.errors?.length) throw GqlError.fromGraphql(r.errors[0])
       for (const cb of doneCallbacks) cb(r)
       return r
     } catch (e: any) {
       if (e instanceof GqlError && e.canceled) return undefined
-      const message = e instanceof GqlError ? e.message : HttpErrorCode.NetworkError
-      if (handleError) emitter.emit('toast', message)
       for (const cb of errorCallbacks) cb(e)
       return undefined
     } finally {

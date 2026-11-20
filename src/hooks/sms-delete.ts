@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useTempStore } from '@/stores/temp'
@@ -18,7 +19,7 @@ export const useSmsDeleteAvailable = () => {
 export const useSmsDelete = () => {
   const { mutate, onDone: onDeleted, onError } = initMutation({
     document: deleteSmsGQL,
-  })
+  }, showActionError)
 
   const pending: string[] = []
 

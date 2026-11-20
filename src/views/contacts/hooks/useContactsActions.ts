@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { ref, type Ref } from 'vue'
 import type { IContact, IContactSource, ITag, ISim } from '@/lib/interfaces'
 import { getContactFullName } from '@/lib/contact/format'
@@ -24,7 +25,7 @@ export function useContactsActions(opts: UseContactsActionsOptions) {
   const callId = ref('')
   const callIndex = ref(0)
   const sims = ref<ISim[]>([])
-  const { mutate: mutateCall, loading: callLoading } = initMutation({ document: callGQL })
+  const { mutate: mutateCall, loading: callLoading } = initMutation({ document: callGQL }, showActionError)
 
   initQuery({
     document: simsGQL,
@@ -35,7 +36,7 @@ export function useContactsActions(opts: UseContactsActionsOptions) {
 
   const fullName = getContactFullName
 
-  const { mutate: doDeleteContact, onDone: onDeleteContactDone } = initMutation({ document: deleteContactsGQL })
+  const { mutate: doDeleteContact, onDone: onDeleteContactDone } = initMutation({ document: deleteContactsGQL }, showActionError)
   const pendingDeleteContact = ref<IContact | null>(null)
 
   onDeleteContactDone(() => {

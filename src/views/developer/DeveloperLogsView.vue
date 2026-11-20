@@ -41,6 +41,7 @@
 </template>
 
 <script setup lang="ts">
+import { showActionError } from '@/hooks/show-action-error'
 import { ref, onMounted, onUnmounted, onActivated, onDeactivated, shallowRef, nextTick } from 'vue'
 import { EditorView, lineNumbers } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
@@ -170,7 +171,7 @@ function reload() {
   fetchLogs()
 }
 
-const { mutate: clearMutate } = initMutation({ document: clearAppLogsGQL })
+const { mutate: clearMutate } = initMutation({ document: clearAppLogsGQL }, showActionError)
 
 async function clearLogs() {
   clearing.value = true

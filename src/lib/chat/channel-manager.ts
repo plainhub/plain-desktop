@@ -13,14 +13,14 @@ import { channelCacher } from './channel-cacher'
 import type { IChatChannel } from '@/lib/interfaces'
 
 class ChannelManager {
-  private readonly createMut = initMutation({ document: createChatChannelGQL }, false)
-  private readonly renameMut = initMutation({ document: updateChatChannelGQL }, false)
-  private readonly deleteMut = initMutation({ document: deleteChatChannelGQL }, false)
-  private readonly leaveMut = initMutation({ document: leaveChatChannelGQL }, false)
-  private readonly inviteMut = initMutation({ document: addChatChannelMemberGQL }, false)
-  private readonly kickMut = initMutation({ document: removeChatChannelMemberGQL }, false)
-  private readonly acceptMut = initMutation({ document: acceptChatChannelInviteGQL }, false)
-  private readonly declineMut = initMutation({ document: declineChatChannelInviteGQL }, false)
+  private readonly createMut = initMutation({ document: createChatChannelGQL })
+  private readonly renameMut = initMutation({ document: updateChatChannelGQL })
+  private readonly deleteMut = initMutation({ document: deleteChatChannelGQL })
+  private readonly leaveMut = initMutation({ document: leaveChatChannelGQL })
+  private readonly inviteMut = initMutation({ document: addChatChannelMemberGQL })
+  private readonly kickMut = initMutation({ document: removeChatChannelMemberGQL })
+  private readonly acceptMut = initMutation({ document: acceptChatChannelInviteGQL })
+  private readonly declineMut = initMutation({ document: declineChatChannelInviteGQL })
 
   async createChannel(name: string): Promise<IChatChannel | null> {
     const r = await this.createMut.mutate({ name })

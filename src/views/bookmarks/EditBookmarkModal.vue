@@ -24,6 +24,7 @@
 </template>
 
 <script setup lang="ts">
+import { showActionError } from '@/hooks/show-action-error'
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Bookmark, BookmarkGroup } from '@/stores/bookmarks'
@@ -52,7 +53,7 @@ const groupOptions = computed(() => [
 
 const { mutate, loading, onDone } = initMutation({
   document: updateBookmarkGQL,
-})
+}, showActionError)
 
 onDone((result: any) => {
   if (result.data?.updateBookmark) {

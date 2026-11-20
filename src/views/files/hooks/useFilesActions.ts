@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { ref, type Ref, type ComputedRef } from 'vue'
 import { fileNameError, type IFile } from '@/lib/file'
 import type { IFileFilter } from '@/lib/interfaces'
@@ -48,12 +49,12 @@ export function useFilesActions(opts: UseFilesActionsOptions) {
     renameItem, renameMutation, renameVariables, renameDone,
   } = opts
 
-  const { loading: downloadLoading, mutate: setTempValue, onDone: setTempValueDone } = initMutation({ document: setTempValueGQL })
+  const { loading: downloadLoading, mutate: setTempValue, onDone: setTempValueDone } = initMutation({ document: setTempValueGQL }, showActionError)
   setTempValueDone((r: any) => { downloadFiles(r.data.setTempValue.key); clearSelection() })
 
   const { mutate: addFavoriteFolderMutation, onDone: addFavDone } = initMutation({
     document: addFavoriteFolderGQL,
-  })
+  }, showActionError)
   addFavDone(() => emitter.emit('refetch_favorite_folders'))
 
   const onDeleted = (files: IFile[]) => {
@@ -99,7 +100,7 @@ export function useFilesActions(opts: UseFilesActionsOptions) {
     setTempValue({ key: generateRecordId(), value: JSON.stringify(selectedIds.value.map((p) => ({ path: p }))) })
   }
 
-  const { mutate: deleteFilesMutate, loading: deleteLoading } = initMutation({ document: deleteFilesGQL }, false)
+  const { mutate: deleteFilesMutate, loading: deleteLoading } = initMutation({ document: deleteFilesGQL })
   const { deletingIds, collapsingIds, bulkDeleting, isDeleting, startDelete } = useFilesDelete({ t, mutate: deleteFilesMutate, onDeleted, refresh: () => { fetch(); refetchMounts() } })
   const pendingDeleteFiles = ref<IFile[]>([])
   const confirmingDelete = ref(false)
@@ -159,8 +160,7 @@ export function useFilesActions(opts: UseFilesActionsOptions) {
   const addToFavoritesClick = (item: IFile) => {
     if (!item.isDir) return
     addFavoriteFolderMutation({ rootPath: rootDir.value, fullPath: item.path })
-      .then(() => toast(t('added')))
-      .catch(() => toast(t('error'), 'error'))
+      .then(result => { if (result) toast(t('added')) })
   }
 
   return {

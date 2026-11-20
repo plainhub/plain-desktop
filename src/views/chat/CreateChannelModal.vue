@@ -12,6 +12,7 @@
 </template>
 
 <script setup lang="ts">
+import { showActionError } from '@/hooks/show-action-error'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
@@ -29,7 +30,7 @@ const chatStore = useChatStore()
 
 const { mutate, loading, onDone } = initMutation({
   document: createChatChannelGQL,
-})
+}, showActionError)
 
 onDone((r: any) => {
   const channel = { ...r.data.createChatChannel } as IChatChannel

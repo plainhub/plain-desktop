@@ -12,6 +12,7 @@
 </template>
 
 <script setup lang="ts">
+import { showActionError } from '@/hooks/show-action-error'
 import { ref } from 'vue'
 import type { PropType } from 'vue'
 import { popModal } from '@/components/modal'
@@ -27,7 +28,7 @@ const name = ref(props.channel.name)
 
 const { mutate, loading, onDone } = initMutation({
   document: updateChatChannelGQL,
-})
+}, showActionError)
 
 onDone((r: any) => {
   const renamed = { ...r.data.updateChatChannel }

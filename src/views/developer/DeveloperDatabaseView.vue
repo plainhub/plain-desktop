@@ -63,6 +63,7 @@
 </template>
 
 <script setup lang="ts">
+import { showActionError } from '@/hooks/show-action-error'
 import { ref, computed, watch, onActivated, onDeactivated } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useTempStore } from '@/stores/temp'
@@ -164,7 +165,7 @@ function gotoPage(page: number) {
   loadTable(activeTable.value)
 }
 
-const { mutate: deleteMutate } = initMutation({ document: deleteDbTableRowsGQL })
+const { mutate: deleteMutate } = initMutation({ document: deleteDbTableRowsGQL }, showActionError)
 
 async function deleteRow(id: string) {
   if (!id) return

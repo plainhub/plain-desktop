@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { IDoc } from '@/lib/interfaces'
@@ -20,7 +21,7 @@ export function useDocsActions(
   const { downloadFile } = useDownload(urlTokenKey)
   const { renameItem: renameTarget, renameMutation, renameVariables, renameDone } = useRename<IDoc>(refreshItems)
 
-  const { mutate: copyMutate, onDone: copyDone } = initMutation({ document: copyFileToDirectoryGQL })
+  const { mutate: copyMutate, onDone: copyDone } = initMutation({ document: copyFileToDirectoryGQL }, showActionError)
   copyDone(refreshItems)
 
   const { openFile } = useFileOpen<IDoc>({
@@ -35,7 +36,7 @@ export function useDocsActions(
     download: (item) => downloadFile(item.path, item.title),
   })
 
-  const { mutate: deleteFiles, onError: onDeleteError } = initMutation({ document: deleteFilesGQL })
+  const { mutate: deleteFiles, onError: onDeleteError } = initMutation({ document: deleteFilesGQL }, showActionError)
   onDeleteError(refreshItems)
 
   async function deleteItem(item: IDoc): Promise<boolean> {

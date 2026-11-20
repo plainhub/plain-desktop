@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { ref, onUnmounted } from 'vue'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { importImageSearchModelGQL, enableImageSearchGQL, disableImageSearchGQL, cancelImageModelDownloadGQL, startImageIndexGQL, cancelImageIndexGQL, initMutation } from '@/lib/api/mutation'
@@ -10,12 +11,12 @@ export function useImageSearchActions() {
   const startIndexLoading = ref(false)
   const cancelIndexLoading = ref(false)
 
-  const { mutate: mutateImport } = initMutation({ document: importImageSearchModelGQL })
-  const { mutate: mutateEnable } = initMutation({ document: enableImageSearchGQL })
-  const { mutate: mutateDisable } = initMutation({ document: disableImageSearchGQL })
-  const { mutate: mutateCancelDownload } = initMutation({ document: cancelImageModelDownloadGQL })
-  const { mutate: mutateStartIndex } = initMutation({ document: startImageIndexGQL })
-  const { mutate: mutateCancelIndex } = initMutation({ document: cancelImageIndexGQL })
+  const { mutate: mutateImport } = initMutation({ document: importImageSearchModelGQL }, showActionError)
+  const { mutate: mutateEnable } = initMutation({ document: enableImageSearchGQL }, showActionError)
+  const { mutate: mutateDisable } = initMutation({ document: disableImageSearchGQL }, showActionError)
+  const { mutate: mutateCancelDownload } = initMutation({ document: cancelImageModelDownloadGQL }, showActionError)
+  const { mutate: mutateStartIndex } = initMutation({ document: startImageIndexGQL }, showActionError)
+  const { mutate: mutateCancelIndex } = initMutation({ document: cancelImageIndexGQL }, showActionError)
 
   function onStatusUpdated(data: IImageSearchStatus) {
     if (!data) return

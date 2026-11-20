@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import {
@@ -153,8 +154,8 @@ export const useSmsStore = defineStore('sms', () => {
     document: smsCountGQL,
   })
 
-  const { mutate: mutateArchive } = initMutation({ document: archiveSmsConversationGQL })
-  const { mutate: mutateUnarchive } = initMutation({ document: unarchiveSmsConversationGQL })
+  const { mutate: mutateArchive } = initMutation({ document: archiveSmsConversationGQL }, showActionError)
+  const { mutate: mutateUnarchive } = initMutation({ document: unarchiveSmsConversationGQL }, showActionError)
 
   function runNormalRequest(mode: 'reset' | 'more', query: string, offset: number, force: boolean, limit = LIMIT) {
     const enhanced = participantFieldsSupported.value !== false

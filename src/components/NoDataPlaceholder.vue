@@ -6,6 +6,7 @@
 </template>
 
 <script setup lang="ts">
+import { showActionError } from '@/hooks/show-action-error'
 import { AccessErrorCode } from '@/lib/api/access-error-code'
 import { GqlError } from '@/lib/api/gql-error'
 
@@ -49,7 +50,7 @@ const { t } = useI18n()
 const dataKey = computed(() => props.placeholderKey || noDataKey(props.loading, props.access ?? [], props.feature ?? '', props.online))
 const showSettingsLink = computed(() => !!props.feature && (props.showSettingsLink ?? (dataKey.value === AccessErrorCode.NoPermission || !!props.placeholderKey)))
 
-const { mutate, loading: mutating } = initMutation({ document: requestAccessGQL })
+const { mutate, loading: mutating } = initMutation({ document: requestAccessGQL }, showActionError)
 
 async function openSettings() {
   const variables = { feature: props.feature }

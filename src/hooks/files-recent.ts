@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import toast from '@/components/toaster'
 import { onActivated, onDeactivated, ref } from 'vue'
@@ -46,7 +47,7 @@ export function useFilesRecent() {
   const onImageError = (id: string) => imageErrorIds.value.push(id)
   const onExtensionImageError = (id: string) => extensionImageErrorIds.value.push(id)
 
-  const { mutate: setTempValue, onDone: setTempValueDone } = initMutation({ document: setTempValueGQL })
+  const { mutate: setTempValue, onDone: setTempValueDone } = initMutation({ document: setTempValueGQL }, showActionError)
   setTempValueDone((r: any) => { downloadFiles(r.data.setTempValue.key); clearSelection() })
 
   const { openFile } = useFileOpen<IFile>({

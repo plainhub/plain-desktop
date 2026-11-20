@@ -56,6 +56,16 @@ it('refreshes Home counts and storage from a fresh read when indexing completes'
   expect(home.mounts.value).toEqual(mounts)
 })
 
+it('keeps the last home snapshot silently when a background refresh fails', async () => {
+  const mounts = [{ mountPoint: '/', totalBytes: 1000, freeBytes: 400 }]
+  state.query.handle({ imageCount: 12, mounts }, '')
+  state.refetch.mockImplementationOnce(() => state.query.handle(null, 'Permission denied'))
+  await state.progress({ state: 'IDLE' })
+  expect(home.mounts.value).toEqual(mounts)
+  expect(state.store.counter.images).toBe(12)
+  expect((await import('@/components/toaster')).default).not.toHaveBeenCalled()
+})
+
 it.each(['RUNNING', 'PAUSED', 'STOPPED', 'FAILED'])('does not refresh on %s progress', async (scanState) => {
   await state.progress({ state: scanState, indexed: 5, total: 10 })
   expect(state.refetch).not.toHaveBeenCalled()

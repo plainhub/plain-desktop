@@ -53,6 +53,7 @@
 </template>
 
 <script setup lang="ts">
+import { showActionError } from '@/hooks/show-action-error'
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
@@ -118,8 +119,8 @@ function showMenu() {
   menuVisible.value = true
 }
 
-const { mutate: deleteChannel } = initMutation({ document: deleteChatChannelGQL })
-const { mutate: leaveChannel } = initMutation({ document: leaveChatChannelGQL })
+const { mutate: deleteChannel } = initMutation({ document: deleteChatChannelGQL }, showActionError)
+const { mutate: leaveChannel } = initMutation({ document: leaveChatChannelGQL }, showActionError)
 
 function doDelete() {
   if (deleteLoading.value) return

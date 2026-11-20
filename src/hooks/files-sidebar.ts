@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import router, { replacePath } from '@/plugins/router'
 import { useMainStore } from '@/stores/main'
 import { computed, reactive, ref, watch } from 'vue'
@@ -45,12 +46,12 @@ export function useFilesSidebar() {
   // Mutations
   const { mutate: removeFavoriteFolderMutation, onDone: onRemoveDone } = initMutation({
     document: removeFavoriteFolderGQL,
-  })
+  }, showActionError)
   onRemoveDone(() => emitter.emit('refetch_favorite_folders'))
 
   const { mutate: setAliasMutation, onDone: onAliasDone } = initMutation({
     document: setFavoriteFolderAliasGQL,
-  })
+  }, showActionError)
   onAliasDone(() => emitter.emit('refetch_favorite_folders'))
 
   function showFavoriteMenu(item: LinkItem) {
@@ -62,8 +63,7 @@ export function useFilesSidebar() {
 
   function removeFavoriteFolder(item: LinkItem) {
     removeFavoriteFolderMutation({ fullPath: item.fullPath })
-      .then(() => toast(t('removed')))
-      .catch(() => toast(t('error'), 'error'))
+      .then(result => { if (result) toast(t('removed')) })
   }
 
   function openSetFavoriteAlias() {
@@ -72,7 +72,7 @@ export function useFilesSidebar() {
     const current = favoriteFolders.value.find((f) => f.fullPath === item.fullPath)
     const currentAlias = (current?.alias || '').trim()
     const mutationFactory = () => {
-      const m = initMutation({ document: setFavoriteFolderAliasGQL })
+      const m = initMutation({ document: setFavoriteFolderAliasGQL }, showActionError)
       m.onDone(() => emitter.emit('refetch_favorite_folders'))
       return m
     }
@@ -100,7 +100,7 @@ export function useFilesSidebar() {
       title: t('name'), placeholder: item.title,
       value: mount.alias || '', allowEmpty: true, borderless: true,
       mutation: () => {
-        const mutation = initMutation({ document: setMountAliasGQL })
+        const mutation = initMutation({ document: setMountAliasGQL }, showActionError)
         mutation.onDone(() => refetchMounts())
         return mutation
       },

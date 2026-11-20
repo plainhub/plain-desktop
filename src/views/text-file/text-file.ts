@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { HttpErrorCode } from '@/lib/api/http-error-code'
 import { FileAction } from '@/lib/api/file-action'
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
@@ -107,7 +108,7 @@ export function useTextFile() {
   // Mutation
   const { mutate: writeTextFile, loading: saving, onDone: onWriteDone, onError: onWriteError } = initMutation({
     document: writeTextFileGQL,
-  })
+  }, showActionError)
 
   // Helpers
   async function ensureUrlTokenKey() {

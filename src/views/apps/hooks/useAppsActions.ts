@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { ref, onActivated, onDeactivated, type Ref, type ComputedRef } from 'vue'
 import toast from '@/components/toaster'
 import tapPhone from '@/plugins/tapphone'
@@ -58,8 +59,8 @@ export function useAppsActions(opts: UseAppsActionsOptions) {
     clearSelection()
   }
 
-  const { mutate: installPackageMutate } = initMutation({ document: installPackageGQL })
-  const { mutate: uninstallMutate } = initMutation({ document: uninstallPackageGQL })
+  const { mutate: installPackageMutate } = initMutation({ document: installPackageGQL }, showActionError)
+  const { mutate: uninstallMutate } = initMutation({ document: uninstallPackageGQL }, showActionError)
 
   const { loading: fetchPackageStatusLoading, fetch: fetchPackageStatus } = initLazyQuery({
     handle: (data: { packageStatuses: IPackageStatus[] }) => {
@@ -95,7 +96,9 @@ export function useAppsActions(opts: UseAppsActionsOptions) {
   function uninstall(item: IPackageItem) {
     item.isUninstalling = true
     tapPhone(t('confirm_uninstallation_on_phone'))
-    uninstallMutate({ id: item.id })
+    uninstallMutate({ id: item.id }).then(result => {
+      if (!result) { item.isUninstalling = false; tapPhone('') }
+    })
   }
 
   function cancelUninstall(item: IPackageItem) {
@@ -114,8 +117,8 @@ export function useAppsActions(opts: UseAppsActionsOptions) {
     if (r.status === 'done') {
       installPackageMutate({ path: r.dir + '/' + r.fileName })
         .then((result) => {
-          tapPhone(t('confirm_installation_on_phone'))
           if (result?.data?.installPackage) {
+            tapPhone(t('confirm_installation_on_phone'))
             const { id: pkgId, updatedAt, isNew } = result.data.installPackage
             if (pkgId) {
               installingPackages.value.push({ id: pkgId, updatedAt, isNew })

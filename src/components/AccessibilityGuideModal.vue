@@ -29,6 +29,7 @@
 </template>
 
 <script setup lang="ts">
+import { showActionError } from '@/hooks/show-action-error'
 import { popModal } from './modal'
 import { useI18n } from 'vue-i18n'
 import { openAccessibilitySettingsGQL, initMutation } from '@/lib/api/mutation'
@@ -39,7 +40,7 @@ const props = defineProps({
 })
 
 const { t } = useI18n()
-const { mutate: mutateOpenSettings } = initMutation({ document: openAccessibilitySettingsGQL })
+const { mutate: mutateOpenSettings } = initMutation({ document: openAccessibilitySettingsGQL }, showActionError)
 
 function close() {
   popModal()

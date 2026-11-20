@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { ref } from 'vue'
 import { acceptChatChannelInviteGQL, declineChatChannelInviteGQL, initMutation } from '@/lib/api/mutation'
 
@@ -7,8 +8,8 @@ export function useChannelInviteResponse(
   close: () => void,
 ) {
   const loading = ref(false)
-  const accept = initMutation({ document: acceptChatChannelInviteGQL })
-  const decline = initMutation({ document: declineChatChannelInviteGQL })
+  const accept = initMutation({ document: acceptChatChannelInviteGQL }, showActionError)
+  const decline = initMutation({ document: declineChatChannelInviteGQL }, showActionError)
   accept.onDone(() => { onResponded(channelId, true); close() })
   decline.onDone(() => { onResponded(channelId, false); close() })
   accept.onError(close)

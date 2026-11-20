@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { useRoute } from 'vue-router'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import toast from '@/components/toaster'
@@ -43,7 +44,7 @@ export function useNoteEdit() {
 
   const { render } = useMarkdown(app, urlTokenKey)
 
-  const { mutate: save, onDone: saveDone } = initMutation({ get document() { return id.value ? updateNoteGQL : createNoteGQL } })
+  const { mutate: save, onDone: saveDone } = initMutation({ get document() { return id.value ? updateNoteGQL : createNoteGQL } }, showActionError)
   saveDone((r: any) => {
     note.value = r.data.updateNote ?? r.data.createNote
     notSaved.value = note.value?.content !== content.value

@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { HttpErrorCode } from '@/lib/api/http-error-code'
 import { GqlError } from '@/lib/api/gql-error'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
@@ -92,7 +93,7 @@ export function useFeedsSidebar() {
 
   function add() { openModal(AddFeedModal, { done: () => refetch() }) }
 
-  const { mutate: importOPML, onDone: onImported } = initMutation({ document: importFeedsGQL })
+  const { mutate: importOPML, onDone: onImported } = initMutation({ document: importFeedsGQL }, showActionError)
   onImported(() => { toast(t('imported')); refetch() })
 
   function importFile() { fileInput.value!.value = ''; fileInput.value!.click() }
@@ -115,7 +116,7 @@ export function useFeedsSidebar() {
 
   function editFeed(item: IFeed) { openModal(FeedModal, { data: item }) }
 
-  const { mutate: doDeleteFeedMutate, loading: deleteFeedLoading, onDone: onDeleteFeedDone } = initMutation({ document: deleteFeedGQL })
+  const { mutate: doDeleteFeedMutate, loading: deleteFeedLoading, onDone: onDeleteFeedDone } = initMutation({ document: deleteFeedGQL }, showActionError)
 
   onDeleteFeedDone(() => {
     const item = deletingFeed.value

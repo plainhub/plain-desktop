@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { initMutation, trashMediaItemsGQL, restoreMediaItemsGQL } from '@/lib/api/mutation'
 import { DataType } from '@/lib/data'
 import emitter from '@/plugins/eventbus'
@@ -10,7 +11,7 @@ import { isTrashedMediaPath } from '@/lib/media/trash-path'
 import type { ISource } from '@/components/lightbox/types'
 
 function useMediaTrashAction(action: 'trash' | 'restore') {
-  const { mutate } = initMutation({ document: action === 'trash' ? trashMediaItemsGQL : restoreMediaItemsGQL })
+  const { mutate } = initMutation({ document: action === 'trash' ? trashMediaItemsGQL : restoreMediaItemsGQL }, showActionError)
   const pending = reactive(new Set<string>())
 
   async function apply(type: DataType, query: string) {

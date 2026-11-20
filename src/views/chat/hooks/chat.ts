@@ -1,4 +1,5 @@
 // use upload queue instead of calling upload directly
+import { showActionError } from '@/hooks/show-action-error'
 import { addUploadTaskAndWait, removeUpload } from '@/lib/upload/upload-queue'
 import { deleteChatItemsGQL, sendChatItemsGQL, initMutation } from '@/lib/api/mutation'
 import type { IChatItem } from '@/lib/interfaces'
@@ -78,6 +79,6 @@ export const useTasks = () => {
 
 export async function clearChatMessages(chatId: string, cancelByChatId: (chatId: string) => void) {
   cancelByChatId(chatId)
-  const { mutate: deleteItems } = initMutation({ document: deleteChatItemsGQL })
+  const { mutate: deleteItems } = initMutation({ document: deleteChatItemsGQL }, showActionError)
   await deleteItems({ query: chatId })
 }

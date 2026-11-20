@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { FileAction } from '@/lib/api/file-action'
 import { getRemoteClientId } from '@/lib/device/client-id'
 import { isLocalMode } from '@/lib/device/local-mode'
@@ -27,7 +28,7 @@ export const useCreateDir = (urlTokenKey: Ref<Uint8Array | null>, items: Ref<IFi
       return { path: createPath.value + '/' + value }
     },
     createMutation() {
-      const m = initMutation({ document: createDirGQL })
+      const m = initMutation({ document: createDirGQL }, showActionError)
       m.onDone((r: any) => {
         const d = r?.data?.createDir
         if (d) {
@@ -57,7 +58,7 @@ export const useRename = <T extends Pick<IFile, 'path'> = IFile>(fetch: () => vo
     },
     renameMutation() {
       renamedPath.value = null
-      const mutation = initMutation({ document: renameFileGQL })
+      const mutation = initMutation({ document: renameFileGQL }, showActionError)
       mutation.onDone((result) => { renamedPath.value = result.data?.renameFile ?? null })
       return mutation
     },
@@ -167,7 +168,7 @@ export const useView = (sources: Ref<ISource[]>, ivView: (sources: ISource[], i:
 }
 
 export const useCopyPaste = (items: Ref<IFile[]>, isCut: Ref<boolean>, selectedFiles: Ref<IFile[]>, refetchFiles: () => void, refetchStats: () => void) => {
-  const { mutate, loading } = initMutation({ document: createFileTaskGQL })
+  const { mutate, loading } = initMutation({ document: createFileTaskGQL }, showActionError)
   const { t } = useI18n()
 
   return {

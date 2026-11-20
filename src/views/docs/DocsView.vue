@@ -73,6 +73,7 @@
 </template>
 
 <script setup lang="ts">
+import { showActionError } from '@/hooks/show-action-error'
 import { computed, ref, watch } from 'vue'
 import toast from '@/components/toaster'
 import { docsGQL, initLazyQuery } from '@/lib/api/query'
@@ -170,7 +171,7 @@ const { loading, fetch } = initLazyQuery({
 })
 
 const { openFile, deleteItem: deleteDocFile, renameItem, duplicateItem } = useDocsActions(items, urlTokenKey, mp.refreshItems)
-const { mutate: deleteTrashedDoc } = initMutation({ document: deleteMediaItemsGQL })
+const { mutate: deleteTrashedDoc } = initMutation({ document: deleteMediaItemsGQL }, showActionError)
 
 async function deleteDocItem(item: IDoc): Promise<boolean> {
   if (!filter.trash) return deleteDocFile(item)

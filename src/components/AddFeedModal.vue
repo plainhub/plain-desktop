@@ -23,6 +23,7 @@
   </v-modal>
 </template>
 <script setup lang="ts">
+import { showActionError } from '@/hooks/show-action-error'
 import { nextTick, ref, type PropType, onMounted } from 'vue'
 import { popModal } from './modal'
 import { createFeedGQL, initMutation } from '@/lib/api/mutation'
@@ -44,7 +45,7 @@ const props = defineProps({
 
 const { mutate, loading, onDone } = initMutation({
   document: createFeedGQL,
-})
+}, showActionError)
 
 // Focus management
 onMounted(async () => {

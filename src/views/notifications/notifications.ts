@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { onUnmounted, onMounted, ref } from 'vue'
 import { useTempStore } from '@/stores/temp'
@@ -29,8 +30,8 @@ export function useNotifications() {
     document: notificationsGQL,
   })
 
-  const { mutate: deleteNotifications } = initMutation({ document: deleteNotificationsGQL })
-  const { mutate: replyNotification, loading: replySending, onDone: onReplyDone, onError: onReplyError } = initMutation({ document: replyNotificationGQL })
+  const { mutate: deleteNotifications } = initMutation({ document: deleteNotificationsGQL }, showActionError)
+  const { mutate: replyNotification, loading: replySending, onDone: onReplyDone, onError: onReplyError } = initMutation({ document: replyNotificationGQL }, showActionError)
 
   // Reply state
   const replyingId = ref<string | null>(null)

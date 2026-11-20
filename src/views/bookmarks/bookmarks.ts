@@ -1,3 +1,4 @@
+import { showActionError } from '@/hooks/show-action-error'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -26,11 +27,11 @@ export function useBookmarkOperations() {
 
   // Mutations
   const { mutate: mutateRecordClick } = initMutation({ document: recordBookmarkClickGQL })
-  const { mutate: mutateImportBookmarks } = initMutation({ document: importBookmarksGQL })
-  const { mutate: mutateUpdateBookmark } = initMutation({ document: updateBookmarkGQL })
-  const { mutate: mutateDeleteBookmarks } = initMutation({ document: deleteBookmarksGQL })
-  const { mutate: mutateUpdateGroup } = initMutation({ document: updateBookmarkGroupGQL })
-  const { mutate: mutateDeleteGroup } = initMutation({ document: deleteBookmarkGroupGQL })
+  const { mutate: mutateImportBookmarks } = initMutation({ document: importBookmarksGQL }, showActionError)
+  const { mutate: mutateUpdateBookmark } = initMutation({ document: updateBookmarkGQL }, showActionError)
+  const { mutate: mutateDeleteBookmarks } = initMutation({ document: deleteBookmarksGQL }, showActionError)
+  const { mutate: mutateUpdateGroup } = initMutation({ document: updateBookmarkGroupGQL }, showActionError)
+  const { mutate: mutateDeleteGroup } = initMutation({ document: deleteBookmarkGroupGQL }, showActionError)
 
   // Query
   const { fetch: fetchBookmarks } = initLazyQuery({
@@ -93,7 +94,7 @@ export function useBookmarkOperations() {
       title: t('edit_group'),
       placeholder: t('name'),
       value: group.name,
-      mutation: () => initMutation({ document: updateBookmarkGroupGQL }),
+      mutation: () => initMutation({ document: updateBookmarkGroupGQL }, showActionError),
       getVariables: (value: string) => ({
         id: group.id, name: value, collapsed: group.collapsed, sortOrder: group.sortOrder,
       }),
@@ -107,7 +108,7 @@ export function useBookmarkOperations() {
     openModal(EditValueModal, {
       title: t('add_bookmark_group'),
       placeholder: t('name'),
-      mutation: () => initMutation({ document: createBookmarkGroupGQL }),
+      mutation: () => initMutation({ document: createBookmarkGroupGQL }, showActionError),
       getVariables: (value: string) => ({ name: value }),
       done: () => reloadBookmarks(),
     })
