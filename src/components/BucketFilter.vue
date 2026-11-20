@@ -44,7 +44,8 @@ import { DataType } from '@/lib/data'
 import { sortByName } from '@/lib/array'
 import BucketThumb from '@/components/BucketThumb.vue'
 import { useRename } from '@/hooks/files'
-import { fileNameError } from '@/lib/file'
+import { directoryPathKey, normalizeDirectoryPath } from '@/lib/directory-picker-path'
+import { fileNameError, getDirFromPath } from '@/lib/file'
 import { openModal } from '@/components/modal'
 import EditValueModal from '@/components/EditValueModal.vue'
 
@@ -91,11 +92,17 @@ const { refetch } = initQuery({
   },
 })
 
-const { renameItem, renamedPath, renameMutation, renameVariables, renameDone } = useRename<{ path: string }>(() => {
-  refetch()
-  if (props.selected === renameItem.value?.path) {
-    view(mainStore, renamedPath.value!)
-  }
+function bucketDirectory(bucket: IBucket) {
+  return getDirFromPath(normalizeDirectoryPath(bucket.topItemPaths[0]))
+}
+
+const { renameItem, renamedPath, renameMutation, renameVariables, renameDone } = useRename<{ id: string; path: string }>(async () => {
+  const id = renameItem.value?.id
+  const path = renamedPath.value!
+  await refetch(undefined, true)
+  if (props.selected !== id) return
+  const renamed = mediaBuckets.value.find(bucket => directoryPathKey(bucketDirectory(bucket)) === directoryPathKey(path))
+  if (renamed) view(mainStore, renamed.id)
 })
 
 function showMenu(item: IBucket) {
@@ -106,7 +113,7 @@ function showMenu(item: IBucket) {
 }
 
 function renameFolder(item: IBucket) {
-  renameItem.value = { path: item.id }
+  renameItem.value = { id: item.id, path: bucketDirectory(item) }
   openModal(EditValueModal, {
     title: t('rename'), placeholder: t('name'), value: item.name, borderless: true,
     validate: fileNameError,

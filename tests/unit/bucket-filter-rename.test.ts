@@ -10,7 +10,13 @@ vi.mock('@/hooks/media', () => ({ useBuckets: () => ({ view: state.view }) }))
 vi.mock('@/lib/api/query', () => ({
   mediaBucketsGQL: 'mediaBuckets',
   initQuery: ({ handle }: any) => {
-    handle({ mediaBuckets: [{ id: '/fixture/Photos', name: 'Photos', itemCount: 12, topItemPaths: [] }] }, '')
+    handle({ mediaBuckets: [{ id: '431', name: 'Photos', itemCount: 12, topItemPaths: ['/fixture/Photos/image.jpg'] }] }, '')
+    state.refetch.mockImplementation(async () => {
+      handle({ mediaBuckets: [
+        { id: 'other', name: 'Album', itemCount: 2, topItemPaths: ['/elsewhere/Album/another.jpg'] },
+        { id: '782', name: 'Album', itemCount: 12, topItemPaths: ['/fixture/Album/image.jpg'] },
+      ] }, '')
+    })
     return { refetch: state.refetch }
   },
 }))
@@ -27,7 +33,7 @@ clientTemplate(SidebarListItem, 'src/components/SidebarListItem.vue')
 let unmount: (() => void) | undefined
 afterEach(() => { unmount?.(); vi.clearAllMocks(); vi.unstubAllGlobals() })
 
-async function openRename(type = 'IMAGE', selected = '/fixture/Photos') {
+async function openRename(type = 'IMAGE', selected = '431') {
   vi.stubGlobal('document', { getElementById: vi.fn(), dispatchEvent: vi.fn() })
   vi.stubGlobal('CustomEvent', class { constructor(public type: string, public detail: unknown) {} })
   const view = renderView(BucketFilter, { type, selected }, {
@@ -48,7 +54,7 @@ async function openRename(type = 'IMAGE', selected = '/fixture/Photos') {
   return state.modal.mock.calls[0][1]
 }
 
-it.each(['IMAGE', 'VIDEO', 'AUDIO', 'DOC'])('renames a real %s folder and follows the returned path only after success', async type => {
+it.each(['IMAGE', 'VIDEO', 'AUDIO', 'DOC'])('renames a real %s folder and follows the refreshed bucket ID only after success', async type => {
   const options = await openRename(type)
   expect(options).toMatchObject({ value: 'Photos', borderless: true })
   expect(options.getVariables('Album')).toEqual({ path: '/fixture/Photos', name: 'Album' })
@@ -61,7 +67,8 @@ it.each(['IMAGE', 'VIDEO', 'AUDIO', 'DOC'])('renames a real %s folder and follow
   expect(state.fetch).toHaveBeenCalledWith(expect.stringContaining('renameFile'), { path: '/fixture/Photos', name: 'Album' }, { dedupe: false })
   expect(options.done('Album')).toBe(true)
   expect(state.refetch).toHaveBeenCalledTimes(1)
-  expect(state.view).toHaveBeenCalledWith(expect.anything(), '/fixture/Album')
+  await flush()
+  expect(state.view).toHaveBeenCalledWith(expect.anything(), '782')
   expect(state.toast).not.toHaveBeenCalled()
 })
 
