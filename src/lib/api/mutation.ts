@@ -8,7 +8,6 @@ import {
   feedFragment,
   fileFragment,
   noteFragment,
-  audioItemFragment,
   tagFragment,
   bookmarkFragment,
   bookmarkGroupFragment,
@@ -254,20 +253,18 @@ export const saveMediaPlayProgressGQL = `
 export const selectAudioGQL = `
   mutation selectAudio($mediaId: ID!) {
     selectAudio(mediaId: $mediaId) {
-      ...AudioItemFragment
+      mediaId
     }
   }
-  ${audioItemFragment}
 `
 
 export const enqueueAndSelectAudioGQL = `
   mutation enqueueAndSelectAudio($mediaId: ID!, $query: String!) {
     addAudioToQueue(query: $query)
     selectAudio(mediaId: $mediaId) {
-      ...AudioItemFragment
+      mediaId
     }
   }
-  ${audioItemFragment}
 `
 
 export const updateAudioPlayModeGQL = `

@@ -1,4 +1,4 @@
-import type { IItemTagsUpdatedEvent, IItemsTagsUpdatedEvent, IFileDeletedEvent, IFileRenamedEvent, IMediaItemsActionedEvent, INotesActionedEvent } from '@/lib/interfaces'
+import type { IAudioItem, IItemTagsUpdatedEvent, IItemsTagsUpdatedEvent, IFileDeletedEvent, IFileRenamedEvent, IMediaItemsActionedEvent, INotesActionedEvent } from '@/lib/interfaces'
 import type { PairingRequest, PairingResult } from '@/lib/pairing-types'
 import type { IUploadItem } from '@/stores/temp'
 
@@ -7,7 +7,7 @@ type Events = {
   upload_progress: IUploadItem
   refetch_app: undefined
   refetch_favorite_folders: undefined
-  do_play_audio: undefined
+  do_play_audio: IAudioItem
   pause_audio: undefined
   item_tags_updated: IItemTagsUpdatedEvent
   items_tags_updated: IItemsTagsUpdatedEvent

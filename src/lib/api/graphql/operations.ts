@@ -1383,7 +1383,9 @@ export interface GqlOperations {
   enqueueAndSelectAudioGQL: {
     result: {
       addAudioToQueue: boolean
-      selectAudio: Fragment_AudioItemFragment
+      selectAudio: {
+        mediaId?: string
+      }
     }
     variables: {
       mediaId: string
@@ -2821,7 +2823,9 @@ export interface GqlOperations {
   }
   selectAudioGQL: {
     result: {
-      selectAudio: Fragment_AudioItemFragment
+      selectAudio: {
+        mediaId?: string
+      }
     }
     variables: {
       mediaId: string

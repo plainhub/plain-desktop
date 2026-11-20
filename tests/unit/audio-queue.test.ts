@@ -105,7 +105,7 @@ vi.mock('@/lib/api/mutation', () => ({
         commands.push({ document, variables })
         const result = document === 'record-media-play'
           ? (reportResults.length ? await reportResults.shift() : { data: { reportAudioPlayback: true } })
-          : document === 'play' ? (selectionResults.length ? await selectionResults.shift() : { data: { selectAudio: tracks(Number((variables as { mediaId: string }).mediaId), 1)[0] } })
+          : document === 'play' || document === 'enqueue-play' ? (selectionResults.length ? await selectionResults.shift() : { data: { selectAudio: tracks(Number((variables as { mediaId: string }).mediaId), 1)[0] } })
           : { data: { updateAudioPlayMode: true } }
         for (const callback of callbacks) callback(result)
         return result
@@ -251,7 +251,7 @@ it('keeps an ended listener for the active track when fetching the next page fai
   }
 })
 
-it.each(['unmount', 'connection change'] as const)('does not play a pending selection after %s', async (scenario) => {
+it.each(['unmount', 'connection change'] as const)('does not restart playback when selection finishes after %s', async (scenario) => {
   fetch.mockResolvedValue({ data: { total: 2, items: tracks(1, 2) } })
   await useAudioPlaylistStore().ensureLoaded()
   let finish!: (value: unknown) => void
@@ -261,13 +261,62 @@ it.each(['unmount', 'connection change'] as const)('does not play a pending sele
   try {
     const request = player.playNext()
     await vi.waitFor(() => expect(commands).toHaveLength(1))
+    expect(element.play).toHaveBeenCalledOnce()
     if (scenario === 'unmount') app.unmount()
     else connectionContext = 'device-b'
     finish({ data: { selectAudio: tracks(1, 1)[0] } })
     await request
-    expect(element.play).not.toHaveBeenCalled()
-    expect(audioPlayback.value.path).toBeNull()
+    expect(element.play).toHaveBeenCalledOnce()
+    expect(audioPlayback.value.path).toBe('/audio/1')
   } finally { if (app._instance) app.unmount() }
+})
+
+it('pauses immediately and plays the clicked track while selection is pending', async () => {
+  const { app, player, element } = await startBrowserPlayer()
+  let finish!: (value: unknown) => void
+  selectionResults.push(new Promise((resolve) => { finish = resolve }))
+  try {
+    element.pause.mockClear()
+    player.playItem(tracks(2, 1)[0]!)
+    expect(element.pause).toHaveBeenCalledOnce()
+    await vi.waitFor(() => expect(element.play).toHaveBeenCalledTimes(2))
+    expect(player.src.value).toBe('/audio/2')
+    expect(commands.at(-1)?.variables).toEqual({ mediaId: '2' })
+    player.playItem(tracks(3, 1)[0]!)
+    await vi.waitFor(() => expect(element.play).toHaveBeenCalledTimes(3))
+    expect(player.src.value).toBe('/audio/3')
+    selectionResults.push(undefined)
+    finish({ data: { selectAudio: tracks(2, 1)[0] } })
+    await vi.waitFor(() => expect(commands.at(-1)?.variables).toEqual({ mediaId: '3' }))
+    expect(element.play).toHaveBeenCalledTimes(3)
+    expect(player.src.value).toBe('/audio/3')
+  } finally {
+    finish(undefined)
+    app.unmount()
+  }
+})
+
+it('plays a library track while the enqueue and select request is pending', async () => {
+  const { useAudioPlayer } = await import('@/views/audios/hooks/useAudiosHooks')
+  const { app, player, element } = await startBrowserPlayer()
+  let finish!: (value: unknown) => void
+  selectionResults.push(new Promise((resolve) => { finish = resolve }))
+  try {
+    const track = tracks(9, 1)[0]!
+    const library = useAudioPlayer()
+    element.pause.mockClear()
+    const selection = library.play({ ...track, id: '9', size: 0, albumFileId: '', bucketId: '', tags: [], createdAt: '', updatedAt: '' })
+    expect(element.pause).toHaveBeenCalledOnce()
+    await vi.waitFor(() => expect(element.play).toHaveBeenCalledTimes(2))
+    expect(player.current.value?.mediaId).toBe('9')
+    expect(commands.at(-1)).toEqual({ document: 'enqueue-play', variables: { mediaId: '9', query: 'ids:9' } })
+    finish(undefined)
+    await selection
+    expect(player.src.value).toBe(track.path)
+  } finally {
+    finish(undefined)
+    app.unmount()
+  }
 })
 
 it('lets an explicit track selection supersede in-flight queue navigation', async () => {
@@ -281,7 +330,7 @@ it('lets an explicit track selection supersede in-flight queue navigation', asyn
     finish({ data: { selectAudio: tracks(2, 1)[0] } })
     await navigation
     await vi.waitFor(() => expect(audioPlayback.value.mediaId).toBe('3'))
-    expect(element.play).toHaveBeenCalledTimes(2)
+    expect(element.play).toHaveBeenCalledTimes(3)
   } finally { app.unmount() }
 })
 
