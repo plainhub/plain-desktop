@@ -31,20 +31,17 @@
       <label class="form-label">
         {{ $t('phone_number') }}
       </label>
-      <div v-for="(item, index) in editItem.phoneNumbers" :key="index" class="form-row">
-        <v-select 
-          v-model="item.type" 
-          class="flex-2" 
+      <div v-for="(item, index) in editItem.phoneNumbers" :key="index" class="form-row phone-row">
+        <v-select
+          v-model="item.type"
+          class="phone-type"
           :options="createTypeOptions(types.phoneNumberTypes, 'phone_number_type', item)"
           @change="onTypeChanged(item)"
         />
-        <v-text-field v-model="item.value" :placeholder="$t('telephone')" class="flex-3" />
-        <div class="v-center">
-          <button v-if="editItem.phoneNumbers.length > 1" class="btn-icon" @click="deleteField(editItem.phoneNumbers, index)">
-            
-            <i-material-symbols:delete-forever-outline-rounded />
-          </button>
-        </div>
+        <v-text-field v-model="item.value" :placeholder="$t('telephone')" />
+        <button v-if="editItem.phoneNumbers.length > 1" class="btn-icon" @click="deleteField(editItem.phoneNumbers, index)">
+          <i-material-symbols:delete-forever-outline-rounded />
+        </button>
       </div>
       <label v-if="editItem.emails.length" class="form-label">
         {{ $t('email') }}
@@ -169,4 +166,22 @@ const {
   onTypeChanged, createTypeOptions, addField, deleteField, doAction,
 } = useEditContact(props.data, props.sources, props.done)
 </script>
-<style lang="scss" scoped></style>
+<style lang="scss" scoped>
+.phone-type {
+  flex: none;
+  max-inline-size: 40%;
+
+  :deep(.v-select-trigger) {
+    max-inline-size: 100%;
+  }
+
+  :deep(.v-select-trigger__label) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.phone-row > :deep(.text-field-wrapper) {
+  min-inline-size: 0;
+}
+</style>
