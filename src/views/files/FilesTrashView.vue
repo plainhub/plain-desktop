@@ -31,6 +31,7 @@ import { gqlFetch } from '@/lib/api/gql-client'
 import { trashedFilesGQL } from '@/lib/api/query'
 import { restoreFilesGQL, deleteTrashedFilesGQL } from '@/lib/api/mutation'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
+import { useMainStore } from '@/stores/main'
 import { showActionError } from '@/hooks/show-action-error'
 
 import type { GqlResultType } from '@/lib/api/graphql/operations'
@@ -38,6 +39,7 @@ import FileTrashItem from './FileTrashItem.vue'
 
 type TrashItem = GqlResultType<'trashedFilesGQL'>['trashedFiles'][number]
 const isPhone = inject<Ref<boolean>>('isPhone')!
+const mainStore = useMainStore()
 const items = ref<TrashItem[]>([])
 const selected = ref<string[]>([])
 const pending = ref<string[]>([])
@@ -64,7 +66,7 @@ async function refresh() {
   try {
     const rows: TrashItem[] = []
     while (request === version) {
-      const response = await gqlFetch<{ trashedFiles: TrashItem[] }>(trashedFilesGQL, { offset: rows.length, limit: 200 }, { fresh: true })
+      const response = await gqlFetch<{ trashedFiles: TrashItem[] }>(trashedFilesGQL, { offset: rows.length, limit: 200, showHidden: mainStore.fileShowHidden }, { fresh: true })
       if (response.errors?.length) throw GqlError.fromGraphql(response.errors[0])
       const page = response.data!.trashedFiles
       rows.push(...page)

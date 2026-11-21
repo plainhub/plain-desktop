@@ -1,20 +1,18 @@
 <template>
   <FileItemLayout
-    :item="item" :name="item.displayName" :index="index" :is-phone="isPhone"
+    :item="item.file" :index="index" :is-phone="isPhone"
     :selected="selected" :checked="selected"
     @click="emit('toggle')" @checkbox-click="emit('toggle')"
   >
     <template #image>
       <div class="image">
         <FileThumb
-          :is-dir="isDir" :thumb-url="thumbUrl" :extension="getFileExtension(item.displayName)"
+          :is-dir="item.file.isDir" :thumb-url="thumbUrl" :extension="getFileExtension(item.file.name)"
           :thumb-error="thumbError" :ext-error="extError"
           :on-thumb-error="() => thumbError = true" :on-ext-error="() => extError = true"
         />
       </div>
     </template>
-    <template #title>{{ item.displayName }}</template>
-    <template #subtitle><span class="original-path" :title="item.originalPath">{{ item.originalPath }}</span></template>
     <template #actions>
       <div class="actions">
         <v-icon-button class="sm" :aria-label="$t('restore')" v-tooltip="$t('restore')" :disabled="busy" @click.stop="emit('restore')">
@@ -46,21 +44,7 @@ const props = defineProps<{
 const emit = defineEmits<{ toggle: []; restore: []; delete: [anchor: string] }>()
 const anchor = useId()
 const temp = useTempStore()
-const isDir = computed(() => props.item.type === 'DIR')
-const thumbUrl = computed(() => fileThumbUrl(temp.urlTokenKey, { path: props.item.trashedPath, name: props.item.displayName, isDir: isDir.value }))
+const thumbUrl = computed(() => fileThumbUrl(temp.urlTokenKey, props.item.file))
 const thumbError = ref(false)
 const extError = ref(false)
 </script>
-
-<style scoped>
-.original-path {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.file-item :deep(.subtitle),
-.list-item-phone :deep(.phone-content) {
-  min-width: 0;
-}
-</style>

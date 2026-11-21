@@ -120,6 +120,7 @@ declare module 'vue' {
     FileIndexSetupDialog: typeof import('./src/components/FileIndexSetupDialog.vue')['default']
     FileIndexVolumeCard: typeof import('./src/views/home/file-index/FileIndexVolumeCard.vue')['default']
     FileIndexVolumeItem: typeof import('./src/views/home/file-index/FileIndexVolumeItem.vue')['default']
+    FileItemDetails: typeof import('./src/views/files/FileItemDetails.vue')['default']
     FileItemLayout: typeof import('./src/views/files/FileItemLayout.vue')['default']
     FileListItem: typeof import('./src/views/files/FileListItem.vue')['default']
     FileRecentItem: typeof import('./src/views/files/FileRecentItem.vue')['default']

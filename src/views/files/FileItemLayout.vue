@@ -7,12 +7,12 @@
     @mouseenter.stop="emit('mouseenter', $event)"
   >
     <div class="start">
-      <v-checkbox class="checkbox" touch-target="wrapper" :label="name" :checked="checked" @click.stop="emit('checkboxClick', $event)" />
+      <v-checkbox class="checkbox" touch-target="wrapper" :label="item.name" :checked="checked" @click.stop="emit('checkboxClick', $event)" />
       <span class="number"><field-id :id="index + 1" :raw="item" /></span>
     </div>
     <slot name="image" />
-    <div class="title"><slot name="title" /></div>
-    <div class="subtitle"><slot name="subtitle" /></div>
+    <div class="title">{{ item.name }} <OnlinePreviewIcon :name="item.name" :is-dir="item.isDir" /></div>
+    <div class="subtitle"><FileItemDetails :item="item" /></div>
     <slot name="actions" />
   </section>
   <ListItemPhone
@@ -20,22 +20,23 @@
     :is-selected="selected"
     :is-selecting="selecting"
     :checkbox-checked="checked"
-    :checkbox-label="name"
+    :checkbox-label="item.name"
     @click="emit('click', $event)"
     @mouseenter.stop="emit('mouseenter', $event)"
     @checkbox-click="emit('checkboxClick', $event)"
   >
     <template #image><slot name="image" /></template>
-    <template #title><slot name="title" /></template>
-    <template #subtitle><slot name="subtitle" /></template>
+    <template #title>{{ item.name }} <OnlinePreviewIcon :name="item.name" :is-dir="item.isDir" /></template>
+    <template #subtitle><FileItemDetails :item="item" /></template>
     <template #actions><slot name="actions" /></template>
   </ListItemPhone>
 </template>
 
 <script setup lang="ts">
+import FileItemDetails, { type FileRow } from './FileItemDetails.vue'
+
 defineProps<{
-  item: object
-  name: string
+  item: FileRow
   index: number
   isPhone: boolean
   selected: boolean

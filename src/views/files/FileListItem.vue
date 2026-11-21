@@ -1,6 +1,6 @@
 <template>
   <FileItemLayout
-    :item="item" :name="item.name" :index="index" :is-phone="isPhone"
+    :item="item" :index="index" :is-phone="isPhone"
     :selected="selectedIds.includes(item.id)" :selecting="shiftEffectingIds.includes(item.id)"
     :checked="shiftEffectingIds.includes(item.id) ? shouldSelect : selectedIds.includes(item.id)"
     :class="{ deleting, collapsing }"
@@ -22,17 +22,6 @@
           :on-ext-error="() => onExtensionImageError(item.id)"
         />
       </div>
-    </template>
-    
-    <template #title>
-      {{ item.name }}
-      <OnlinePreviewIcon :name="item.name" :is-dir="item.isDir" />
-    </template>
-    
-    <template #subtitle>
-      <span v-if="item.isDir">{{ $t('x_items', item.childCount || 0) }}</span>
-      <span v-else>{{ formatFileSize(item.size) }}</span>
-      <span v-tooltip="formatDateTime(item.updatedAt)">{{ formatTimeAgo(item.updatedAt) }}</span>
     </template>
     
     <template #actions>
@@ -68,8 +57,6 @@ import { useTempStore } from '@/stores/temp'
 interface IFileWithChildren extends IFile {
   childCount?: number
 }
-import { formatFileSize, formatDateTime, formatTimeAgo } from '@/lib/format'
-import OnlinePreviewIcon from '@/components/OnlinePreviewIcon.vue'
 
 interface Props {
   item: IFileWithChildren

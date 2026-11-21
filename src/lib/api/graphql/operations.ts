@@ -3150,15 +3150,20 @@ export interface GqlOperations {
     result: {
       trashedFiles: Array<{
         id: string
-        displayName: string
-        originalPath: string
-        trashedPath: string
-        type: 'FILE' | 'DIR'
+        file: {
+          name: string
+          path: string
+          size: number
+          updatedAt: string
+          isDir: boolean
+          childCount: number
+        }
       }>
     }
     variables: {
       offset: number
       limit: number
+      showHidden: boolean
     }
   }
   trashFilesGQL: {
