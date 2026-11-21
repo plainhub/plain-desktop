@@ -166,6 +166,14 @@ const router = createRouter({
           meta: { group: 'files', className: 'files' },
         },
         {
+          path: 'files/trash',
+          components: {
+            default: () => import('@/views/files/FilesTrashView.vue'),
+            LeftSidebar: () => import('@/views/files/FilesSidebar.vue'),
+          },
+          meta: { group: 'files', className: 'files' },
+        },
+        {
           path: 'screen-mirror',
           component: () => import('@/views/screen-mirror/ScreenMirrorView.vue'),
           meta: { group: 'screen_mirror' },

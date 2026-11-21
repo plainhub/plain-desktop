@@ -36,7 +36,7 @@ export function useMainView() {
   const localMode = isLocalMode()
   const audioPlaylist = useAudioPlaylistStore()
 
-  const hiddenHeaderSearchRoutes = new Set(['/files/recent', '/screen-mirror'])
+  const hiddenHeaderSearchRoutes = new Set(['/files/recent', '/files/trash', '/screen-mirror'])
   const hiddenHeaderSearchPatterns = [/^\/chat(?:\/|$)/, /^\/settings(?:\/|$)/, /^\/image-editor(?:\/|$)/]
 
   function toggleSidebar() { store.miniSidebar = !store.miniSidebar }

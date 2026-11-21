@@ -1044,3 +1044,11 @@ export const exportNotesGQL = `
     exportNotes(query: $query)
   }
 `
+
+export const trashedFilesGQL = `
+  query trashedFiles($offset: Int!, $limit: Int!) {
+    trashedFiles(query: "", offset: $offset, limit: $limit, sortBy: DATE_DESC) {
+      id displayName originalPath type
+    }
+  }
+`

@@ -38,7 +38,7 @@ export function useFilesSidebar() {
 
   const filter = reactive<IFileFilter>({ showHidden: false, type: '', rootPath: '', text: '', parent: '' })
   const parent = ref('')
-  const recent = ref(false)
+  const quickRoute = computed(() => router.currentRoute.value.path)
   const favoriteMenuVisible = ref(false)
   const selectedFavorite = ref<LinkItem | null>(null)
   const volumeMenuVisible = ref(false)
@@ -132,8 +132,9 @@ export function useFilesSidebar() {
       return longestMatch
     }
 
-    const longestMatchPath = recent.value ? '' : findLongestMatch(parent.value)
-    const result: LinkItem[] = [{ rootPath: '', fullPath: '', type: 'RECENTS', title: t('recents'), isChecked: recent.value, isFavoriteFolder: false }]
+    const longestMatchPath = quickRoute.value === '/files' ? findLongestMatch(parent.value) : ''
+    const result: LinkItem[] = [{ rootPath: '', fullPath: '', type: 'RECENTS', title: t('recents'), isChecked: quickRoute.value === '/files/recent', isFavoriteFolder: false },
+      { rootPath: '', fullPath: '', type: 'TRASH', title: t('trash'), isChecked: quickRoute.value === '/files/trash', isFavoriteFolder: false }]
 
     sortMounts(mounts.value).forEach((m) => {
       const mp = m.mountPoint
@@ -162,8 +163,8 @@ export function useFilesSidebar() {
     return result
   })
 
-  const quickLinks = computed(() => links.value.filter((it) => it.type === 'RECENTS'))
-  const volumeLinks = computed(() => links.value.filter((it) => it.type !== 'RECENTS' && !it.isFavoriteFolder))
+  const quickLinks = computed(() => links.value.filter((it) => !it.fullPath))
+  const volumeLinks = computed(() => links.value.filter((it) => !!it.fullPath && !it.isFavoriteFolder))
   const favoriteLinks = computed(() => links.value.filter((it) => it.isFavoriteFolder))
 
   function percentClass(p?: number) {
@@ -171,6 +172,7 @@ export function useFilesSidebar() {
   }
 
   function openLink(link: LinkItem) {
+    if (link.type === 'TRASH') { replacePath(mainStore, '/files/trash'); return }
     if (link.type === 'RECENTS') { replacePath(mainStore, '/files/recent'); return }
     const fields: { name: string; op: string; value: string }[] = [
       { name: 'parent', op: '', value: link.fullPath },
@@ -183,8 +185,7 @@ export function useFilesSidebar() {
 
   function updateActive() {
     const route = router.currentRoute.value
-    if (route.path === '/files/recent') { recent.value = true; return }
-    recent.value = false
+    if (route.path !== '/files') return
     const q = decodeBase64(route.query.q?.toString() ?? '')
     parseQ(filter, q)
     parent.value = filter.parent

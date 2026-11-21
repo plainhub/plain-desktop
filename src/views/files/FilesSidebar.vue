@@ -11,6 +11,7 @@
         >
           <template #start>
             <i-lucide:history v-if="item.type === 'RECENTS'" />
+            <i-material-symbols:delete-outline-rounded v-else />
           </template>
         </SidebarListItem>
       </ul>

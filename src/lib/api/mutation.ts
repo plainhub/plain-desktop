@@ -791,6 +791,22 @@ export const deleteBookmarkGroupGQL = `
   }
 `
 
+export const trashFilesGQL = `
+  mutation trashFiles($paths: [String!]!) {
+    trashFiles(paths: $paths) { affectedCount }
+  }
+`
+
+export const restoreFilesGQL = `
+  mutation restoreFiles($paths: [String!]!) {
+    restoreFiles(paths: $paths) { affectedCount }
+  }
+`
+
+export const deleteTrashedFilesGQL = `
+  mutation deleteTrashedFiles($paths: [String!]!) { deleteTrashedFiles(paths: $paths) { affectedCount } }
+`
+
 export const deleteFilesGQL = `
   mutation deleteFiles($paths: [String!]!) {
     deleteFiles(paths: $paths) {

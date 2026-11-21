@@ -6,8 +6,8 @@ import { openModal } from '@/components/modal'
 import EditValueModal from '@/components/EditValueModal.vue'
 import { generateRecordId } from '@/lib/record-id.generated'
 import { getFileUrlByPath } from '@/lib/api/file'
-import { initMutation, setTempValueGQL, addFavoriteFolderGQL, deleteFilesGQL } from '@/lib/api/mutation'
-import { useFilesDelete } from './useFilesDelete'
+import { initMutation, setTempValueGQL, addFavoriteFolderGQL, trashFilesGQL } from '@/lib/api/mutation'
+import { useFilesTrash } from './useFilesTrash'
 import emitter from '@/plugins/eventbus'
 import toast from '@/components/toaster'
 import { copyTextToClipboard } from '@/lib/clipboard'
@@ -67,7 +67,7 @@ export function useFilesActions(opts: UseFilesActionsOptions) {
       total.value -= removed
       retainSelection(previous)
     }
-    if (pendingDeleteFiles.value.some((file) => removedIds.has(file.id))) cancelDeleteItems()
+    if (pendingTrashFiles.value.some((file) => removedIds.has(file.id))) cancelTrashItems()
     refetchMounts()
   }
 
@@ -100,30 +100,30 @@ export function useFilesActions(opts: UseFilesActionsOptions) {
     setTempValue({ key: generateRecordId(), value: JSON.stringify(selectedIds.value.map((p) => ({ path: p }))) })
   }
 
-  const { mutate: deleteFilesMutate, loading: deleteLoading } = initMutation({ document: deleteFilesGQL })
-  const { deletingIds, collapsingIds, bulkDeleting, isDeleting, startDelete } = useFilesDelete({ t, mutate: deleteFilesMutate, onDeleted, refresh: () => { fetch(); refetchMounts() } })
-  const pendingDeleteFiles = ref<IFile[]>([])
-  const confirmingDelete = ref(false)
-  const deleteCount = ref(0)
+  const { mutate: trashFiles } = initMutation({ document: trashFilesGQL }, showActionError)
+  const { trashingIds, collapsingIds, bulkTrashing, isTrashing, startTrash } = useFilesTrash({ t, mutate: trashFiles, onDeleted, refresh: () => { fetch(); refetchMounts() } })
+  const pendingTrashFiles = ref<IFile[]>([])
+  const confirmingTrash = ref(false)
+  const trashCount = ref(0)
 
-  const deleteItems = () => {
-    const selected = items.value.filter((it) => selectedIds.value.includes(it.id) && !isDeleting(it.id))
+  const trashItems = () => {
+    const selected = items.value.filter((it) => selectedIds.value.includes(it.id) && !isTrashing(it.id))
     if (selected.length === 0) { toast(t('select_first'), 'error'); return }
-    pendingDeleteFiles.value = selected
-    deleteCount.value = selected.length
-    confirmingDelete.value = true
+    pendingTrashFiles.value = selected
+    trashCount.value = selected.length
+    confirmingTrash.value = true
   }
-  const doDeleteItems = () => {
-    const files = pendingDeleteFiles.value
-    pendingDeleteFiles.value = []
-    confirmingDelete.value = false
-    startDelete(files, { bulk: true })
+  const confirmTrashItems = () => {
+    const files = pendingTrashFiles.value
+    pendingTrashFiles.value = []
+    confirmingTrash.value = false
+    startTrash(files, { bulk: true })
   }
-  const cancelDeleteItems = () => { confirmingDelete.value = false; pendingDeleteFiles.value = [] }
+  const cancelTrashItems = () => { confirmingTrash.value = false; pendingTrashFiles.value = [] }
 
-  const deleteItem = (item: IFile) => {
-    if (isDeleting(item.id)) return
-    startDelete([item])
+  const trashItem = (item: IFile) => {
+    if (isTrashing(item.id)) return
+    startTrash([item])
   }
   const copyItems = () => { copy(selectedIds.value); clearSelection() }
   const cutItems = () => { cut(selectedIds.value); clearSelection() }
@@ -164,9 +164,9 @@ export function useFilesActions(opts: UseFilesActionsOptions) {
   }
 
   return {
-    downloadLoading, downloadSelectedItem, downloadEachItems, downloadZipItems, deleteItems, deleteItem,
-    confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems,
-    deletingIds, collapsingIds, bulkDeleting, isDeleting,
+    downloadLoading, downloadSelectedItem, downloadEachItems, downloadZipItems, trashItems, trashItem,
+    confirmingTrash, trashCount, confirmTrashItems, cancelTrashItems,
+    trashingIds, collapsingIds, bulkTrashing, isTrashing,
     copyItems, cutItems, pasteDir, duplicateItem, cutItem, copyItem, pasteItem,
     copyLinkItem, renameItemClick, createDir, addToFavoritesClick, onDeleted,
   }

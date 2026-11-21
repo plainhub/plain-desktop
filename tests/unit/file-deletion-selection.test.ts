@@ -13,7 +13,7 @@ vi.mock('@/lib/api/query', () => ({
   },
 }))
 vi.mock('@/lib/api/mutation', () => ({
-  setTempValueGQL: 'setTempValue', addFavoriteFolderGQL: 'favorite', deleteFilesGQL: 'delete',
+  setTempValueGQL: 'setTempValue', addFavoriteFolderGQL: 'favorite', trashFilesGQL: 'delete',
   initMutation: (options: { document: string }) => ({
     mutate: options.document === 'delete' ? state.remove : vi.fn(), onDone: vi.fn(), loading: ref(false),
   }),
@@ -99,10 +99,10 @@ it('keeps a surviving selection in Files and cancels a confirmation for the remo
   try {
     selection.toggleSelect(click, first, 0)
     selection.toggleSelect(click, second, 1)
-    actions.deleteItems()
-    expect(actions.confirmingDelete.value).toBe(true)
+    actions.trashItems()
+    expect(actions.confirmingTrash.value).toBe(true)
     emitter.emit('file_deleted', { item: first })
     expect(selection.selectedIds.value).toEqual([second.id])
-    expect(actions.confirmingDelete.value).toBe(false)
+    expect(actions.confirmingTrash.value).toBe(false)
   } finally { unmount() }
 })

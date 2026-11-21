@@ -1286,6 +1286,16 @@ export interface GqlOperations {
       id: string
     }
   }
+  deleteTrashedFilesGQL: {
+    result: {
+      deleteTrashedFiles: {
+        affectedCount: number
+      }
+    }
+    variables: {
+      paths: Array<string>
+    }
+  }
   deviceInfoGQL: {
     result: {
       deviceInfo: Fragment_DeviceInfoFragment
@@ -2676,6 +2686,16 @@ export interface GqlOperations {
       httpsPort?: number | null
     }
   }
+  restoreFilesGQL: {
+    result: {
+      restoreFiles: {
+        affectedCount: number
+      }
+    }
+    variables: {
+      paths: Array<string>
+    }
+  }
   restoreMediaItemsGQL: {
     result: {
       restoreMediaItems: {
@@ -3124,6 +3144,30 @@ export interface GqlOperations {
     }
     variables: {
       type: 'DEFAULT' | 'AUDIO' | 'VIDEO' | 'IMAGE' | 'SMS' | 'CONTACT' | 'NOTE' | 'FEED_ENTRY' | 'CALL' | 'PACKAGE' | 'FILE' | 'APP_FILE' | 'DOC'
+    }
+  }
+  trashedFilesGQL: {
+    result: {
+      trashedFiles: Array<{
+        id: string
+        displayName: string
+        originalPath: string
+        type: 'FILE' | 'DIR'
+      }>
+    }
+    variables: {
+      offset: number
+      limit: number
+    }
+  }
+  trashFilesGQL: {
+    result: {
+      trashFiles: {
+        affectedCount: number
+      }
+    }
+    variables: {
+      paths: Array<string>
     }
   }
   trashMediaItemsGQL: {

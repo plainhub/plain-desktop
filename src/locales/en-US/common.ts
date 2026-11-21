@@ -180,6 +180,9 @@ export default {
   address: 'Address',
   yes: 'Yes',
   no: 'No',
+  confirm_trash_name: 'Move {name} to Trash?',
+  confirm_trash_count: 'Move {count} items to Trash?',
+  trash_failed_name: 'Could not move {name} to Trash.',
   confirm_to_delete_name: 'Confirm to delete {name}?',
   confirm_to_delete: 'Are you sure you want to delete these {count} item(s)? This action cannot be undone.',
   valid: {

@@ -47,11 +47,11 @@ vi.mock('@/components/NoDataPlaceholder.vue', () => ({ default: { render: () => 
 vi.mock('@/lib/api/mutation', async () => {
   const { ref } = await import('vue')
   return { initMutation: () => ({ loading: ref(false), mutate: vi.fn(), onDone: vi.fn() }),
-    setTempValueGQL: '', addFavoriteFolderGQL: '', deleteFilesGQL: '' }
+    setTempValueGQL: '', addFavoriteFolderGQL: '', trashFilesGQL: '' }
 })
-vi.mock('@/views/files/hooks/useFilesDelete', async () => {
+vi.mock('@/views/files/hooks/useFilesTrash', async () => {
   const { ref } = await import('vue')
-  return { useFilesDelete: () => ({ deletingIds: ref([]), collapsingIds: ref([]), bulkDeleting: ref(false), isDeleting: () => false, startDelete: vi.fn() }) }
+  return { useFilesTrash: () => ({ trashingIds: ref([]), collapsingIds: ref([]), bulkTrashing: ref(false), isTrashing: () => false, startTrash: vi.fn() }) }
 })
 vi.mock('@/views/files/hooks/useFilesData', async () => {
   const { ref, reactive } = await import('vue')

@@ -2,7 +2,7 @@
   <div class="top-app-bar">
     <v-checkbox touch-target="wrapper" :checked="allChecked" :indeterminate="!allChecked && checked" @change="toggleAllChecked" />
     <div class="title">
-      <span v-if="bulkDeleting">{{ $t('deleting') }}</span>
+      <span v-if="bulkTrashing">{{ $t('move_to_trash') }}</span>
       <span v-else-if="selectedIds.length">{{ $t('x_selected', { count: realAllChecked ? total.toLocaleString() : selectedIds.length.toLocaleString() }) }}</span>
       <VBreadcrumb v-else :items="breadcrumbPaths" :label="$t('current_path')" :tooltip="(item, index) => index === 0 || item.path === filter.parent ? pageDetails : ''" @navigate="navigateToDir">
         <template v-if="indexed && filter.parent === rootDir" #name>{{ $t('indexed_files') }}</template>
@@ -13,7 +13,7 @@
       <template v-if="checked">
         <v-icon-button v-if="!inZip" v-tooltip="$t('copy')" @click.stop="copyItems"><i-material-symbols:content-copy-outline-rounded /></v-icon-button>
         <v-icon-button v-if="!inZip" v-tooltip="$t('cut')" @click.stop="cutItems"><i-material-symbols:content-cut-rounded /></v-icon-button>
-        <bulk-delete-button v-if="!inZip" :confirming="confirmingDelete" :count="deleteCount" :loading="bulkDeleting" @click="deleteItems" @confirm="doDeleteItems" @cancel="cancelDeleteItems" />
+        <bulk-delete-button trash v-if="!inZip" :confirming="confirmingTrash" :count="trashCount" :loading="bulkTrashing" @click="trashItems" @confirm="confirmTrashItems" @cancel="cancelTrashItems" />
         <bulk-download-button :single="selectedIds.length === 1" :loading="downloadLoading" @download="downloadSelectedItem" @download-each="downloadEachItems" @download-zip="downloadZipItems" />
       </template>
     </div>
@@ -45,9 +45,9 @@
           :extension-image-error-ids="extensionImageErrorIds" :can-paste="canPaste()" :in-zip="inZip" :handle-item-click="handleItemClick"
           :handle-mouse-over="handleMouseOver" :toggle-select="toggleSelect" :on-image-error="onImageError"
           :on-extension-image-error="onExtensionImageError" :view-item="viewItem" :click-item="clickItem"
-          :deleting="deletingIds.includes(item.id)" :collapsing="collapsingIds.includes(item.id)"
+          :deleting="trashingIds.includes(item.id)" :collapsing="collapsingIds.includes(item.id)"
           @download-dir="downloadDir" @download-file="downloadFile" @save-as="downloadFileAs" @upload-files="uploadFilesClick"
-          @upload-dir="uploadDirClick" @delete-item="deleteItem" @duplicate-item="duplicateItem" @cut-item="cutItem"
+          @upload-dir="uploadDirClick" @trash-item="trashItem" @duplicate-item="duplicateItem" @cut-item="cutItem"
           @copy-item="copyItem" @paste-item="pasteItem" @copy-link="copyLinkItem" @rename-item="renameItemClick"
           @add-to-favorites="addToFavoritesClick" />
         </div>
@@ -162,9 +162,9 @@ const { navigateToDir, toggleShowHidden, clickItem, viewItem } = useFilesNavigat
 
 // --- Actions ---
 const {
-  downloadLoading, downloadSelectedItem, downloadEachItems, downloadZipItems, deleteItems, deleteItem,
-  confirmingDelete, deleteCount, doDeleteItems, cancelDeleteItems,
-  deletingIds, collapsingIds, bulkDeleting,
+  downloadLoading, downloadSelectedItem, downloadEachItems, downloadZipItems, trashItems, trashItem,
+  confirmingTrash, trashCount, confirmTrashItems, cancelTrashItems,
+  trashingIds, collapsingIds, bulkTrashing,
   copyItems, cutItems, pasteDir,
   duplicateItem, cutItem, copyItem, pasteItem, copyLinkItem, renameItemClick, createDir,
   addToFavoritesClick, onDeleted,
@@ -175,7 +175,7 @@ const {
 })
 
 // --- Keyboard ---
-const { keyDown: pageKeyDown, keyUp: pageKeyUp } = useFilesKeyEvents(selectAll, clearSelection, deleteItems)
+const { keyDown: pageKeyDown, keyUp: pageKeyUp } = useFilesKeyEvents(selectAll, clearSelection, trashItems)
 
 // --- Events & lifecycle ---
 useFilesEvents({

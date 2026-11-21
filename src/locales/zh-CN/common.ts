@@ -170,6 +170,9 @@ export default {
   address: '地址',
   yes: '是',
   no: '否',
+  confirm_trash_name: '将「{name}」移到回收站？',
+  confirm_trash_count: '将这 {count} 项移到回收站？',
+  trash_failed_name: '无法将「{name}」移到回收站。',
   confirm_to_delete_name: '确认删除{name}?',
   confirm_to_delete: '您确定要删除这{count}个项目吗？此操作无法撤销。',
   valid: {

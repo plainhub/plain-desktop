@@ -46,7 +46,7 @@
           @save-as="saveAs"
           @upload-files="uploadFiles"
           @upload-dir="uploadDir"
-          @delete-item="deleteItem"
+          @trash-item="trashItem"
           @duplicate-item="duplicateItem"
           @cut-item="cutItem"
           @copy-item="copyItem"
@@ -105,7 +105,7 @@
         @save-as="saveAs"
         @upload-files="uploadFiles"
         @upload-dir="uploadDir"
-        @delete-item="deleteItem"
+        @trash-item="trashItem"
         @duplicate-item="duplicateItem"
         @cut-item="cutItem"
         @copy-item="copyItem"
@@ -165,7 +165,7 @@ const emit = defineEmits<{
   saveAs: [item: IFile]
   uploadFiles: [path: string]
   uploadDir: [path: string]
-  deleteItem: [item: IFile]
+  trashItem: [item: IFile]
   duplicateItem: [item: IFile]
   cutItem: [item: IFile]
   copyItem: [item: IFile]
@@ -195,8 +195,8 @@ function uploadDir(path: string) {
   emit('uploadDir', path)
 }
 
-function deleteItem(item: IFile) {
-  emit('deleteItem', item)
+function trashItem(item: IFile) {
+  emit('trashItem', item)
 }
 
 function duplicateItem(item: IFile) {

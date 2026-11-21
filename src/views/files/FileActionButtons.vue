@@ -24,11 +24,11 @@
       </v-icon-button>
     </template>
 
-    <v-icon-button v-if="!inZip" :id="deleteAnchorId" v-tooltip="$t('delete')" class="sm" @click.stop="confirming = true">
-      <i-material-symbols:delete-forever-outline-rounded />
+    <v-icon-button v-if="!inZip" :id="deleteAnchorId" v-tooltip="$t('move_to_trash')" class="sm" @click.stop="confirming = true">
+      <i-material-symbols:delete-outline-rounded />
     </v-icon-button>
     <v-dropdown-menu v-if="!inZip" v-model="confirming" :anchor="deleteAnchorId">
-      <inline-delete-confirm :name="item.name" @confirm="onConfirmDelete" @cancel="confirming = false" />
+      <inline-delete-confirm message-key="confirm_trash_name" :name="item.name" @confirm="onConfirmTrash" @cancel="confirming = false" />
     </v-dropdown-menu>
 
     <v-dropdown v-model="infoMenuVisible">
@@ -101,7 +101,7 @@ const emit = defineEmits<{
   saveAs: [item: IFile]
   uploadFiles: [path: string]
   uploadDir: [path: string]
-  deleteItem: [item: IFile]
+  trashItem: [item: IFile]
   duplicateItem: [item: IFile]
   cutItem: [item: IFile]
   copyItem: [item: IFile]
@@ -137,8 +137,8 @@ function uploadDir(path: string) {
   emit('uploadDir', path)
 }
 
-function onConfirmDelete() {
-  emit('deleteItem', props.item)
+function onConfirmTrash() {
+  emit('trashItem', props.item)
   confirming.value = false
 }
 

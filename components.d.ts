@@ -128,6 +128,7 @@ declare module 'vue' {
     FilesKeyboardShortcuts: typeof import('./src/components/FilesKeyboardShortcuts.vue')['default']
     FilesRecentView: typeof import('./src/views/files/FilesRecentView.vue')['default']
     FilesSidebar: typeof import('./src/views/files/FilesSidebar.vue')['default']
+    FilesTrashView: typeof import('./src/views/files/FilesTrashView.vue')['default']
     FilesView: typeof import('./src/views/files/FilesView.vue')['default']
     FileThumb: typeof import('./src/components/files/FileThumb.vue')['default']
     FormatDiskConfirm: typeof import('./src/components/storage/FormatDiskConfirm.vue')['default']
