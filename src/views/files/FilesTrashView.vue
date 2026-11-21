@@ -9,13 +9,24 @@
   </div>
   <div class="scroller-wrapper">
     <div class="scroller main-list">
-      <div v-for="(item, index) in items" :key="item.id" class="item">
-        <v-checkbox touch-target="wrapper" :checked="selected.includes(item.id)" @change="toggle(item.id)" />
-        <div class="title"><div>{{ item.displayName }}</div><small>{{ item.originalPath }}</small></div>
-        <v-icon-button :aria-label="$t('restore')" v-tooltip="$t('restore')" :disabled="busy" @click="apply([item.id], false)"><i-material-symbols:restore-from-trash-outline-rounded /></v-icon-button>
-        <v-icon-button :id="'files-trash-' + index" :aria-label="$t('permanent_delete')" v-tooltip="$t('permanent_delete')" :disabled="busy" @click="confirm([item.id], 'files-trash-' + index)"><i-material-symbols:delete-forever-outline-rounded /></v-icon-button>
-      </div>
-      <NoDataPlaceholder v-if="!items.length" :loading="loading" />
+      <ul v-if="items.length" class="list-items">
+        <v-list-item
+          v-for="(item, index) in items"
+          :key="item.id"
+          :title="item.displayName"
+          :subtitle="item.originalPath"
+          :active="selected.includes(item.id)"
+        >
+          <template #start>
+            <v-checkbox touch-target="wrapper" :label="item.displayName" :checked="selected.includes(item.id)" @click.stop @change="toggle(item.id)" />
+          </template>
+          <template #actions>
+            <v-icon-button :aria-label="$t('restore')" v-tooltip="$t('restore')" :disabled="busy" @click="apply([item.id], false)"><i-material-symbols:restore-from-trash-outline-rounded /></v-icon-button>
+            <v-icon-button :id="'files-trash-' + index" :aria-label="$t('permanent_delete')" v-tooltip="$t('permanent_delete')" :disabled="busy" @click="confirm([item.id], 'files-trash-' + index)"><i-material-symbols:delete-forever-outline-rounded /></v-icon-button>
+          </template>
+        </v-list-item>
+      </ul>
+      <NoDataPlaceholder v-else :loading="loading" />
     </div>
   </div>
   <v-dropdown-menu v-model="confirming" :anchor="anchor">
