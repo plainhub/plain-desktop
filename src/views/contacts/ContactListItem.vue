@@ -11,7 +11,7 @@
       <v-checkbox v-else class="checkbox" touch-target="wrapper" :checked="selectedIds.includes(item.id)" @click.stop="toggleSelect($event, item, index)" />
       <span class="number"><field-id :id="index + 1" :raw="item" /></span>
     </div>
-    <img v-if="item.thumbnailId" class="image" :src="getFileUrl(item.thumbnailId)" width="50" loading="lazy" decoding="async" />
+    <img v-if="avatarUrl" class="image" :src="avatarUrl" width="50" loading="lazy" decoding="async" />
     <i-material-symbols:contact-page-outline-rounded v-else class="image" />
     <div class="title">{{ fullName(item) }}</div>
     <div class="subtitle">
@@ -62,7 +62,7 @@
     @checkbox-click="(event: MouseEvent) => toggleSelect(event, item, index)"
   >
     <template #image>
-      <img v-if="item.thumbnailId" class="image" :src="getFileUrl(item.thumbnailId)" width="50" loading="lazy" decoding="async" />
+      <img v-if="avatarUrl" class="image" :src="avatarUrl" width="50" loading="lazy" decoding="async" />
       <i-material-symbols:contact-page-outline-rounded v-else class="image" />
     </template>
     
@@ -115,7 +115,9 @@
 import type { IContact, ITag } from '@/lib/interfaces'
 import { DataType } from '@/lib/data'
 import { formatDateTime, formatTimeAgo } from '@/lib/format'
-import { getFileUrl } from '@/lib/api/file'
+import { getFileUrlByPath } from '@/lib/api/file'
+import { useTempStore } from '@/stores/temp'
+import { computed } from 'vue'
 import { getContactFullName } from '@/lib/contact/format'
 import ContactActionButtons from './ContactActionButtons.vue'
 import { useI18n } from 'vue-i18n'
@@ -138,7 +140,9 @@ interface Props {
   toggleSelect: (event: MouseEvent, item: IContact, index: number) => void
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
+const tempStore = useTempStore()
+const avatarUrl = computed(() => getFileUrlByPath(tempStore.urlTokenKey, props.item.thumbnailId))
 
 const { t: $t } = useI18n()
 
