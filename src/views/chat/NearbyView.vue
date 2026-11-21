@@ -12,14 +12,12 @@
       <template v-if="removeTarget">
         <div>{{ $t('device_discovery.unpair_hint') }}</div>
         <div v-if="removeTarget.id === currentClientId">{{ $t('device_discovery.unpair_current_hint') }}</div>
-        <div v-if="error" class="nearby-error" role="alert">{{ $t(error) }}</div>
       </template>
       <NearbyPairOptions v-else-if="step === 'mode'" @cancel="backToDevices" @confirm="confirmPair" />
       <template v-else-if="selectedAttempt?.mode === 'chat'">
         <RequestApproval :code="selectedAttempt.pairing.state.value?.verificationCode" :hint="$t('pairing_compare_code')" @cancel="backToDevices">
           <v-text-button @click="showDiscovery">{{ $t('pair_another_device') }}</v-text-button>
         </RequestApproval>
-        <p v-if="error" class="nearby-error" role="alert">{{ $t(error) }}</p>
       </template>
       <div v-else-if="step === 'discover'" class="nearby-sections">
         <section v-if="selfDevice || groups.mine.length">
@@ -76,7 +74,6 @@
           </div>
         </section>
         <QrPairPanel v-if="isLocalMode()" v-model:open="qrOpen" collapsible @paired="loadPeers().catch(reportFailure)" />
-        <p v-if="error" class="nearby-error" role="alert">{{ $t(error) }}</p>
       </div>
       <template v-for="attempt in attempts.values()" :key="attempt.device.id">
         <DiscoveredDeviceLogin
@@ -199,7 +196,6 @@ const selectedAttempt = computed(() => step.value === 'pairing' && selectedDevic
 const switchingPeer = ref('')
 const removeTarget = ref<IPeer | null>(null)
 const removing = ref(false)
-const error = ref('')
 const currentClientId = computed(() => getRemoteClientId())
 const localMode = computed(() => __IS_TAURI__ ? isLocalMode() : !currentClientId.value)
 const deviceById = computed(() => new Map([
@@ -218,7 +214,7 @@ async function loadPeers() {
 }
 function reportFailure(reason: unknown) {
   console.error('Nearby devices request failed', reason)
-  error.value = HttpErrorCode.NetworkError
+  if (active) toast(t(HttpErrorCode.NetworkError), 'error')
 }
 const stopPeers = subscriptions.subscribe('peersChanged', () => loadPeers().catch(reportFailure))
 const stopAttached = subscriptions.onAttached(() => {
@@ -256,19 +252,18 @@ async function confirmPair(mode: 'chat' | 'control') {
     if (selectedAttempt.value?.device.id === device.id) return
     if (phase === 'CANCELED' || phase === 'FAILED') {
       finishPairing(device.id)
-      if (phase === 'FAILED') error.value = pairingErrorMessage(pairingViews.get(device.id)?.error)
+      if (phase === 'FAILED') toast(t(pairingErrorMessage(pairingViews.get(device.id)?.error)), 'error')
     }
   })
   attempts.set(device.id, { mode, device, stop })
   step.value = 'pairing'
 }
 async function startChat(device: DiscoveredDevice) {
-  error.value = ''
   const pairing = createPairing(subscriptions, request)
   const stop = watch(pairing.state, state => {
     if (!state || !['SUCCEEDED', 'FAILED', 'CANCELED'].includes(state.phase)) return
     finishPairing(device.id)
-    if (state.phase === 'FAILED') error.value = pairingErrorMessage(state.error)
+    if (state.phase === 'FAILED') toast(t(pairingErrorMessage(state.error)), 'error')
     if (state.phase === 'SUCCEEDED') void loadPeers().catch(reportFailure)
   })
   const attempt: PairingAttempt = { mode: 'chat', device, pairing, stop: () => { stop(); pairing.dispose() } }
@@ -334,7 +329,6 @@ async function switchTo(peer: IPeer) {
   }
   if (!canSwitchTo(peer) || switchingPeer.value || removeTarget.value) return
   switchingPeer.value = peer.id
-  error.value = ''
   const document = 'query { app { clientId } }'
   try {
     try {
@@ -371,13 +365,11 @@ async function showSwitchFailure(peer: IPeer) {
 }
 function confirmRemoval(peer: IPeer) {
   if (removing.value || switchingPeer.value) return
-  error.value = ''
   removeTarget.value = peer
 }
 async function removeDevice(peer: IPeer) {
   if (removing.value || removeTarget.value?.id !== peer.id) return
   removing.value = true
-  error.value = ''
   try {
     const result = await request<{ unpairPeer: boolean }>(unpairPeerGQL, { peerId: peer.id })
     if (result.errors?.length) throw GqlError.fromGraphql(result.errors[0])
@@ -396,7 +388,6 @@ async function removeDevice(peer: IPeer) {
   }
 }
 async function refresh() {
-  error.value = ''
   try {
     await Promise.all([retry(), loadPeers()])
   } catch (reason) {
@@ -407,7 +398,6 @@ async function handleClose() {
   if (removeTarget.value) {
     if (!removing.value) {
       removeTarget.value = null
-      error.value = ''
     }
     return
   }
@@ -469,9 +459,5 @@ onBeforeUnmount(() => {
 }
 .bluetooth-tip .v-text-button {
   font-size: inherit;
-}
-.nearby-error {
-  margin: 0;
-  color: var(--md-sys-color-error);
 }
 </style>

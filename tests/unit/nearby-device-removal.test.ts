@@ -442,7 +442,7 @@ it.each([
   ['TIMEOUT', 'Pairing request expired. Pair again.'],
   ['REJECTED', 'Pairing request rejected.'],
   ['TOO_MANY_LOGIN_ATTEMPTS', 'Too many pairing attempts. Try again in 1 minute.'],
-] as const)('shows the %s pairing failure without offering a discovery retry as a pairing action', async (reason, message) => {
+] as const)('toasts the %s pairing failure without showing it inside the modal', async (reason, message) => {
   const waiting = { deviceId: discovered.id, phase: 'PAIRING', verificationCode: '01234567', error: null } as const
   chatPairing.start.mockImplementation(async () => chatPairing.update(waiting))
   const view = await mount('', false, { paired: false, devices: [discovered] })
@@ -450,7 +450,8 @@ it.each([
   await view.clickText('Chat only')
   chatPairing.update({ ...waiting, phase: 'FAILED', error: reason as PairingView['error'] })
   await nextTick()
-  expect(view.text()).toContain(message)
+  expect(notify).toHaveBeenCalledExactlyOnceWith(message, 'error')
+  expect(view.text()).not.toContain(message)
   expect(view.text()).not.toContain('Retry')
   expect(view.deviceLists()).toBe(1)
   expect(chatPairing.start).toHaveBeenCalledOnce()
@@ -485,13 +486,14 @@ it.each(['', peer.id])('removes the device only after confirmation (current devi
   }
 })
 
-it('shows a removal error and leaves the current session available for retry', async () => {
+it('toasts a removal error without closing the confirmation or changing sessions', async () => {
   vi.spyOn(console, 'error').mockImplementation(() => {})
   const view = await mount(peer.id, true)
   await view.openRemoval()
   await view.clickText('Unpair')
   expect(view.text()).toContain('Unpair Test device?')
-  expect(view.text()).toContain(common.NETWORK_ERROR)
+  expect(notify).toHaveBeenCalledExactlyOnceWith(common.NETWORK_ERROR, 'error')
+  expect(view.text()).not.toContain(common.NETWORK_ERROR)
   expect(io.removePref).not.toHaveBeenCalled()
   expect(io.clearRemote).not.toHaveBeenCalled()
 })
@@ -517,6 +519,19 @@ it.each([true, false])('explains why Switch cannot proceed without changing targ
   await view.clickText('Switch')
   expect(notify).toHaveBeenCalledWith(peer.name + ': ' + common.offline)
   expect(io.probe).not.toHaveBeenCalled()
+  expect(view.location.reload).not.toHaveBeenCalled()
+})
+
+it('toasts unexpected switch errors without showing an error in the modal or switching', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => {})
+  const view = await mount('', false, { web: true, online: true, self })
+  io.probe.mockRejectedValue(new Error('Transport failed'))
+  await view.clickText('Switch')
+  await vi.waitFor(() => expect(notify).toHaveBeenCalledExactlyOnceWith(common.NETWORK_ERROR, 'error'))
+  expect(view.text()).not.toContain(common.NETWORK_ERROR)
+  expect(view.text()).not.toContain('Switching…')
+  expect(io.pushModal).not.toHaveBeenCalled()
+  expect(io.setRemote).not.toHaveBeenCalled()
   expect(view.location.reload).not.toHaveBeenCalled()
 })
 
