@@ -1,13 +1,16 @@
 <template>
   <section
     class="doc-item selectable-card"
-    :class="{ selected: selectedIds.includes(item.id), selecting: shiftEffectingIds.includes(item.id) }"
-    @click.stop="handleItemClick($event, item, index, () => $emit('open-file', item))"
-    @mouseenter.stop="handleMouseOver($event, index)"
+    :class="{ 'read-only': readOnly, selected: selectedIds.includes(item.id), selecting: shiftEffectingIds.includes(item.id) }"
+    :role="readOnly ? 'link' : undefined"
+    :tabindex="readOnly ? 0 : undefined"
+    @click.stop="handleItemClick ? handleItemClick($event, item, index, () => $emit('open-file', item)) : $emit('open-file', item)"
+    @keydown.enter="readOnly && $emit('open-file', item)"
+    @mouseenter.stop="handleMouseOver?.($event, index)"
   >
-    <div class="start">
-      <v-checkbox v-if="shiftEffectingIds.includes(item.id)" class="checkbox" touch-target="wrapper" :checked="shouldSelect" @click.stop="toggleSelect($event, item, index)" />
-      <v-checkbox v-else class="checkbox" touch-target="wrapper" :checked="selectedIds.includes(item.id)" @click.stop="toggleSelect($event, item, index)" />
+    <div v-if="!readOnly" class="start">
+      <v-checkbox v-if="shiftEffectingIds.includes(item.id)" class="checkbox" touch-target="wrapper" :checked="shouldSelect" @click.stop="toggleSelect?.($event, item, index)" />
+      <v-checkbox v-else class="checkbox" touch-target="wrapper" :checked="selectedIds.includes(item.id)" @click.stop="toggleSelect?.($event, item, index)" />
       <span class="number"><field-id :id="index + 1" :raw="item" /></span>
     </div>
 
@@ -16,18 +19,22 @@
     </div>
 
     <div class="title">
-      {{ item.title }}
+      {{ item.title || getFileName(item.path) }}
       <OnlinePreviewIcon :name="getFileName(item.path)" />
     </div>
 
     <div class="subtitle">
       <span>{{ formatFileSize(item.size) }}</span>
       <span v-tooltip="formatDateTimeFull(item.updatedAt)">{{ formatTimeAgo(item.updatedAt) }}</span>
-      <a v-if="bucketsMap[item.bucketId]" @click.stop.prevent="viewBucket(mainStore, item.bucketId)">{{ bucketsMap[item.bucketId]?.name }}</a>
-      <item-tags :tags="item.tags" :type="dataType" :only-links="true" />
+      <span v-if="readOnly" class="doc-path">{{ item.path }}</span>
+      <template v-else>
+        <a v-if="bucketsMap?.[item.bucketId]" @click.stop.prevent="viewBucket?.(mainStore, item.bucketId)">{{ bucketsMap[item.bucketId]?.name }}</a>
+        <item-tags :tags="item.tags" :type="dataType" :only-links="true" />
+      </template>
     </div>
 
     <DocActionButtons
+      v-if="!readOnly && filter && app && trashLoading && restoreLoading && trash && restore && deleteItem"
       :item="item"
       :filter="filter"
       :app="app"
@@ -57,27 +64,33 @@ import { useMainStore } from '@/stores/main'
 
 const mainStore = useMainStore()
 
-defineProps<{
+withDefaults(defineProps<{
   item: IDoc
   index: number
-  selectedIds: string[]
-  shiftEffectingIds: string[]
-  shouldSelect: boolean
-  filter: IFilter
-  app: IApp
-  dataType: DataType
-  tags: ITag[]
-  trashLoading: (query: string) => boolean
-  restoreLoading: (query: string) => boolean
-  trash: (dataType: DataType, query: string) => void
-  restore: (dataType: DataType, query: string) => void
-  deleteItem: (item: IDoc) => Promise<boolean>
-  bucketsMap: Record<string, IBucket>
-  viewBucket: (store: any, bucketId: string) => void
-  handleItemClick: (event: MouseEvent, item: IDoc, index: number, callback: () => void) => void
-  handleMouseOver: (event: MouseEvent, index: number) => void
-  toggleSelect: (event: MouseEvent, item: IDoc, index: number) => void
-}>()
+  readOnly?: boolean
+  selectedIds?: string[]
+  shiftEffectingIds?: string[]
+  shouldSelect?: boolean
+  filter?: IFilter
+  app?: IApp
+  dataType?: DataType
+  tags?: ITag[]
+  trashLoading?: (query: string) => boolean
+  restoreLoading?: (query: string) => boolean
+  trash?: (dataType: DataType, query: string) => void
+  restore?: (dataType: DataType, query: string) => void
+  deleteItem?: (item: IDoc) => Promise<boolean>
+  bucketsMap?: Record<string, IBucket>
+  viewBucket?: (store: any, bucketId: string) => void
+  handleItemClick?: (event: MouseEvent, item: IDoc, index: number, callback: () => void) => void
+  handleMouseOver?: (event: MouseEvent, index: number) => void
+  toggleSelect?: (event: MouseEvent, item: IDoc, index: number) => void
+}>(), {
+  selectedIds: () => [],
+  shiftEffectingIds: () => [],
+  tags: () => [],
+  dataType: DataType.DOC,
+})
 
 defineEmits<{
   'download-file': [path: string]
@@ -92,4 +105,48 @@ function onIconError(e: Event) {
 }
 </script>
 
+<style scoped lang="scss">
+.doc-item {
+  grid-template-areas:
+    'start icon title actions'
+    'start icon subtitle actions';
+  grid-template-columns: 48px 40px 1fr auto;
+  align-items: center;
 
+  &.read-only {
+    grid-template-areas: 'icon title' 'icon subtitle';
+    grid-template-columns: 40px minmax(0, 1fr);
+    padding-inline: 12px;
+  }
+
+  .doc-path {
+    overflow-wrap: anywhere;
+  }
+
+  &:hover { cursor: pointer; }
+
+  .doc-icon {
+    grid-area: icon;
+    display: flex;
+    align-items: center;
+    margin-block: 10px 8px;
+    .svg { width: 32px; height: 32px; object-fit: contain; }
+  }
+
+  .title {
+    grid-area: title;
+    padding-block-start: 8px;
+  }
+
+  .subtitle {
+    grid-area: subtitle;
+    display: flex;
+    gap: 12px;
+    color: var(--md-sys-color-secondary);
+    font-size: 0.85rem;
+    margin-block-end: 8px;
+  }
+
+  :deep(.actions) { grid-area: actions; }
+}
+</style>

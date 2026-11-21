@@ -1,17 +1,16 @@
 <template>
-  <a class="item-link" :href="href">
+  <a class="item-link" :href="href" @click.stop.prevent="$emit('item-click', $event)">
     <article
       class="sidebar2-item selectable-card"
-      :class="{ selected, selecting }"
-      @click.stop.prevent="$emit('item-click', $event)"
+      :class="{ selected, selecting, 'read-only': !selectable }"
       @mouseenter.stop="$emit('mouse-over', $event)"
     >
       <div class="title">
-        <v-checkbox class="checkbox" touch-target="wrapper" :checked="checkboxChecked" @click.stop="$emit('toggle-select', $event)" />
+        <v-checkbox v-if="selectable" class="checkbox" touch-target="wrapper" :checked="checkboxChecked" @click.stop="$emit('toggle-select', $event)" />
         <div class="text"><slot name="title" /></div>
       </div>
       <div class="subtitle">
-        <span class="number"><field-id :id="index + 1" :raw="item" /></span>
+        <span v-if="selectable" class="number"><field-id :id="index + 1" :raw="item" /></span>
         <div class="info">
           <slot name="info" />
         </div>
@@ -28,12 +27,13 @@ interface Props {
   item: IData
   index: number
   href: string
-  selected: boolean
-  selecting: boolean
-  checkboxChecked: boolean
+  selected?: boolean
+  selecting?: boolean
+  checkboxChecked?: boolean
+  selectable?: boolean
 }
 
-defineProps<Props>()
+withDefaults(defineProps<Props>(), { selectable: true })
 
 defineEmits<{
   'item-click': [event: MouseEvent]
@@ -55,6 +55,14 @@ defineEmits<{
   &:hover {
     cursor: pointer;
   }
+  &.read-only {
+    padding-inline: 12px;
+
+    .subtitle {
+      margin-inline-start: 0;
+    }
+  }
+
   .title {
     grid-area: title;
     display: flex;

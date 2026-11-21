@@ -198,39 +198,3 @@ const actionsProps = useMediaPageActions({
   },
 })
 </script>
-
-<style scoped lang="scss">
-:deep(.doc-item) {
-  grid-template-areas:
-    'start icon title actions'
-    'start icon subtitle actions';
-  grid-template-columns: 48px 40px 1fr auto;
-  align-items: center;
-
-  &:hover { cursor: pointer; }
-
-  .doc-icon {
-    grid-area: icon;
-    display: flex;
-    align-items: center;
-    margin-block: 10px 8px;
-    .svg { width: 32px; height: 32px; object-fit: contain; }
-  }
-
-  .title {
-    grid-area: title;
-    padding-block-start: 8px;
-  }
-
-  .subtitle {
-    grid-area: subtitle;
-    display: flex;
-    gap: 12px;
-    color: var(--md-sys-color-secondary);
-    font-size: 0.85rem;
-    margin-block-end: 8px;
-  }
-
-  .actions { grid-area: actions; }
-}
-</style>
