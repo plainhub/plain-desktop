@@ -240,9 +240,9 @@ export function enrichFile(item: Pick<IFile, 'path' | 'isDir' | 'updatedAt' | 's
  * encryptions up front — only the rows actually rendered pay the cost
  * (getFileId caches per path in window.fileIdMap).
  */
-export function fileThumbUrl(urlTokenKey: Uint8Array | null, item: Pick<IFile, 'path' | 'name' | 'isDir' | 'updatedAt'>): string {
+export function fileThumbUrl(urlTokenKey: Uint8Array | null, item: Pick<IFile, 'path' | 'name' | 'isDir'> & { updatedAt?: string }): string {
   if (item.isDir || !(isImage(item.name) || isVideo(item.name))) return ''
-  return getFileUrl(getFileId(urlTokenKey, item.path), '&size=SM&v=' + encodeURIComponent(item.updatedAt))
+  return getFileUrl(getFileId(urlTokenKey, item.path), '&size=SM' + (item.updatedAt ? '&v=' + encodeURIComponent(item.updatedAt) : ''))
 }
 
 export const ZIP_SEPARATOR = '!zip!/'

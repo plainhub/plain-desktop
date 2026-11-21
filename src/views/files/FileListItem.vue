@@ -1,72 +1,12 @@
 <template>
-  <section
-    v-if="!isPhone"
-    class="file-item selectable-card"
-    :class="{ selected: selectedIds.includes(item.id), selecting: shiftEffectingIds.includes(item.id), deleting, collapsing }"
-    @click.stop="handleItemClick($event, item, index, () => clickItem(item))"
-    @mouseenter.stop="handleMouseOver($event, index)"
-  >
-    <div class="start">
-      <v-checkbox v-if="shiftEffectingIds.includes(item.id)" class="checkbox" touch-target="wrapper" :checked="shouldSelect" @click.stop="toggleSelect($event, item, index)" />
-      <v-checkbox v-else class="checkbox" touch-target="wrapper" :checked="selectedIds.includes(item.id)" @click.stop="toggleSelect($event, item, index)" />
-      <span class="number"><field-id :id="index + 1" :raw="item" /></span>
-    </div>
-
-    <div class="image" @click="viewItem($event, item)">
-      <v-circular-progress v-if="deleting" indeterminate :size="24" class="delete-spinner" />
-      <FileThumb
-        v-else
-        :is-dir="item.isDir"
-        :thumb-url="thumbUrl"
-        :extension="item.extension"
-        :thumb-error="imageErrorIds.includes(item.id)"
-        :ext-error="extensionImageErrorIds.includes(item.id)"
-        :on-thumb-error="() => onImageError(item.id)"
-        :on-ext-error="() => onExtensionImageError(item.id)"
-      />
-    </div>
-    
-    <div class="title">
-      {{ item.name }}
-      <OnlinePreviewIcon :name="item.name" :is-dir="item.isDir" />
-    </div>
-    
-    <div class="subtitle">
-      <span v-if="item.isDir">{{ $t('x_items', item.childCount || 0) }}</span>
-      <span v-else>{{ formatFileSize(item.size) }}</span>
-      <span v-tooltip="formatDateTime(item.updatedAt)">{{ formatTimeAgo(item.updatedAt) }}</span>
-    </div>
-    
-    <FileActionButtons
-          :item="item"
-          :can-paste="canPaste"
-          :in-zip="inZip"
-          @download-dir="downloadDir"
-          @download-file="downloadFile"
-          @save-as="saveAs"
-          @upload-files="uploadFiles"
-          @upload-dir="uploadDir"
-          @trash-item="trashItem"
-          @duplicate-item="duplicateItem"
-          @cut-item="cutItem"
-          @copy-item="copyItem"
-          @paste-item="pasteItem"
-          @copy-link="copyLink"
-          @rename-item="renameItem"
-          @add-to-favorites="addToFavorites"
-        />
-  </section>
-
-  <!-- Phone Layout -->
-  <ListItemPhone
-    v-else
+  <FileItemLayout
+    :item="item" :name="item.name" :index="index" :is-phone="isPhone"
+    :selected="selectedIds.includes(item.id)" :selecting="shiftEffectingIds.includes(item.id)"
+    :checked="shiftEffectingIds.includes(item.id) ? shouldSelect : selectedIds.includes(item.id)"
     :class="{ deleting, collapsing }"
-    :is-selected="selectedIds.includes(item.id)"
-    :is-selecting="shiftEffectingIds.includes(item.id)"
-    :checkbox-checked="shiftEffectingIds.includes(item.id) ? shouldSelect : selectedIds.includes(item.id)"
     @click="handleItemClick($event, item, index, () => clickItem(item))"
-    @mouseenter.stop="handleMouseOver($event, index)"
-    @checkbox-click="(event: MouseEvent) => toggleSelect(event, item, index)"
+    @mouseenter="handleMouseOver($event, index)"
+    @checkbox-click="toggleSelect($event, item, index)"
   >
     <template #image>
       <div class="image" @click="viewItem($event, item)">
@@ -115,7 +55,7 @@
         @add-to-favorites="addToFavorites"
       />
     </template>
-  </ListItemPhone>
+  </FileItemLayout>
 </template>
 
 <script setup lang="ts">
@@ -261,7 +201,4 @@ function addToFavorites(item: IFile) {
   }
 }
 
-.list-item-phone {
-  margin-block-end: 8px;
-}
 </style>

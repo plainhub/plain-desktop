@@ -9,6 +9,7 @@
       <v-checkbox
         v-if="showCheckbox"
         touch-target="wrapper" 
+        :label="checkboxLabel"
         :checked="checkboxChecked" 
         @click.stop="$emit('checkboxClick', $event)" 
       />
@@ -33,6 +34,7 @@
 interface Props {
   isSelected?: boolean
   isSelecting?: boolean
+  checkboxLabel?: string
   checkboxChecked?: boolean
   showCheckbox?: boolean
 }

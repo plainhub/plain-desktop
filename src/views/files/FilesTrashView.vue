@@ -9,23 +9,13 @@
   </div>
   <div class="scroller-wrapper">
     <div class="scroller main-list">
-      <ul v-if="items.length" class="list-items">
-        <v-list-item
-          v-for="(item, index) in items"
-          :key="item.id"
-          :title="item.displayName"
-          :subtitle="item.originalPath"
-          :active="selected.includes(item.id)"
-        >
-          <template #start>
-            <v-checkbox touch-target="wrapper" :label="item.displayName" :checked="selected.includes(item.id)" @click.stop @change="toggle(item.id)" />
-          </template>
-          <template #actions>
-            <v-icon-button :aria-label="$t('restore')" v-tooltip="$t('restore')" :disabled="busy" @click="apply([item.id], false)"><i-material-symbols:restore-from-trash-outline-rounded /></v-icon-button>
-            <v-icon-button :id="'files-trash-' + index" :aria-label="$t('delete')" v-tooltip="$t('delete')" :disabled="busy" @click="confirm([item.id], 'files-trash-' + index)"><i-material-symbols:delete-forever-outline-rounded /></v-icon-button>
-          </template>
-        </v-list-item>
-      </ul>
+      <div v-if="items.length" role="list">
+        <FileTrashItem
+          v-for="(item, index) in items" :key="item.id" role="listitem"
+          :item="item" :index="index" :selected="selected.includes(item.id)" :is-phone="isPhone" :busy="busy"
+          @toggle="toggle(item.id)" @restore="apply([item.id], false)" @delete="confirm([item.id], $event)"
+        />
+      </div>
       <NoDataPlaceholder v-else :loading="loading" />
     </div>
   </div>
@@ -35,7 +25,7 @@
 </template>
 
 <script setup lang="ts">
-import { onActivated, onDeactivated, ref } from 'vue'
+import { onActivated, onDeactivated, inject, ref, type Ref } from 'vue'
 import { GqlError } from '@/lib/api/gql-error'
 import { gqlFetch } from '@/lib/api/gql-client'
 import { trashedFilesGQL } from '@/lib/api/query'
@@ -43,7 +33,11 @@ import { restoreFilesGQL, deleteTrashedFilesGQL } from '@/lib/api/mutation'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
 import { showActionError } from '@/hooks/show-action-error'
 
-interface TrashItem { id: string; displayName: string; originalPath: string }
+import type { GqlResultType } from '@/lib/api/graphql/operations'
+import FileTrashItem from './FileTrashItem.vue'
+
+type TrashItem = GqlResultType<'trashedFilesGQL'>['trashedFiles'][number]
+const isPhone = inject<Ref<boolean>>('isPhone')!
 const items = ref<TrashItem[]>([])
 const selected = ref<string[]>([])
 const pending = ref<string[]>([])

@@ -3152,6 +3152,7 @@ export interface GqlOperations {
         id: string
         displayName: string
         originalPath: string
+        trashedPath: string
         type: 'FILE' | 'DIR'
       }>
     }

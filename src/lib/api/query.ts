@@ -1048,7 +1048,7 @@ export const exportNotesGQL = `
 export const trashedFilesGQL = `
   query trashedFiles($offset: Int!, $limit: Int!) {
     trashedFiles(query: "", offset: $offset, limit: $limit, sortBy: DATE_DESC) {
-      id displayName originalPath type
+      id displayName originalPath trashedPath type
     }
   }
 `
