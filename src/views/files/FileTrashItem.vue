@@ -1,13 +1,13 @@
 <template>
   <FileItemLayout
-    :item="item.file" :index="index" :is-phone="isPhone"
+    :item="item" :index="index" :is-phone="isPhone"
     :selected="selected" :checked="selected"
     @click="emit('toggle')" @checkbox-click="emit('toggle')"
   >
     <template #image>
       <div class="image">
         <FileThumb
-          :is-dir="item.file.isDir" :thumb-url="thumbUrl" :extension="getFileExtension(item.file.name)"
+          :is-dir="item.isDir" :thumb-url="thumbUrl" :extension="getFileExtension(item.name)"
           :thumb-error="thumbError" :ext-error="extError"
           :on-thumb-error="() => thumbError = true" :on-ext-error="() => extError = true"
         />
@@ -44,7 +44,7 @@ const props = defineProps<{
 const emit = defineEmits<{ toggle: []; restore: []; delete: [anchor: string] }>()
 const anchor = useId()
 const temp = useTempStore()
-const thumbUrl = computed(() => fileThumbUrl(temp.urlTokenKey, props.item.file))
+const thumbUrl = computed(() => fileThumbUrl(temp.urlTokenKey, props.item))
 const thumbError = ref(false)
 const extError = ref(false)
 </script>

@@ -1,6 +1,6 @@
 <template>
   <div class="top-app-bar">
-    <v-checkbox touch-target="wrapper" :checked="!!items.length && selected.length === items.length" :indeterminate="!!selected.length && selected.length < items.length" @change="selected = selected.length === items.length ? [] : items.map(item => item.id)" />
+    <v-checkbox touch-target="wrapper" :checked="!!items.length && selected.length === items.length" :indeterminate="!!selected.length && selected.length < items.length" @change="selected = selected.length === items.length ? [] : items.map(item => item.path)" />
     <div class="title">{{ selected.length ? $t('x_selected', { count: selected.length }) : $t('trash') }}</div>
     <template v-if="selected.length">
       <v-icon-button :aria-label="$t('restore')" v-tooltip="$t('restore')" :disabled="busy" @click="apply(selected, false)"><i-material-symbols:restore-from-trash-outline-rounded /></v-icon-button>
@@ -11,9 +11,9 @@
     <div class="scroller main-list">
       <div v-if="items.length" role="list">
         <FileTrashItem
-          v-for="(item, index) in items" :key="item.id" role="listitem"
-          :item="item" :index="index" :selected="selected.includes(item.id)" :is-phone="isPhone" :busy="busy"
-          @toggle="toggle(item.id)" @restore="apply([item.id], false)" @delete="confirm([item.id], $event)"
+          v-for="(item, index) in items" :key="item.path" role="listitem"
+          :item="item" :index="index" :selected="selected.includes(item.path)" :is-phone="isPhone" :busy="busy"
+          @toggle="toggle(item.path)" @restore="apply([item.path], false)" @delete="confirm([item.path], $event)"
         />
       </div>
       <NoDataPlaceholder v-else :loading="loading" />
@@ -31,7 +31,6 @@ import { gqlFetch } from '@/lib/api/gql-client'
 import { trashedFilesGQL } from '@/lib/api/query'
 import { restoreFilesGQL, deleteTrashedFilesGQL } from '@/lib/api/mutation'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
-import { useMainStore } from '@/stores/main'
 import { showActionError } from '@/hooks/show-action-error'
 
 import type { GqlResultType } from '@/lib/api/graphql/operations'
@@ -39,7 +38,6 @@ import FileTrashItem from './FileTrashItem.vue'
 
 type TrashItem = GqlResultType<'trashedFilesGQL'>['trashedFiles'][number]
 const isPhone = inject<Ref<boolean>>('isPhone')!
-const mainStore = useMainStore()
 const items = ref<TrashItem[]>([])
 const selected = ref<string[]>([])
 const pending = ref<string[]>([])
@@ -50,12 +48,12 @@ const loading = ref(true)
 let version = 0
 let release: (() => void)[] = []
 
-function toggle(id: string) {
-  selected.value = selected.value.includes(id) ? selected.value.filter(value => value !== id) : [...selected.value, id]
+function toggle(path: string) {
+  selected.value = selected.value.includes(path) ? selected.value.filter(value => value !== path) : [...selected.value, path]
 }
 
-function confirm(ids: string[], button: string) {
-  pending.value = [...ids]
+function confirm(paths: string[], button: string) {
+  pending.value = [...paths]
   anchor.value = button
   confirming.value = true
 }
@@ -66,7 +64,7 @@ async function refresh() {
   try {
     const rows: TrashItem[] = []
     while (request === version) {
-      const response = await gqlFetch<{ trashedFiles: TrashItem[] }>(trashedFilesGQL, { offset: rows.length, limit: 200, showHidden: mainStore.fileShowHidden }, { fresh: true })
+      const response = await gqlFetch<{ trashedFiles: TrashItem[] }>(trashedFilesGQL, { offset: rows.length, limit: 200 }, { fresh: true })
       if (response.errors?.length) throw GqlError.fromGraphql(response.errors[0])
       const page = response.data!.trashedFiles
       rows.push(...page)
@@ -74,8 +72,8 @@ async function refresh() {
     }
     if (request !== version) return
     items.value = rows
-    const ids = new Set(rows.map(row => row.id))
-    selected.value = selected.value.filter(id => ids.has(id))
+    const paths = new Set(rows.map(row => row.path))
+    selected.value = selected.value.filter(path => paths.has(path))
   } catch (error) {
     if (request === version) showActionError(error)
   } finally {
@@ -83,12 +81,12 @@ async function refresh() {
   }
 }
 
-async function apply(ids: string[], purge: boolean) {
+async function apply(paths: string[], purge: boolean) {
   if (busy.value) return
   confirming.value = false
   busy.value = true
   try {
-    const response = await gqlFetch(purge ? deleteTrashedFilesGQL : restoreFilesGQL, { paths: ids }, { dedupe: false })
+    const response = await gqlFetch(purge ? deleteTrashedFilesGQL : restoreFilesGQL, { paths }, { dedupe: false })
     if (response.errors?.length) throw GqlError.fromGraphql(response.errors[0])
   } catch (error) { showActionError(error) }
   finally { busy.value = false }
