@@ -4,7 +4,7 @@
     <div class="title">{{ selected.length ? $t('x_selected', { count: selected.length }) : $t('trash') }}</div>
     <template v-if="selected.length">
       <v-icon-button :aria-label="$t('restore')" v-tooltip="$t('restore')" :disabled="busy" @click="apply(selected, false)"><i-material-symbols:restore-from-trash-outline-rounded /></v-icon-button>
-      <v-icon-button id="files-trash-bulk" :aria-label="$t('permanent_delete')" v-tooltip="$t('permanent_delete')" :disabled="busy" @click="confirm(selected, 'files-trash-bulk')"><i-material-symbols:delete-forever-outline-rounded /></v-icon-button>
+      <v-icon-button id="files-trash-bulk" :aria-label="$t('delete')" v-tooltip="$t('delete')" :disabled="busy" @click="confirm(selected, 'files-trash-bulk')"><i-material-symbols:delete-forever-outline-rounded /></v-icon-button>
     </template>
   </div>
   <div class="scroller-wrapper">
@@ -22,7 +22,7 @@
           </template>
           <template #actions>
             <v-icon-button :aria-label="$t('restore')" v-tooltip="$t('restore')" :disabled="busy" @click="apply([item.id], false)"><i-material-symbols:restore-from-trash-outline-rounded /></v-icon-button>
-            <v-icon-button :id="'files-trash-' + index" :aria-label="$t('permanent_delete')" v-tooltip="$t('permanent_delete')" :disabled="busy" @click="confirm([item.id], 'files-trash-' + index)"><i-material-symbols:delete-forever-outline-rounded /></v-icon-button>
+            <v-icon-button :id="'files-trash-' + index" :aria-label="$t('delete')" v-tooltip="$t('delete')" :disabled="busy" @click="confirm([item.id], 'files-trash-' + index)"><i-material-symbols:delete-forever-outline-rounded /></v-icon-button>
           </template>
         </v-list-item>
       </ul>
