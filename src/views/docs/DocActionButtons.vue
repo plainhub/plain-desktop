@@ -1,8 +1,7 @@
 <template>
   <div class="actions">
-    <inline-delete-confirm v-if="confirming" :name="item.title" :loading="deleting" @confirm="onConfirmDelete" @cancel="confirming = false" />
-    <template v-else-if="filter.trash">
-      <v-icon-button v-if="hasMediaDelete(app)" v-tooltip="$t('delete')" class="sm" :aria-label="$t('delete')" @click.stop="confirming = true">
+    <template v-if="filter.trash">
+      <v-icon-button v-if="hasMediaDelete(app)" :id="deleteAnchor" v-tooltip="$t('delete')" class="sm" :aria-label="$t('delete')" @click.stop="confirming = true">
         <i-material-symbols:delete-forever-outline-rounded />
       </v-icon-button>
       <v-icon-button v-if="hasMediaTrash(app, dataType)" v-tooltip="$t('restore')" class="sm" :loading="restoreLoading(`ids:${item.id}`)" @click.stop="restore(dataType, `ids:${item.id}`)">
@@ -22,7 +21,7 @@
       >
         <i-material-symbols:delete-outline-rounded />
       </v-icon-button>
-      <v-icon-button v-else-if="hasMediaDelete(app)" v-tooltip="$t('delete')" class="sm" :aria-label="$t('delete')" @click.stop="confirming = true">
+      <v-icon-button v-else-if="hasMediaDelete(app)" :id="deleteAnchor" v-tooltip="$t('delete')" class="sm" :aria-label="$t('delete')" @click.stop="confirming = true">
         <i-material-symbols:delete-forever-outline-rounded />
       </v-icon-button>
       <v-icon-button v-tooltip="$t('download')" class="sm" @click.stop="$emit('download-file', item.path)">
@@ -69,11 +68,12 @@
         </div>
       </v-dropdown>
     </template>
+    <delete-confirm-popup v-model="confirming" :anchor="deleteAnchor" :name="item.title" :loading="deleting" @confirm="onConfirmDelete" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, useId } from 'vue'
 import type { IDoc, IFilter, IApp, ITag } from '@/lib/interfaces'
 import { DataType } from '@/lib/data'
 import { hasMediaTrash, hasMediaDelete } from '@/lib/feature'
@@ -101,6 +101,7 @@ defineEmits<{
 
 const infoVisible = ref(false)
 const moreVisible = ref(false)
+const deleteAnchor = useId()
 const confirming = ref(false)
 const deleting = ref(false)
 

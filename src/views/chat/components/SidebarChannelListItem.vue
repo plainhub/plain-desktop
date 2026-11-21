@@ -18,36 +18,29 @@
       <v-icon-button :id="anchorId" v-tooltip="$t('actions')" class="sm" @click.prevent.stop="showMenu">
         <i-material-symbols:more-horiz />
       </v-icon-button>
-      <v-dropdown-menu v-model="menuVisible" :anchor="anchorId">
-        <template v-if="!confirmingDelete && !confirmingClear && !confirmingLeave">
+      <delete-confirm-popup
+        v-model="menuVisible" :anchor="anchorId" :confirming="!!confirmAction"
+        :name="channel.name" :loading="confirmation?.loading.value" :message-key="confirmation?.messageKey"
+        @confirm="confirmation?.run()" @cancel="confirmAction = ''"
+      >
+        <template #menu>
           <div class="dropdown-item" @click="emitInfo">
             {{ $t('channel_info') }}
           </div>
           <div v-if="channel.actions.canRename" class="dropdown-item" @click="openRename">
             {{ $t('rename') }}
           </div>
-          <div class="dropdown-item" @click="confirmingClear = true">
+          <div class="dropdown-item" @click="confirmAction = 'clear'">
             {{ $t('clear_messages') }}
           </div>
-          <div v-if="channel.actions.canDelete" class="dropdown-item" @click="confirmingDelete = true">
+          <div v-if="channel.actions.canDelete" class="dropdown-item" @click="confirmAction = 'delete'">
             {{ $t('delete_channel') }}
           </div>
-          <div v-if="channel.actions.canLeave" class="dropdown-item" @click="confirmingLeave = true">
+          <div v-if="channel.actions.canLeave" class="dropdown-item" @click="confirmAction = 'leave'">
             {{ $t('leave_channel') }}
           </div>
         </template>
-        <template v-else-if="confirmingClear">
-          <inline-delete-confirm
-            :name="channel.name" :loading="clearLoading"
-            message-key="clear_messages_confirm" @confirm="doClear" @cancel="confirmingClear = false" />
-        </template>
-        <template v-else-if="confirmingLeave">
-          <inline-delete-confirm :name="channel.name" :loading="leaveLoading" message-key="leave_channel_confirm" @confirm="doLeave" @cancel="confirmingLeave = false" />
-        </template>
-        <template v-else>
-          <inline-delete-confirm :name="channel.name" :loading="deleteLoading" message-key="delete_channel_confirm" @confirm="doDelete" @cancel="confirmingDelete = false" />
-        </template>
-      </v-dropdown-menu>
+      </delete-confirm-popup>
     </template>
   </SidebarListItem>
 </template>
@@ -97,20 +90,21 @@ const anchorId = computed(() => `channel-list-${props.channel.id}`)
 
 const infoOpen = ref(false)
 const menuVisible = ref(false)
-const confirmingDelete = ref(false)
+const confirmAction = ref<'clear' | 'delete' | 'leave' | ''>('')
 const deleteLoading = ref(false)
-const confirmingClear = ref(false)
 const clearLoading = ref(false)
-const confirmingLeave = ref(false)
 const leaveLoading = ref(false)
 const { cancelByChatId } = useTasks()
 
+const confirmations = {
+  clear: { loading: clearLoading, messageKey: 'clear_messages_confirm', run: doClear },
+  delete: { loading: deleteLoading, messageKey: 'delete_channel_confirm', run: doDelete },
+  leave: { loading: leaveLoading, messageKey: 'leave_channel_confirm', run: doLeave },
+}
+const confirmation = computed(() => confirmAction.value ? confirmations[confirmAction.value] : undefined)
+
 watch(menuVisible, (v) => {
-  if (!v) {
-    confirmingDelete.value = false
-    confirmingClear.value = false
-    confirmingLeave.value = false
-  }
+  if (!v) confirmAction.value = ''
 })
 
 function showMenu() {

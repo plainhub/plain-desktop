@@ -2,7 +2,7 @@ import { expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import LightboxInfo from '@/components/lightbox/LightboxInfo.vue'
 import LightboxFileActionButtons from '@/components/lightbox/LightboxFileActionButtons.vue'
-import InlineDeleteConfirm from '@/components/base/InlineDeleteConfirm.vue'
+import DeleteConfirmPopup from '@/components/base/DeleteConfirmPopup.vue'
 import VDropdownMenu from '@/components/base/VDropdownMenu.vue'
 import VFilledButton from '@/components/base/VFilledButton.vue'
 import VOutlinedButton from '@/components/base/VOutlinedButton.vue'
@@ -18,7 +18,7 @@ vi.mock('@/hooks/organize-undo', () => ({ useOrganizeUndo: () => ({ record: vi.f
 
 clientTemplate(LightboxInfo, 'src/components/lightbox/LightboxInfo.vue')
 clientTemplate(LightboxFileActionButtons, 'src/components/lightbox/LightboxFileActionButtons.vue')
-clientTemplate(InlineDeleteConfirm, 'src/components/base/InlineDeleteConfirm.vue')
+clientTemplate(DeleteConfirmPopup, 'src/components/base/DeleteConfirmPopup.vue')
 clientTemplate(VDropdownMenu, 'src/components/base/VDropdownMenu.vue')
 clientTemplate(VFilledButton, 'src/components/base/VFilledButton.vue')
 clientTemplate(VOutlinedButton, 'src/components/base/VOutlinedButton.vue')
@@ -32,7 +32,7 @@ it('opens an anchored delete popup by button or keyboard and keeps the file acti
   const view = renderView(LightboxInfo, {
     current: { path: '/fixture/file.pdf', name: 'file.pdf' }, deleteFile, onDeleteFile, urlTokenKey: '', tagsMap: new Map(), imageQuality: 'fast',
   }, {
-    VDropdownMenu, InlineDeleteConfirm, LightboxFileActionButtons, VFilledButton, VOutlinedButton, VCircularProgress: empty,
+    VDropdownMenu, DeleteConfirmPopup, LightboxFileActionButtons, VFilledButton, VOutlinedButton, VCircularProgress: empty,
     LightboxQualityDropdown: empty, LightboxKeyboardShortcuts: empty, LightboxFileDetails: empty, LightboxFileTags: empty,
   })
   try {

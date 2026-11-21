@@ -6,9 +6,7 @@
           <i-material-symbols:delete-forever-outline-rounded />
           {{ $t('delete') }}
         </v-outlined-button>
-        <v-dropdown-menu v-model="confirming" :anchor="deleteAnchor">
-          <inline-delete-confirm :name="current.name || current.data?.title || current.path" :loading="deleting" @confirm="onConfirmDelete" @cancel="confirming = false" />
-        </v-dropdown-menu>
+        <delete-confirm-popup v-model="confirming" :anchor="deleteAnchor" :name="current.name || current.data?.title || current.path" :loading="deleting" @confirm="onConfirmDelete" />
       </template>
       <v-outlined-button v-if="canTrash && isTrashed" :class="{ loading: restoreLoading(`ids:${current.data?.id}`) }" @click.stop="restoreItem">
         <i-material-symbols:restore-from-trash-outline-rounded />

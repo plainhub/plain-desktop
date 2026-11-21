@@ -49,6 +49,20 @@ it('refreshes after a transport failure whose physical effects are unknown', asy
   expect(view.trashingIds.value).toEqual([])
 })
 
+it('keeps the bulk move busy when a separate row move finishes first', async () => {
+  const view = fixture()
+  let finishBulk!: (result: unknown) => void
+  view.mutate.mockResolvedValueOnce({ data: { trashFiles: { affectedCount: 1 } } })
+    .mockReturnValueOnce(new Promise(resolve => { finishBulk = resolve }))
+  const single = view.startTrash([files[0]])
+  const bulk = view.startTrash([files[1]], { bulk: true })
+  await single
+  expect(view.bulkTrashing.value).toBe(true)
+  finishBulk({ data: { trashFiles: { affectedCount: 1 } } })
+  await bulk
+  expect(view.bulkTrashing.value).toBe(false)
+})
+
 it('does not request deletion or refresh for an empty selection', async () => {
   const view = fixture()
   await view.startTrash([], { bulk: true })

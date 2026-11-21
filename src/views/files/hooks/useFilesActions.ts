@@ -1,6 +1,6 @@
 import { showActionError } from '@/hooks/show-action-error'
-import { ref, type Ref, type ComputedRef } from 'vue'
-import { fileNameError, type IFile } from '@/lib/file'
+import type { Ref, ComputedRef } from 'vue'
+import { fileNameError, isZipPath, type IFile } from '@/lib/file'
 import type { IFileFilter } from '@/lib/interfaces'
 import { openModal } from '@/components/modal'
 import EditValueModal from '@/components/EditValueModal.vue'
@@ -67,7 +67,6 @@ export function useFilesActions(opts: UseFilesActionsOptions) {
       total.value -= removed
       retainSelection(previous)
     }
-    if (pendingTrashFiles.value.some((file) => removedIds.has(file.id))) cancelTrashItems()
     refetchMounts()
   }
 
@@ -102,24 +101,13 @@ export function useFilesActions(opts: UseFilesActionsOptions) {
 
   const { mutate: trashFiles } = initMutation({ document: trashFilesGQL }, showActionError)
   const { trashingIds, collapsingIds, bulkTrashing, isTrashing, startTrash } = useFilesTrash({ t, mutate: trashFiles, onDeleted, refresh: () => { fetch(); refetchMounts() } })
-  const pendingTrashFiles = ref<IFile[]>([])
-  const confirmingTrash = ref(false)
-  const trashCount = ref(0)
 
   const trashItems = () => {
+    if (bulkTrashing.value || isZipPath(filter.parent)) return
     const selected = items.value.filter((it) => selectedIds.value.includes(it.id) && !isTrashing(it.id))
     if (selected.length === 0) { toast(t('select_first'), 'error'); return }
-    pendingTrashFiles.value = selected
-    trashCount.value = selected.length
-    confirmingTrash.value = true
+    return startTrash(selected, { bulk: true })
   }
-  const confirmTrashItems = () => {
-    const files = pendingTrashFiles.value
-    pendingTrashFiles.value = []
-    confirmingTrash.value = false
-    startTrash(files, { bulk: true })
-  }
-  const cancelTrashItems = () => { confirmingTrash.value = false; pendingTrashFiles.value = [] }
 
   const trashItem = (item: IFile) => {
     if (isTrashing(item.id)) return
@@ -165,7 +153,6 @@ export function useFilesActions(opts: UseFilesActionsOptions) {
 
   return {
     downloadLoading, downloadSelectedItem, downloadEachItems, downloadZipItems, trashItems, trashItem,
-    confirmingTrash, trashCount, confirmTrashItems, cancelTrashItems,
     trashingIds, collapsingIds, bulkTrashing, isTrashing,
     copyItems, cutItems, pasteDir, duplicateItem, cutItem, copyItem, pasteItem,
     copyLinkItem, renameItemClick, createDir, addToFavoritesClick, onDeleted,

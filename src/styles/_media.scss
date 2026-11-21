@@ -51,6 +51,9 @@
         display: flex;
       }
     }
+    .actions.is-confirming {
+      display: flex;
+    }
     &:hover .btn-checkbox,
     &.selected .btn-checkbox,
     &.selecting .btn-checkbox {

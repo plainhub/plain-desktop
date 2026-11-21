@@ -86,6 +86,9 @@ export const useFilesKeyEvents = (selectAll: () => void, clearSelection: () => v
       if (e.key === 'Escape') {
         clearSelection()
       } else if (e.key === 'Delete' || ((e.ctrlKey || e.metaKey) && e.key === 'Backspace')) {
+        if (e.repeat || document.querySelector('.v-modal-backdrop, .lightbox')) return
+        if (isInputFocused() && !document.activeElement?.matches('input[type="checkbox"]')) return
+        e.preventDefault()
         deleteItems()
       }
     },

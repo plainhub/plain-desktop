@@ -21,7 +21,9 @@ vi.mock('@/lib/api/mutation', () => ({
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('pinia', () => ({ storeToRefs: (store: unknown) => store }))
 vi.mock('@/stores/temp', () => ({ useTempStore: () => ({ app: ref({}), urlTokenKey: ref(null) }) }))
-vi.mock('@/lib/file', () => ({ enrichFile: (item: IFile) => item, fileNameError: vi.fn() }))
+vi.mock('@/lib/file', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/file')>(), enrichFile: (item: IFile) => item,
+}))
 vi.mock('@/lib/api/file', () => ({ getFileUrlByPath: vi.fn() }))
 vi.mock('@/lib/api/text-file', () => ({ getTextFileId: vi.fn() }))
 vi.mock('@/lib/browser', () => ({ openUrl: vi.fn() }))
@@ -38,6 +40,7 @@ vi.mock('@/hooks/device', () => ({ getIsPhone: () => ref(false) }))
 vi.mock('@/hooks/file-open', () => ({ useFileOpen: () => ({ openFile: vi.fn() }) }))
 
 import { useFilesRecent } from '@/hooks/files-recent'
+import { useFilesKeyEvents } from '@/hooks/key-events'
 import { useSelectable } from '@/hooks/list'
 import { useFilesActions } from '@/views/files/hooks/useFilesActions'
 import { useFilesEvents } from '@/views/files/hooks/useFilesEvents'
@@ -74,8 +77,10 @@ it('keeps a surviving selection in Recent Files after a file-viewer deletion', (
   } finally { unmount() }
 })
 
-it('keeps a surviving selection in Files and cancels a confirmation for the removed file', () => {
+it('moves the selected Files to Trash immediately and keeps the surviving selection on removal', () => {
+  state.remove.mockReset().mockReturnValue(new Promise(() => {}))
   const items = ref([first, second])
+  const filter = { parent: '/fixtures/archive.zip!zip!/' } as Parameters<typeof useFilesActions>[0]['filter']
   const selection = useSelectable(items)
   let actions!: ReturnType<typeof useFilesActions>
   const noop = () => {}
@@ -83,7 +88,7 @@ it('keeps a surviving selection in Files and cancels a confirmation for the remo
     actions = useFilesActions({
       items, total: ref(2), selectedIds: selection.selectedIds, clearSelection: selection.clearSelection,
       visibleItems: computed(() => items.value), retainSelection: selection.retainSelection,
-      filter: { parent: '/fixtures' } as Parameters<typeof useFilesActions>[0]['filter'],
+      filter,
       rootDir: computed(() => '/fixtures'), urlTokenKey: ref(null), t: (key) => key,
       fetch: noop, refetchMounts: noop, copy: noop, cut: noop, paste: noop,
       downloadFile: noop, downloadDir: noop, downloadFiles: noop,
@@ -100,9 +105,40 @@ it('keeps a surviving selection in Files and cancels a confirmation for the remo
     selection.toggleSelect(click, first, 0)
     selection.toggleSelect(click, second, 1)
     actions.trashItems()
-    expect(actions.confirmingTrash.value).toBe(true)
+    expect(state.remove).not.toHaveBeenCalled()
+    filter.parent = '/fixtures'
+    actions.trashItems()
+    expect(state.remove).toHaveBeenCalledExactlyOnceWith({ paths: [first.path, second.path] })
+    expect(actions.bulkTrashing.value).toBe(true)
     emitter.emit('file_deleted', { item: first })
     expect(selection.selectedIds.value).toEqual([second.id])
-    expect(actions.confirmingTrash.value).toBe(false)
+    actions.trashItems()
+    expect(state.remove).toHaveBeenCalledTimes(1)
   } finally { unmount() }
+})
+
+it('moves files on the list shortcut without handling typing, overlays or held keys', () => {
+  const trash = vi.fn()
+  const preventDefault = vi.fn()
+  const keyDown = useFilesKeyEvents(vi.fn(), vi.fn(), trash).keyDown
+  const focused = (tagName: string, checkbox = false) => ({ tagName, matches: () => checkbox })
+  const document = {
+    activeElement: focused('INPUT'),
+    querySelector: vi.fn<(selector: string) => object | null>(() => null),
+    getElementsByClassName: () => [],
+  }
+  vi.stubGlobal('document', document)
+  const key = { key: 'Delete', preventDefault } as unknown as KeyboardEvent
+
+  keyDown(key)
+  document.activeElement = focused('INPUT', true)
+  keyDown({ ...key, repeat: true })
+  document.querySelector.mockImplementation(selector => selector === 'md-dialog[open]' ? null : {})
+  keyDown(key)
+  expect(trash).not.toHaveBeenCalled()
+
+  document.querySelector.mockReturnValue(null)
+  keyDown(key)
+  expect(preventDefault).toHaveBeenCalledOnce()
+  expect(trash).toHaveBeenCalledOnce()
 })

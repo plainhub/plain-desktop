@@ -1,13 +1,13 @@
 <template>
   <Teleport to="body">
-    <div class="v-dropdown-menu" :class="{ 'is-open': modelValue }" @click.stop>
+    <div v-if="modelValue" ref="menuRef" class="v-dropdown-menu is-open" @click.stop>
       <slot></slot>
     </div>
   </Teleport>
 </template>
 
 <script setup lang="ts">
-import { watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, watch } from 'vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -19,115 +19,72 @@ const emit = defineEmits(['update:modelValue'])
 const SPACING = 8
 const MIN_WIDTH = 120
 const MIN_HEIGHT = 80
-const MENU_SELECTOR = '.v-dropdown-menu.is-open'
+const menuRef = ref<HTMLElement | null>(null)
 
-let anchorElement: HTMLElement | null = null
+function positionMenu() {
+  const menuElement = menuRef.value
+  if (!menuElement) return
+  const anchor = document.getElementById(props.anchor)
+  if (!anchor) return
+  const rect = anchor.getBoundingClientRect()
 
-const getOpenMenu = (): HTMLElement | null => document.querySelector(MENU_SELECTOR)
+  const { innerWidth, innerHeight } = window
 
-const closeMenu = () => emit('update:modelValue', false)
-
-const isClickOutsideMenu = (event: MouseEvent): boolean => {
-  if (!anchorElement?.contains(event.target as Node)) {
-    const menu = getOpenMenu()
-    return !menu?.contains(event.target as Node)
-  }
-  return false
-}
-
-const updatePosition = (menuElement: HTMLElement) => {
-  if (!anchorElement || !menuElement) return
-  
-  const rect = anchorElement.getBoundingClientRect()
-  if (rect.width === 0 && rect.height === 0) {
-    setTimeout(() => updatePosition(menuElement), 10)
-    return
-  }
-  
-  const { innerWidth: viewportWidth, innerHeight: viewportHeight } = window
-  const scrollY = window.scrollY || document.documentElement.scrollTop
-  const scrollX = window.scrollX || document.documentElement.scrollLeft
-  
   const menuWidth = menuElement.offsetWidth || MIN_WIDTH
   const menuHeight = menuElement.offsetHeight || MIN_HEIGHT
-  
-  let top = rect.bottom + scrollY + SPACING
-  let left = rect.left + scrollX
-  
-  // Horizontal boundary check
-  if (left + menuWidth > viewportWidth) {
-    left = rect.right + scrollX - menuWidth
+
+  let top = rect.bottom + SPACING
+  let left = rect.left
+
+  if (left + menuWidth > innerWidth) {
+    left = rect.right - menuWidth
   }
-  left = Math.max(scrollX + SPACING, left)
-  
-  // Vertical boundary check  
-  if (top + menuHeight > viewportHeight + scrollY) {
-    top = rect.top + scrollY - menuHeight - SPACING
-    if (top < scrollY) {
-      top = scrollY + SPACING
-      menuElement.style.maxHeight = `${viewportHeight - 16}px`
+  left = Math.max(SPACING, left)
+
+  if (top + menuHeight > innerHeight) {
+    top = rect.top - menuHeight - SPACING
+    if (top < SPACING) {
+      top = SPACING
+      menuElement.style.maxHeight = `${innerHeight - 16}px`
       menuElement.style.overflowY = 'auto'
     }
   }
-  
-  menuElement.style.top = `${Math.max(0, top)}px`
-  menuElement.style.left = `${Math.max(0, left)}px`
-  
-  // Make menu visible after positioning
+
+  menuElement.style.top = `${top}px`
+  menuElement.style.left = `${left}px`
+
   menuElement.style.opacity = '1'
   menuElement.style.visibility = 'visible'
 }
 
-const handleOutsideClick = (event: MouseEvent) => {
-  if (isClickOutsideMenu(event)) closeMenu()
+function handleOutsideClick(event: MouseEvent) {
+  const menu = menuRef.value
+  if (!menu) return
+  const target = event.target as Node
+  if (!menu.contains(target) && !document.getElementById(props.anchor)?.contains(target)) {
+    emit('update:modelValue', false)
+  }
 }
 
-const handleDropdownToggle = (event: Event) => {
+function handleDropdownToggle(event: Event) {
   const { detail } = event as CustomEvent
-  if (props.modelValue && (!detail?.exclude || detail.exclude !== anchorElement)) {
-    closeMenu()
+  if (menuRef.value && (!detail?.exclude || detail.exclude !== document.getElementById(props.anchor))) {
+    emit('update:modelValue', false)
   }
 }
 
-const positionMenu = async () => {
-  anchorElement = document.getElementById(props.anchor)
-  if (!anchorElement) return
-  
-  await nextTick()
-  setTimeout(() => {
-    const menu = getOpenMenu()
-    if (menu) updatePosition(menu)
-  }, 10)
-}
+watch(() => props.anchor, positionMenu, { flush: 'post' })
 
-watch(() => props.modelValue, (isOpen) => {
-  if (isOpen) {
-    positionMenu()
-  } else {
-    // Reset menu state when closing
-    const menu = getOpenMenu()
-    if (menu) {
-      menu.style.opacity = '0'
-      menu.style.visibility = 'hidden'
-    }
-  }
-})
-
-watch(() => props.anchor, (newAnchor, oldAnchor) => {
-  if (props.modelValue && newAnchor !== oldAnchor) positionMenu()
-})
-
-onMounted(() => {
-  document.addEventListener('click', handleOutsideClick)
-  document.addEventListener('click', handleOutsideClick, { capture: true })
-  document.addEventListener('dropdown-toggle', handleDropdownToggle as EventListener)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('click', handleOutsideClick)
-  document.removeEventListener('click', handleOutsideClick, { capture: true })
-  document.removeEventListener('dropdown-toggle', handleDropdownToggle as EventListener)
-})
+watch(menuRef, (menu, _, onCleanup) => {
+  if (!menu) return
+  positionMenu()
+  document.addEventListener('click', handleOutsideClick, true)
+  document.addEventListener('dropdown-toggle', handleDropdownToggle)
+  onCleanup(() => {
+    document.removeEventListener('click', handleOutsideClick, true)
+    document.removeEventListener('dropdown-toggle', handleDropdownToggle)
+  })
+}, { flush: 'post' })
 </script>
 
 <style lang="scss" scoped>
@@ -147,18 +104,18 @@ onUnmounted(() => {
   visibility: hidden;
   transition: opacity 150ms ease-out;
 
-  &.is-open { 
+  &.is-open {
     display: block;
   }
 
   &::-webkit-scrollbar { width: 6px; }
   &::-webkit-scrollbar-track { background: transparent; }
-  &::-webkit-scrollbar-thumb { 
+  &::-webkit-scrollbar-thumb {
     background: var(--md-sys-color-outline);
     border-radius: 3px;
   }
-  
+
   scrollbar-width: thin;
   scrollbar-color: var(--md-sys-color-outline) transparent;
 }
-</style> 
+</style>

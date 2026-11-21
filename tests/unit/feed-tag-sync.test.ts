@@ -75,7 +75,12 @@ function mount() {
     'v-dropdown-menu': { props: ['modelValue'], setup: (props: any, { slots }: any) => () => props.modelValue ? h('section', slots.default?.()) : null },
     'v-checkbox': { render: () => h('input') },
     SidebarListItem: { props: ['title'], setup: (props: any, { slots }: any) => () => h('li', [props.title, slots.actions?.()]) },
-    'inline-delete-confirm': { emits: ['confirm'], setup: (_: unknown, { emit }: any) => () => h('button', { onClick: () => emit('confirm') }, 'confirm-delete') },
+    'delete-confirm-popup': {
+      inheritAttrs: false, props: ['modelValue', 'confirming'], emits: ['confirm', 'cancel'],
+      setup: (props: any, { emit, slots }: any) => () => props.modelValue
+        ? (props.confirming ? h('button', { onClick: () => emit('confirm') }, 'confirm-delete') : slots.menu?.())
+        : null,
+    },
   })
   cleanup.push(view.unmount)
   const picker = () => nodes(view.root).find(node => node.props.class === 'tag-picker-list')!

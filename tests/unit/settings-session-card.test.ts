@@ -5,7 +5,6 @@ import SessionCard from '@/views/settings/sessions/SessionCard.vue'
 import type { SessionRecord } from '@/views/settings/sessions/api'
 import VTextButton from '@/components/base/VTextButton.vue'
 import VIconButton from '@/components/base/VIconButton.vue'
-import InlineDeleteConfirm from '@/components/base/InlineDeleteConfirm.vue'
 import { CopyButton } from '../helpers/vue-node-renderer'
 
 vi.mock('@/lib/format', () => ({ formatDateTime: (value: string) => value }))
@@ -21,7 +20,7 @@ async function render(record: SessionRecord, online?: boolean) {
   app.component('VCopyButton', CopyButton)
   app.component('VTextButton', VTextButton)
   app.component('VIconButton', VIconButton)
-  app.component('InlineDeleteConfirm', InlineDeleteConfirm)
+  app.component('DeleteConfirmPopup', () => null)
   return renderToString(app)
 }
 

@@ -14,27 +14,23 @@
       <v-icon-button :id="anchorId" v-tooltip="$t('actions')" class="sm" @click.prevent.stop="showMenu">
         <i-material-symbols:more-horiz />
       </v-icon-button>
-      <v-dropdown-menu v-model="menuVisible" :anchor="anchorId">
-        <template v-if="!confirmingDelete && !confirmingClear">
+      <delete-confirm-popup
+        v-model="menuVisible" :anchor="anchorId" :confirming="!!confirmAction"
+        :name="peer.name" :loading="confirmAction === 'clear' ? clearLoading : deleteLoading" :message-key="confirmAction === 'clear' ? 'clear_messages_confirm' : 'delete_peer_warning'"
+        @confirm="confirmAction === 'clear' ? doClear() : doDelete()" @cancel="confirmAction = ''"
+      >
+        <template #menu>
           <div class="dropdown-item" @click="emitInfo">
             {{ $t('device_info') }}
           </div>
-          <div class="dropdown-item" @click="confirmingClear = true">
+          <div class="dropdown-item" @click="confirmAction = 'clear'">
             {{ $t('clear_messages') }}
           </div>
-          <div class="dropdown-item" @click="confirmingDelete = true">
+          <div class="dropdown-item" @click="confirmAction = 'delete'">
             {{ $t('delete_device') }}
           </div>
         </template>
-        <template v-else-if="confirmingClear">
-          <inline-delete-confirm
-            :name="peer.name" :loading="clearLoading"
-            message-key="clear_messages_confirm" @confirm="doClear" @cancel="confirmingClear = false" />
-        </template>
-        <template v-else>
-          <inline-delete-confirm :name="peer.name" :loading="deleteLoading" message-key="delete_peer_warning" @confirm="doDelete" @cancel="confirmingDelete = false" />
-        </template>
-      </v-dropdown-menu>
+      </delete-confirm-popup>
     </template>
   </SidebarListItem>
 </template>
@@ -86,17 +82,13 @@ const isManagedPeer = computed(() => props.peer.managed === true || !!findLoginP
 
 const infoOpen = ref(false)
 const menuVisible = ref(false)
-const confirmingDelete = ref(false)
+const confirmAction = ref<'clear' | 'delete' | ''>('')
 const deleteLoading = ref(false)
-const confirmingClear = ref(false)
 const clearLoading = ref(false)
 const { cancelByChatId } = useTasks()
 
 watch(menuVisible, (v) => {
-  if (!v) {
-    confirmingDelete.value = false
-    confirmingClear.value = false
-  }
+  if (!v) confirmAction.value = ''
 })
 
 function showMenu() {

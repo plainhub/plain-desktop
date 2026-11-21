@@ -11,6 +11,7 @@
       :key="item.id"
       :title="item.name"
       :active="item.id === selected"
+      :force-actions="tagMenuVisible && selectedItem?.id === item.id"
       @click="view(item)"
     >
       <template #end>
@@ -23,8 +24,12 @@
       </template>
     </SidebarListItem>
   </ul>
-  <v-dropdown-menu v-model="tagMenuVisible" :anchor="'tag-' + selectedItem?.id">
-    <template v-if="!confirmingDelete">
+  <delete-confirm-popup
+    v-model="tagMenuVisible" :anchor="'tag-' + selectedItem?.id" :confirming="confirmingDelete"
+    :name="selectedItem?.name ?? ''" :loading="deleteLoading"
+    @confirm="doDeleteTag" @cancel="confirmingDelete = false"
+  >
+    <template #menu>
       <div class="dropdown-item" @click="renameTag(selectedItem!); tagMenuVisible = false">
         {{ $t('rename') }}
       </div>
@@ -32,10 +37,7 @@
         {{ $t('delete') }}
       </div>
     </template>
-    <template v-else>
-      <inline-delete-confirm :name="selectedItem?.name ?? ''" :loading="deleteLoading" @confirm="doDeleteTag" @cancel="confirmingDelete = false" />
-    </template>
-  </v-dropdown-menu>
+  </delete-confirm-popup>
 </template>
 
 <script setup lang="ts">

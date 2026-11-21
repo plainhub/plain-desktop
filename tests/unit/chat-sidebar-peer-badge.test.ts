@@ -28,7 +28,7 @@ async function render(id: string, managed: boolean, online: boolean) {
   app.component('DeviceTypeIcon', DeviceTypeIcon)
   app.component('VDropdown', (_: unknown, { slots }: { slots: Slots }) => h('span', slots.trigger?.()))
   app.component('VIconButton', () => null)
-  app.component('VDropdownMenu', () => null)
+  app.component('DeleteConfirmPopup', () => null)
   return renderToString(app)
 }
 

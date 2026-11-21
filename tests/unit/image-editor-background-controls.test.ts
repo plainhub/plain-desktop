@@ -34,7 +34,7 @@ beforeEach(() => {
   const stub = { render: () => null }
   const Sidebar = { emits: ['selectLayer'], setup(_props: unknown, { emit }: { emit: (event: string, id: string) => void }) { return () => h('button', { onClick: () => emit('selectLayer', 'text') }, 'select-text') } }
   const TextEditor = { props: { layer: Object as PropType<{ id: string } | null> }, emits: ['close'], setup(props: { layer?: { id: string } | null }, { emit }: { emit: (event: string) => void }) { return () => props.layer ? h('button', { onClick: () => emit('close') }, 'close-text') : null } }
-  view = renderView(Editor, {}, { ...Object.fromEntries(['ImageEditorToolbar', 'SaveFormatButton', 'VDropdownMenu', 'InlineDeleteConfirm', 'ImageEditorStickerPopup', 'ImageLightbox'].map(name => [name, stub])), ImageEditorBackground: Background, ImageEditorSidebar: Sidebar, TextLayerEditor: TextEditor })
+  view = renderView(Editor, {}, { ...Object.fromEntries(['ImageEditorToolbar', 'SaveFormatButton', 'VDropdownMenu', 'DeleteConfirmPopup', 'ImageEditorStickerPopup', 'ImageLightbox'].map(name => [name, stub])), ImageEditorBackground: Background, ImageEditorSidebar: Sidebar, TextLayerEditor: TextEditor })
 })
 afterEach(() => { view?.unmount(); fixture.core.doc.destroy(); vi.unstubAllGlobals() })
 

@@ -13,7 +13,9 @@
       <template v-if="checked">
         <v-icon-button v-if="!inZip" v-tooltip="$t('copy')" @click.stop="copyItems"><i-material-symbols:content-copy-outline-rounded /></v-icon-button>
         <v-icon-button v-if="!inZip" v-tooltip="$t('cut')" @click.stop="cutItems"><i-material-symbols:content-cut-rounded /></v-icon-button>
-        <bulk-delete-button trash v-if="!inZip" :confirming="confirmingTrash" :count="trashCount" :loading="bulkTrashing" @click="trashItems" @confirm="confirmTrashItems" @cancel="cancelTrashItems" />
+        <v-icon-button v-if="!inZip" v-tooltip="$t('move_to_trash')" :loading="bulkTrashing" @click.stop="trashItems">
+          <i-material-symbols:delete-outline-rounded />
+        </v-icon-button>
         <bulk-download-button :single="selectedIds.length === 1" :loading="downloadLoading" @download="downloadSelectedItem" @download-each="downloadEachItems" @download-zip="downloadZipItems" />
       </template>
     </div>
@@ -163,7 +165,6 @@ const { navigateToDir, toggleShowHidden, clickItem, viewItem } = useFilesNavigat
 // --- Actions ---
 const {
   downloadLoading, downloadSelectedItem, downloadEachItems, downloadZipItems, trashItems, trashItem,
-  confirmingTrash, trashCount, confirmTrashItems, cancelTrashItems,
   trashingIds, collapsingIds, bulkTrashing,
   copyItems, cutItems, pasteDir,
   duplicateItem, cutItem, copyItem, pasteItem, copyLinkItem, renameItemClick, createDir,

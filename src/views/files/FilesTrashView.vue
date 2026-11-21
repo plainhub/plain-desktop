@@ -19,9 +19,7 @@
       <NoDataPlaceholder v-else :loading="loading" />
     </div>
   </div>
-  <v-dropdown-menu v-model="confirming" :anchor="anchor">
-    <inline-delete-confirm :count="pending.length" :loading="busy" @confirm="apply(pending, true)" @cancel="confirming = false" />
-  </v-dropdown-menu>
+  <delete-confirm-popup v-model="confirming" :anchor="anchor" :count="pending.length" :loading="busy" @confirm="apply(pending, true)" />
 </template>
 
 <script setup lang="ts">

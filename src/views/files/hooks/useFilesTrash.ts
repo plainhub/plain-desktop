@@ -29,7 +29,7 @@ export function useFilesTrash(opts: UseFilesTrashOptions) {
     } catch {
       result = undefined
     } finally {
-      bulkTrashing.value = false
+      if (options?.bulk) bulkTrashing.value = false
     }
     if (result?.data?.trashFiles?.affectedCount === files.length) {
       collapsingIds.value = [...collapsingIds.value, ...ids]

@@ -24,12 +24,9 @@
       </v-icon-button>
     </template>
 
-    <v-icon-button v-if="!inZip" :id="deleteAnchorId" v-tooltip="$t('move_to_trash')" class="sm" @click.stop="confirming = true">
+    <v-icon-button v-if="!inZip" v-tooltip="$t('move_to_trash')" class="sm" @click.stop="$emit('trashItem', item)">
       <i-material-symbols:delete-outline-rounded />
     </v-icon-button>
-    <v-dropdown-menu v-if="!inZip" v-model="confirming" :anchor="deleteAnchorId">
-      <inline-delete-confirm message-key="confirm_trash_name" :name="item.name" @confirm="onConfirmTrash" @cancel="confirming = false" />
-    </v-dropdown-menu>
 
     <v-dropdown v-model="infoMenuVisible">
       <template #trigger>
@@ -82,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import type { IFile } from '@/lib/file'
 
 interface Props {
@@ -91,7 +88,7 @@ interface Props {
   inZip?: boolean
 }
 
-const props = defineProps<Props>()
+defineProps<Props>()
 
 const isTauri = __IS_TAURI__
 
@@ -114,8 +111,6 @@ const emit = defineEmits<{
 const uploadMenuVisible = ref(false)
 const infoMenuVisible = ref(false)
 const actionsMenuVisible = ref(false)
-const confirming = ref(false)
-const deleteAnchorId = computed(() => `file-delete-${props.item.id}`)
 
 function downloadDir(path: string) {
   emit('downloadDir', path)
@@ -135,11 +130,6 @@ function uploadFiles(path: string) {
 
 function uploadDir(path: string) {
   emit('uploadDir', path)
-}
-
-function onConfirmTrash() {
-  emit('trashItem', props.item)
-  confirming.value = false
 }
 
 function duplicateItem(item: IFile) {

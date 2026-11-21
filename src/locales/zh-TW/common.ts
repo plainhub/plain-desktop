@@ -131,8 +131,6 @@ export default {
   address: '位址',
   yes: '是',
   no: '否',
-  confirm_trash_name: '將「{name}」移到資源回收筒？',
-  confirm_trash_count: '將這 {count} 個項目移到資源回收筒？',
   trash_failed_name: '無法將「{name}」移到資源回收筒。',
   confirm_to_delete_name: '確認刪除{name}？',
   confirm_to_delete: '確定要刪除這{count}個項目嗎？此操作無法復原。',

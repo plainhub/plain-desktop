@@ -41,6 +41,7 @@
           :key="item.id"
           :title="item.name"
           :active="!!selectedFeedId && item.id === selectedFeedId"
+          :force-actions="feedMenuVisible && selectedFeed?.id === item.id"
           @click="viewFeed(item)"
         >
           <template #end>
@@ -53,8 +54,12 @@
           </template>
         </SidebarListItem>
       </ul>
-      <v-dropdown-menu v-model="feedMenuVisible" :anchor="'feed-' + selectedFeed?.id">
-        <template v-if="!confirmingDeleteFeed">
+      <delete-confirm-popup
+        v-model="feedMenuVisible" :anchor="'feed-' + selectedFeed?.id" :confirming="confirmingDeleteFeed"
+        :name="deletingFeed?.name ?? ''" :loading="deleteFeedLoading"
+        @confirm="doDeleteFeed" @cancel="cancelDeleteFeed"
+      >
+        <template #menu>
           <div class="dropdown-item" @click="editFeed(selectedFeed!); feedMenuVisible = false">
             {{ $t('edit') }}
           </div>
@@ -62,10 +67,7 @@
             {{ $t('delete') }}
           </div>
         </template>
-        <template v-else>
-          <inline-delete-confirm :name="deletingFeed?.name ?? ''" :loading="deleteFeedLoading" @confirm="doDeleteFeed" @cancel="cancelDeleteFeed" />
-        </template>
-      </v-dropdown-menu>
+      </delete-confirm-popup>
       <tag-filter type="FEED_ENTRY" :selected="selectedTagId" />
       <input ref="fileInput" style="display: none" accept=".xml" type="file" @change="uploadChanged" />
     </template>

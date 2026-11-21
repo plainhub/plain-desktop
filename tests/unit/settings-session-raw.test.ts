@@ -3,7 +3,6 @@ import { h } from 'vue'
 import SessionCard from '@/views/settings/sessions/SessionCard.vue'
 import VIconButton from '@/components/base/VIconButton.vue'
 import VTextButton from '@/components/base/VTextButton.vue'
-import InlineDeleteConfirm from '@/components/base/InlineDeleteConfirm.vue'
 import VCircularProgress from '@/components/base/VCircularProgress.vue'
 import type { SessionRecord } from '@/views/settings/sessions/api'
 import { clientTemplate, renderView, nodes, content, fire, flush } from '../helpers/vue-node-renderer'
@@ -19,7 +18,7 @@ clientTemplate(VTextButton, 'src/components/base/VTextButton.vue')
 
 it('opens the raw session data from the leading icon', async () => {
   const entry: SessionRecord = { clientId: '706c6169-b9ef-8b64-b37d-1162ef232835', clientName: 'Fixture browser', type: 'LOGIN', osName: 'Fixture OS', osVersion: '1', appName: 'Fixture', appVersion: '1', clientIp: '192.0.2.24', createdAt: '2026-01-01T00:00:00Z' }
-  const view = renderView(SessionCard, { entry, busy: false }, { VIconButton, VTextButton, InlineDeleteConfirm, VCircularProgress, VCopyButton: { render: () => null } })
+  const view = renderView(SessionCard, { entry, busy: false }, { VIconButton, VTextButton, DeleteConfirmPopup: { render: () => null }, VCircularProgress, VCopyButton: { render: () => null } })
   try {
     expect(nodes(view.root).some(node => node.tag === 'pre')).toBe(false)
     const icon = nodes(view.root).find(node => node.tag === 'button' && node.props['aria-label'] === 'session_management.view_raw')!

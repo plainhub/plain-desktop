@@ -50,14 +50,13 @@
             >
               <i-lucide-trash-2 />
             </button>
-            <v-dropdown-menu v-model="deleteMenuVisible[p.id]" :anchor="`project-delete-${p.id}`">
-              <inline-delete-confirm
-                :loading="deletingId === p.id"
-                message-key="image_editor.delete_project_confirm"
-                @confirm="handleDelete(p)"
-                @cancel="closeDeleteMenu(p.id)"
-              />
-            </v-dropdown-menu>
+            <delete-confirm-popup
+              v-model="deleteMenuVisible[p.id]"
+              :anchor="`project-delete-${p.id}`"
+              :loading="deletingId === p.id"
+              message-key="image_editor.delete_project_confirm"
+              @confirm="handleDelete(p)"
+            />
           </div>
         </div>
       </template>
@@ -109,10 +108,6 @@ function openProject(id: string) {
 
 function openDeleteMenu(p: ProjectSummary) {
   deleteMenuVisible[p.id] = true
-}
-
-function closeDeleteMenu(id: string) {
-  deleteMenuVisible[id] = false
 }
 
 async function handleDelete(p: ProjectSummary) {

@@ -21,7 +21,7 @@ it.each(['chooser', 'drop', 'paste'])('waits for Start editing after %s and open
   vi.stubGlobal('window', { open })
   const createUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fixture-image')
   const stub = defineComponent({ render: () => null })
-  const view = renderView(ImageEditorList, {}, { VFilledButton, VCircularProgress: stub, InlineDeleteConfirm: stub, VDropdownMenu: stub })
+  const view = renderView(ImageEditorList, {}, { VFilledButton, VCircularProgress: stub, DeleteConfirmPopup: stub, VDropdownMenu: stub })
   unmount = view.unmount
   const select = (name: string) => {
     const file = new File(['synthetic image'], name, { type: 'image/png' })

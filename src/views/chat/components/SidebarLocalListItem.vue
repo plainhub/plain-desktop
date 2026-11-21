@@ -13,18 +13,17 @@
       <v-icon-button :id="anchorId" v-tooltip="$t('actions')" class="sm" @click.prevent.stop="showMenu">
         <i-material-symbols:more-horiz />
       </v-icon-button>
-      <v-dropdown-menu v-model="menuVisible" :anchor="anchorId">
-        <template v-if="!confirmingClear">
+      <delete-confirm-popup
+        v-model="menuVisible" :anchor="anchorId" :confirming="confirmingClear"
+        :name="title" :loading="clearLoading" :message-key="'clear_messages_confirm'"
+        @confirm="doClear" @cancel="confirmingClear = false"
+      >
+        <template #menu>
           <div class="dropdown-item" @click="confirmingClear = true">
             {{ $t('clear_messages') }}
           </div>
         </template>
-        <template v-else>
-          <inline-delete-confirm
-            :name="title" :loading="clearLoading"
-            message-key="clear_messages_confirm" @confirm="doClear" @cancel="confirmingClear = false" />
-        </template>
-      </v-dropdown-menu>
+      </delete-confirm-popup>
     </template>
   </SidebarListItem>
 </template>

@@ -138,14 +138,13 @@
               <i-lucide-trash-2 />
               {{ $t('image_editor.delete_project') }}
             </button>
-            <v-dropdown-menu v-model="showDeleteConfirm" anchor="editor-delete-project-btn">
-              <inline-delete-confirm
-                :loading="deleteLoading"
-                message-key="image_editor.delete_project_confirm"
-                @confirm="handleDeleteProject"
-                @cancel="showDeleteConfirm = false"
-              />
-            </v-dropdown-menu>
+            <delete-confirm-popup
+              v-model="showDeleteConfirm"
+              anchor="editor-delete-project-btn"
+              :loading="deleteLoading"
+              message-key="image_editor.delete_project_confirm"
+              @confirm="handleDeleteProject"
+            />
           </div>
         </div>
       </div>

@@ -23,14 +23,14 @@
     </dl>
     <div class="credential"><span>{{ $t('client_id') }}</span><code>{{ entry.clientId }}</code><v-copy-button :text="entry.clientId" /></div>
     <div class="actions">
-      <v-text-button class="danger" :disabled="busy" @click="confirming = true">{{ $t(entry.type === 'API_TOKEN' ? 'session_management.revoke_token' : 'session_management.revoke_session') }}</v-text-button>
+      <v-text-button :id="deleteAnchor" class="danger" :disabled="busy" @click="confirming = true">{{ $t(entry.type === 'API_TOKEN' ? 'session_management.revoke_token' : 'session_management.revoke_session') }}</v-text-button>
     </div>
-    <inline-delete-confirm v-if="confirming" :name="entry.clientName || osDisplay || $t('unknown')" message-key="session_management.confirm_revoke" :loading="busy" @cancel="confirming = false" @confirm="$emit('revoke')" />
+    <delete-confirm-popup v-model="confirming" :anchor="deleteAnchor" :name="entry.clientName || osDisplay || $t('unknown')" message-key="session_management.confirm_revoke" :loading="busy" @confirm="$emit('revoke')" />
   </article>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onDeactivated } from 'vue'
+import { computed, ref, onDeactivated, useId } from 'vue'
 import VDropdown from '@/components/base/VDropdown.vue'
 import { formatDateTime } from '@/lib/format'
 import type { SessionRecord } from './api'
@@ -38,6 +38,7 @@ const props = defineProps<{ entry: SessionRecord; online?: boolean; busy: boolea
 defineEmits<{ rename: []; revoke: [] }>()
 const osDisplay = computed(() => [props.entry.osName, props.entry.osVersion].filter(Boolean).join(' '))
 const rawOpen = ref(false)
+const deleteAnchor = useId()
 const confirming = ref(false)
 onDeactivated(() => { rawOpen.value = false })
 </script>
@@ -54,6 +55,4 @@ dd { margin: 4px 0 0; overflow-wrap: anywhere; }
 code { overflow-wrap: anywhere; }
 .actions { display: flex; justify-content: flex-end; margin-top: 16px; }
 .session-card .danger { color: var(--md-sys-color-error); }
-.session-card :deep(.inline-delete-confirm) { padding: 16px; gap: 16px; }
-.session-card :deep(.v-outlined-button) { border: 0; }
 </style>
