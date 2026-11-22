@@ -1,16 +1,15 @@
 import type { SmsSendResult } from '@/lib/api/subscription-results'
 import type { ISms } from '@/lib/interfaces'
-import { createPendingSms } from '@/lib/message-helpers'
 
 const MATCH_WINDOW_MS = 5 * 60 * 1000
 
 interface PendingSms extends ISms {
   baselineIds?: string[]
-  sendState?: 'sending' | 'sent'
+  sendState: 'sending' | 'sent'
 }
 
-export function isPendingSmsSent(item: ISms | undefined): boolean {
-  return Boolean(item && (item as PendingSms).sendState === 'sent')
+export function getPendingSmsSendState(item: ISms): PendingSms['sendState'] | undefined {
+  return (item as Partial<PendingSms>).sendState
 }
 
 export function addressesMatch(first: string, second: string): boolean {
@@ -44,16 +43,22 @@ export function addPendingSms(
   createdAt = new Date(),
   baselineIds: Iterable<string> = [],
 ): ISms[] {
-  return [
-    ...pending,
-    {
-      ...createPendingSms(body, address, threadId),
-      id: requestId,
-      sentAt: createdAt.toISOString(),
-      baselineIds: [...baselineIds],
-      sendState: 'sending',
-    } as PendingSms,
-  ]
+  const operation: PendingSms = {
+    id: requestId,
+    body,
+    address,
+    serviceCenter: '',
+    sentAt: createdAt.toISOString(),
+    type: 'SENT',
+    threadId,
+    subscriptionId: -1,
+    isMms: false,
+    attachments: [],
+    tags: [],
+    baselineIds: [...baselineIds],
+    sendState: 'sending',
+  }
+  return [...pending, operation]
 }
 
 export function visiblePendingSms(pending: ISms[], threadId: string): ISms[] {
@@ -99,11 +104,11 @@ export function settlePendingSmsResult(
   if (!operation) {
     return { pending, handled: false }
   }
-  if (isPendingSmsSent(operation)) return { pending, handled: true }
+  if (getPendingSmsSendState(operation) === 'sent') return { pending, handled: true }
   if (result.success) {
     return {
       pending: pending.map((item) => item.id === result.requestId
-        ? { ...item, sendState: 'sent' } as PendingSms
+        ? { ...item, sendState: 'sent' } satisfies PendingSms
         : item),
       handled: true,
       transitioned: true,
@@ -113,7 +118,8 @@ export function settlePendingSmsResult(
 }
 
 export function addPendingMms(pending: ISms[], item: ISms): ISms[] {
-  return [...pending.filter((current) => current.id !== item.id), item]
+  const operation: PendingSms = { ...item, sendState: 'sending' }
+  return [...pending.filter((current) => current.id !== item.id), operation]
 }
 
 export function settlePendingMms(

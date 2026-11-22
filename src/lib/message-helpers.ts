@@ -1,21 +1,5 @@
 import type { ISms } from '@/lib/interfaces'
 
-export function createPendingSms(body: string, address: string, threadId: string): ISms {
-  return {
-    id: 'pending_sms_' + Date.now(),
-    body,
-    address,
-    serviceCenter: '',
-    sentAt: new Date().toISOString(),
-    type: 'SENT',
-    threadId,
-    subscriptionId: -1,
-    isMms: false,
-    attachments: [],
-    tags: [],
-  }
-}
-
 export function createPendingMms(
   id: string,
   body: string,

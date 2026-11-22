@@ -18,7 +18,7 @@ import {
   addPendingMms,
   addPendingSms,
   failPendingSms,
-  isPendingSmsSent,
+  getPendingSmsSendState,
   reconcilePendingSms,
   settlePendingMms,
   settlePendingSmsResult,
@@ -199,7 +199,7 @@ export function useMessageThread(
   }
 
   function startPendingSmsDeadline(requestId: string) {
-    if (pendingSmsItems.value.some((item) => item.id === requestId && !isPendingSmsSent(item))) {
+    if (pendingSmsItems.value.some((item) => item.id === requestId && getPendingSmsSendState(item) === 'sending')) {
       smsDeadlines.start(requestId)
     }
   }

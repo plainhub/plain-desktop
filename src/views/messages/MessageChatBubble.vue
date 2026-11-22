@@ -4,40 +4,31 @@
     class="chat-bubble-row"
     :class="{ sent: isSent, received: !isSent }"
   >
-    <div class="chat-bubble-with-actions">
-      <TagRelationsDropdown
-        v-if="!isDraftOrPending"
-        :type="type"
-        :tags="tags"
-        :item="{ key: item.id }"
-        :selected="item.tags ?? []"
-      />
-      <v-icon-button
-        v-if="!isDraftOrPending"
-        v-tooltip="$t('trash_message')"
-        class="chat-trash-btn"
-        @click.stop="emit('trash', item)"
-      >
-        <i-material-symbols:delete-outline-rounded />
-      </v-icon-button>
-      <div class="chat-bubble">
-        <div v-if="item.body" v-html="addLinksToURLs(item.body)"></div>
-        <div v-if="item.attachments?.length" class="chat-attachments">
-          <template v-for="(att, idx) in item.attachments" :key="`${item.id}-att-${idx}`">
-            <img v-if="att.contentType.startsWith('image/')" class="chat-attachment-image" :src="resolveUrl(att.path)" :alt="att.name || 'mms-image'" loading="lazy" decoding="async" />
-            <video v-else-if="att.contentType.startsWith('video/')" class="chat-attachment-video" :src="resolveUrl(att.path)" controls preload="metadata" />
-            <audio v-else-if="att.contentType.startsWith('audio/')" class="chat-attachment-audio" :src="resolveUrl(att.path)" controls preload="metadata" />
-            <a v-else class="chat-attachment-link" :href="resolveUrl(att.path)" target="_blank" rel="noopener noreferrer">
-              {{ att.name || att.contentType || att.path }}
-            </a>
-          </template>
-        </div>
+    <div class="chat-bubble">
+      <div v-if="item.body" v-html="addLinksToURLs(item.body)"></div>
+      <div v-if="item.attachments?.length" class="chat-attachments">
+        <template v-for="(att, idx) in item.attachments" :key="`${item.id}-att-${idx}`">
+          <img v-if="att.contentType.startsWith('image/')" class="chat-attachment-image" :src="resolveUrl(att.path)" :alt="att.name || 'mms-image'" loading="lazy" decoding="async" />
+          <video v-else-if="att.contentType.startsWith('video/')" class="chat-attachment-video" :src="resolveUrl(att.path)" controls preload="metadata" />
+          <audio v-else-if="att.contentType.startsWith('audio/')" class="chat-attachment-audio" :src="resolveUrl(att.path)" controls preload="metadata" />
+          <a v-else class="chat-attachment-link" :href="resolveUrl(att.path)" target="_blank" rel="noopener noreferrer">
+            {{ att.name || att.contentType || att.path }}
+          </a>
+        </template>
       </div>
     </div>
     <div v-if="item.tags?.length" class="chat-bubble-tags">
       <span v-for="tag in item.tags" :key="tag.id" class="chat-tag-chip">{{ tag.name }}</span>
     </div>
-    <span v-tooltip="formatDateTime(item.sentAt)" class="chat-time">{{ formatTime(item.sentAt) }}</span>
+    <div class="chat-bubble-meta">
+      <span v-tooltip="formatDateTime(item.sentAt)" class="chat-time">{{ formatTime(item.sentAt) }}</span>
+      <template v-if="!isDraftOrPending">
+        <TagRelationsDropdown :type="type" :tags="tags" :item="{ key: item.id }" :selected="item.tags ?? []" />
+        <v-icon-button v-tooltip="$t('trash_message')" class="sm" @click.stop="emit('trash', item)">
+          <i-material-symbols:delete-outline-rounded />
+        </v-icon-button>
+      </template>
+    </div>
     <span v-if="isDraftOrPending" class="chat-pending-status" :class="{ failed: pendingFailed }">
       <i-material-symbols:error-outline-rounded v-if="pendingFailed" class="pending-error-icon" />
       {{ $t(pendingStatusKey) }}
@@ -51,7 +42,7 @@ import type { ISms, ITag } from '@/lib/interfaces'
 import { formatDateTime, formatTime } from '@/lib/format'
 import { addLinksToURLs } from '@/lib/strutil'
 import { getFileUrlByPath } from '@/lib/api/file'
-import { isPendingSmsSent } from '@/lib/sms-state-sync'
+import { getPendingSmsSendState } from '@/lib/sms-state-sync'
 
 const props = defineProps<{
   item: ISms
@@ -65,17 +56,15 @@ const emit = defineEmits<{
 }>()
 
 const isSent = computed(() => props.item.type === 'SENT' || props.item.type === 'OUTBOX')
-const isPending = computed(() => props.item.id.startsWith('pending_sms') || props.item.id.startsWith('pending_mms'))
-const pendingSmsSent = computed(() => isPendingSmsSent(props.item))
-const isDraftOrPending = computed(() => isPending.value || props.item.type === 'DRAFT')
+const sendState = computed(() => getPendingSmsSendState(props.item))
+const isDraftOrPending = computed(() => sendState.value !== undefined || props.item.type === 'DRAFT')
 const pendingFailed = computed(() => {
-  if (!props.item.id.startsWith('pending_mms')) return false
+  if (sendState.value !== 'sending' || !props.item.isMms) return false
   return Date.now() - new Date(props.item.sentAt).getTime() > 5 * 60 * 1000
 })
 const pendingStatusKey = computed(() => {
   if (pendingFailed.value) return 'mms_canceled'
-  if (pendingSmsSent.value) return 'sent'
-  return isPending.value ? 'sending' : 'message_type.DRAFT'
+  return sendState.value ?? 'message_type.DRAFT'
 })
 
 function resolveUrl(path: string): string {
@@ -112,15 +101,6 @@ function resolveUrl(path: string): string {
       border-radius: 16px 16px 16px 4px;
     }
   }
-
-  &:hover .chat-tag-btn,
-  &:hover .chat-trash-btn {
-    opacity: 1;
-  }
-
-  &.sent .chat-bubble-with-actions {
-    flex-direction: row-reverse;
-  }
 }
 
 .chat-bubble {
@@ -156,11 +136,19 @@ function resolveUrl(path: string): string {
   text-underline-offset: 2px;
 }
 
+.chat-bubble-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
 .chat-time {
   font-size: 0.6875rem;
   color: var(--md-sys-color-on-surface-variant);
-  margin-top: 2px;
+  margin: 0;
   padding-inline: 4px;
+  white-space: nowrap;
 }
 
 .chat-pending-status {
@@ -178,19 +166,6 @@ function resolveUrl(path: string): string {
 
   .pending-error-icon {
     font-size: 14px;
-  }
-}
-
-.chat-bubble-with-actions {
-  display: flex;
-  align-items: flex-start;
-  gap: 4px;
-
-  .chat-tag-btn {
-    opacity: 0;
-    transition: opacity 0.15s ease;
-    flex-shrink: 0;
-    align-self: center;
   }
 }
 
