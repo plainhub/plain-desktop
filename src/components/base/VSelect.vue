@@ -1,5 +1,5 @@
 <template>
-  <v-dropdown v-model="isOpen" :full-width="fullWidth">
+  <v-dropdown v-model="isOpen" class="v-select" :full-width="fullWidth">
     <template #trigger>
       <button
         :class="['v-select-trigger', `v-select-trigger--${size}`, { 'v-select-trigger--full-width': fullWidth }]"
@@ -78,8 +78,14 @@ function selectOption(option: VSelectOption) {
 </script>
 
 <style lang="scss" scoped>
+.v-select {
+  max-inline-size: 100%;
+}
+
 .v-select-trigger {
   display: inline-flex;
+  box-sizing: border-box;
+  max-inline-size: 100%;
   align-items: center;
   gap: 6px;
   border: 1px solid var(--md-sys-color-outline);
@@ -136,6 +142,8 @@ function selectOption(option: VSelectOption) {
 
   &__label {
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   &__chevron {

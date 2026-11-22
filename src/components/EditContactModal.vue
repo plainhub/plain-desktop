@@ -31,90 +31,98 @@
       <label class="form-label">
         {{ $t('phone_number') }}
       </label>
-      <div v-for="(item, index) in editItem.phoneNumbers" :key="index" class="form-row phone-row">
-        <v-select
-          v-model="item.type"
-          class="phone-type"
-          :options="createTypeOptions(types.phoneNumberTypes, 'phone_number_type', item)"
-          @change="onTypeChanged(item)"
-        />
-        <v-text-field v-model="item.value" :placeholder="$t('telephone')" />
-        <button v-if="editItem.phoneNumbers.length > 1" class="btn-icon" @click="deleteField(editItem.phoneNumbers, index)">
-          <i-material-symbols:delete-forever-outline-rounded />
-        </button>
-      </div>
+      <ContactFieldRow
+        v-for="(item, index) in editItem.phoneNumbers"
+        :key="index"
+        v-model="item.value"
+        :placeholder="$t('telephone')"
+        :removable="editItem.phoneNumbers.length > 1"
+        @remove="deleteField(editItem.phoneNumbers, index)"
+      >
+        <template #selector>
+          <v-select
+            v-model="item.type"
+            :options="createTypeOptions(types.phoneNumberTypes, 'phone_number_type', item)"
+            @change="onTypeChanged(item)"
+          />
+        </template>
+      </ContactFieldRow>
       <label v-if="editItem.emails.length" class="form-label">
         {{ $t('email') }}
       </label>
-      <div v-for="(item, index) in editItem.emails" :key="index" class="form-row">
-        <v-select 
-          v-model="item.type" 
-          class="flex-2" 
-          :options="createTypeOptions(types.emailTypes, 'email_type', item)"
-          @change="onTypeChanged(item)"
-        />
-        <v-text-field v-model="item.value" :label="$t('email')" class="flex-3" />
-        <div class="v-center">
-          <button class="btn-icon" @click="deleteField(editItem.emails, index)">
-            
-            <i-material-symbols:delete-forever-outline-rounded />
-          </button>
-        </div>
-      </div>
+      <ContactFieldRow
+        v-for="(item, index) in editItem.emails"
+        :key="index"
+        v-model="item.value"
+        :label="$t('email')"
+        removable
+        @remove="deleteField(editItem.emails, index)"
+      >
+        <template #selector>
+          <v-select
+            v-model="item.type"
+            :options="createTypeOptions(types.emailTypes, 'email_type', item)"
+            @change="onTypeChanged(item)"
+          />
+        </template>
+      </ContactFieldRow>
       <label v-if="editItem.addresses.length" class="form-label">
         {{ $t('address') }}
       </label>
-      <div v-for="(item, index) in editItem.addresses" :key="index" class="form-row">
-        <v-select 
-          v-model="item.type" 
-          class="flex-2" 
-          :options="createTypeOptions(types.addressTypes, 'address_type', item)"
-          @change="onTypeChanged(item)"
-        />
-        <v-text-field v-model="item.value" :label="$t('address')" class="flex-3" />
-        <div class="v-center">
-          <button class="btn-icon" @click="deleteField(editItem.addresses, index)">
-            
-            <i-material-symbols:delete-forever-outline-rounded />
-          </button>
-        </div>
-      </div>
+      <ContactFieldRow
+        v-for="(item, index) in editItem.addresses"
+        :key="index"
+        v-model="item.value"
+        :label="$t('address')"
+        removable
+        @remove="deleteField(editItem.addresses, index)"
+      >
+        <template #selector>
+          <v-select
+            v-model="item.type"
+            :options="createTypeOptions(types.addressTypes, 'address_type', item)"
+            @change="onTypeChanged(item)"
+          />
+        </template>
+      </ContactFieldRow>
       <label v-if="editItem.websites.length" class="form-label">
         {{ $t('website') }}
       </label>
-      <div v-for="(item, index) in editItem.websites" :key="index" class="form-row">
-        <v-select 
-          v-model="item.type" 
-          class="flex-2" 
-          :options="createTypeOptions(types.websiteTypes, 'website_type', item)"
-          @change="onTypeChanged(item)"
-        />
-        <v-text-field v-model="item.value" :placeholder="$t('website')" class="flex-3" />
-        <div class="v-center">
-          <button class="btn-icon" @click="deleteField(editItem.websites, index)">
-            
-            <i-material-symbols:delete-forever-outline-rounded />
-          </button>
-        </div>
-      </div>
+      <ContactFieldRow
+        v-for="(item, index) in editItem.websites"
+        :key="index"
+        v-model="item.value"
+        :placeholder="$t('website')"
+        removable
+        @remove="deleteField(editItem.websites, index)"
+      >
+        <template #selector>
+          <v-select
+            v-model="item.type"
+            :options="createTypeOptions(types.websiteTypes, 'website_type', item)"
+            @change="onTypeChanged(item)"
+          />
+        </template>
+      </ContactFieldRow>
       <label v-if="editItem.ims.length" class="form-label">
         {{ $t('im') }}
       </label>
-      <div v-for="(item, index) in editItem.ims" :key="index" class="form-row">
-        <v-select 
-          v-model="item.protocol" 
-          class="flex-2" 
-          :options="createTypeOptions(types.imProtocols, 'im_protocol', item)"
-          @change="onTypeChanged(item)"
-        />
-        <v-text-field v-model="item.value" :placeholder="$t('im')" class="flex-3" />
-        <div class="v-center">
-          <button class="btn-icon" @click="deleteField(editItem.ims, index)">
-            
-            <i-material-symbols:delete-forever-outline-rounded />
-          </button>
-        </div>
-      </div>
+      <ContactFieldRow
+        v-for="(item, index) in editItem.ims"
+        :key="index"
+        v-model="item.value"
+        :placeholder="$t('im')"
+        removable
+        @remove="deleteField(editItem.ims, index)"
+      >
+        <template #selector>
+          <v-select
+            v-model="item.protocol"
+            :options="createTypeOptions(types.imProtocols, 'im_protocol', item)"
+            @change="onTypeChanged(item)"
+          />
+        </template>
+      </ContactFieldRow>
       <div class="form-row" style="display: block; position: relative">
         <v-dropdown v-model="addFieldMenuVisible" placement="auto">
           <template #trigger>
@@ -153,6 +161,7 @@
 import type { PropType } from 'vue'
 import type { IContact } from '@/lib/interfaces'
 import { popModal } from './modal'
+import ContactFieldRow from './ContactFieldRow.vue'
 import { useEditContact } from '@/hooks/edit-contact'
 
 const props = defineProps({
@@ -166,22 +175,3 @@ const {
   onTypeChanged, createTypeOptions, addField, deleteField, doAction,
 } = useEditContact(props.data, props.sources, props.done)
 </script>
-<style lang="scss" scoped>
-.phone-type {
-  flex: none;
-  max-inline-size: 40%;
-
-  :deep(.v-select-trigger) {
-    max-inline-size: 100%;
-  }
-
-  :deep(.v-select-trigger__label) {
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-}
-
-.phone-row > :deep(.text-field-wrapper) {
-  min-inline-size: 0;
-}
-</style>

@@ -65,6 +65,7 @@ declare module 'vue' {
     CodeEditor: typeof import('./src/components/CodeEditor.vue')['default']
     ConfirmModal: typeof import('./src/components/ConfirmModal.vue')['default']
     ContactActionButtons: typeof import('./src/views/contacts/ContactActionButtons.vue')['default']
+    ContactFieldRow: typeof import('./src/components/ContactFieldRow.vue')['default']
     ContactListItem: typeof import('./src/views/contacts/ContactListItem.vue')['default']
     ContactPickerDropdown: typeof import('./src/components/ContactPickerDropdown.vue')['default']
     ContactSkeletonItem: typeof import('./src/views/contacts/ContactSkeletonItem.vue')['default']
