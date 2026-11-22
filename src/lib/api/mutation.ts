@@ -587,13 +587,13 @@ export const sendSmsGQL = `
 `
 
 export const archiveSmsConversationGQL = `
-  mutation archiveSmsConversation($id: String!) {
+  mutation archiveSmsConversation($id: ID!) {
     archiveSmsConversation(id: $id)
   }
 `
 
 export const unarchiveSmsConversationGQL = `
-  mutation unarchiveSmsConversation($id: String!) {
+  mutation unarchiveSmsConversation($id: ID!) {
     unarchiveSmsConversation(id: $id)
   }
 `

@@ -25,7 +25,7 @@
         <i-material-symbols:reviews-outline-rounded />
       </v-icon-button>
       <v-icon-button v-tooltip="$t('archive_conversation')" @click.stop="$emit('archive')">
-        <i-material-symbols:archive-outline-rounded />
+        <i-lucide:archive />
       </v-icon-button>
       <v-icon-button v-tooltip="$t('call')" @click.stop="$emit('call')">
         <i-material-symbols:call-outline-rounded />

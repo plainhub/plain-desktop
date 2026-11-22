@@ -12,7 +12,7 @@
     >
       <template #bulk>
         <v-icon-button v-tooltip="$t('archive_conversation')" @click.stop="archiveConversations(selectedIds)">
-          <i-material-symbols:archive-outline-rounded />
+          <i-lucide:archive />
         </v-icon-button>
       </template>
       <template #actions>

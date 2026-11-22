@@ -8,7 +8,7 @@
       <i-material-symbols:call-outline-rounded />
     </v-icon-button>
     <v-icon-button v-tooltip="$t('archive_conversation')" @click.stop="archive">
-      <i-material-symbols:archive-outline-rounded />
+      <i-lucide:archive />
     </v-icon-button>
   </div>
 </template>

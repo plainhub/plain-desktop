@@ -36,7 +36,7 @@
           @click="viewArchived"
         >
           <template #start>
-            <i-material-symbols:archive-outline-rounded />
+            <i-lucide:archive />
           </template>
         </SidebarListItem>
       </ul>
