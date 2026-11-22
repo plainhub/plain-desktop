@@ -1,10 +1,9 @@
 import { nextTick } from 'vue'
 import type { ComposerTranslation } from 'vue-i18n'
-import { keyLabel, displayValue } from '@/lib/token-search-format'
+import { keyLabel } from '@/lib/token-search-format'
 
 export type TokenKey = string
 export interface Token { key: TokenKey; value: string }
-type ValueOption = string | { value: string; label: string; description?: string }
 
 export function isTokenEl(node: Node | null): node is HTMLElement {
   return !!node && node.nodeType === Node.ELEMENT_NODE && (node as HTMLElement).dataset?.kind === 'token'
@@ -57,7 +56,7 @@ export function clearAndRender(el: HTMLElement, tokens: Token[], text: string, m
 
 export function makeTokenFactory(
   t: ComposerTranslation,
-  valueOptions: Record<string, ValueOption[]>,
+  formatValue: (key: string, value: string) => string,
   onRemove: (span: HTMLElement) => void,
   onEdit: (span: HTMLElement, key: string) => void,
 ) {
@@ -79,7 +78,7 @@ export function makeTokenFactory(
 
     const valSpan = document.createElement('span')
     valSpan.className = 'token-value'
-    valSpan.textContent = displayValue(t, valueOptions, key, value)
+    valSpan.textContent = formatValue(key, value)
 
     const close = document.createElement('button')
     close.className = 'token-remove'

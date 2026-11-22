@@ -46,10 +46,19 @@ export function useTokenSearch(
   const customStartTimeOp = ref('>=')
   const customStartDate = ref('')
 
+  function formatTokenValue(key: TokenKey, value: string) {
+    return displayValue(t, props.valueOptions, key, value)
+  }
+
+  function updateTokenLabel(token: HTMLElement) {
+    const label = token.querySelector('.token-value')
+    if (label) label.textContent = formatTokenValue(token.dataset.key ?? '', token.dataset.value ?? '')
+  }
+
   // --- Token DOM factory ---
   const makeToken = makeTokenFactory(
     t,
-    props.valueOptions,
+    formatTokenValue,
     (span) => { span.remove(); syncOut(); nextTick(() => setCaretAtEnd(editableRef.value!)) },
     (span, key) => {
       editingTokenEl.value = span
@@ -118,8 +127,7 @@ export function useTokenSearch(
 
     if (editingTokenEl.value && (editingTokenEl.value.dataset.key ?? '') === it.key) {
       editingTokenEl.value.dataset.value = it.value
-      const v = editingTokenEl.value.querySelector('.token-value') as HTMLElement | null
-      if (v) v.textContent = displayValue(t, props.valueOptions, it.key, it.value)
+      updateTokenLabel(editingTokenEl.value)
     } else if (editableRef.value) {
       insertTokenAtCaret(editableRef.value, makeToken(it.key, it.value))
     }
@@ -227,6 +235,13 @@ export function useTokenSearch(
   }
 
   // --- Watchers & Lifecycle ---
+  watch(() => props.valueOptions, () => {
+    // Keep the caret and drafted text intact when labels arrive or change.
+    for (const node of editableRef.value?.childNodes ?? []) {
+      if (isTokenEl(node)) updateTokenLabel(node)
+    }
+  })
+
   watch(() => [props.tokens, props.text] as const, () => {
     if (isFocused.value) return
     nextTick(() => renderFromProps())
