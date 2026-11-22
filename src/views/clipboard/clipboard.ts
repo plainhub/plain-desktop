@@ -82,16 +82,21 @@ export function useClipboardData() {
   const clipText = ref('')
   const clipTextError = ref(false)
 
-  const { mutate: mutateSetClipboard, loading: setClipLoading, onDone: onSetClipDone } = initMutation({ document: setClipboardGQL }, showActionError)
-  onSetClipDone(() => { clipText.value = '' })
+  const { mutate: mutateSetClipboard, loading: setClipLoading } = initMutation({ document: setClipboardGQL }, showActionError)
 
   function pasteClipboardText() {
     navigator.clipboard.readText().then((text) => { clipText.value = text })
   }
 
-  function sendToPhone() {
-    if (!clipText.value) { clipTextError.value = true; return }
-    mutateSetClipboard({ text: clipText.value })
+  async function sendToPhone() {
+    if (setClipLoading.value) return
+    const text = clipText.value
+    if (!text) { clipTextError.value = true; return }
+    const result = await mutateSetClipboard({ text })
+    if (result?.data?.setClipboard !== true) return
+    if (clipText.value === text) clipText.value = ''
+    page.value = 1
+    await fetch(undefined, { force: true, latest: true })
   }
 
   watch(clipText, () => { clipTextError.value = false })
