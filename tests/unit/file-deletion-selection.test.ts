@@ -87,7 +87,6 @@ it('moves the selected Files to Trash immediately and keeps the surviving select
   const unmount = mountPage(() => {
     actions = useFilesActions({
       items, total: ref(2), selectedIds: selection.selectedIds, clearSelection: selection.clearSelection,
-      visibleItems: computed(() => items.value), retainSelection: selection.retainSelection,
       filter,
       rootDir: computed(() => '/fixtures'), urlTokenKey: ref(null), t: (key) => key,
       fetch: noop, refetchMounts: noop, copy: noop, cut: noop, paste: noop,

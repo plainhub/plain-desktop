@@ -14,7 +14,7 @@ vi.mock('@/components/toaster', () => ({ default: vi.fn(), toastWithAction: vi.f
 vi.mock('@/lib/api/query', () => ({ initLazyQuery: () => ({ fetch: vi.fn() }), fileInfoGQL: '', tagRelationsGQL: '', tagsGQL: '' }))
 vi.mock('@/lib/api/mutation', () => ({ initMutation: () => ({ mutate: vi.fn(), onError: vi.fn() }), deleteFilesGQL: '' }))
 vi.mock('@/hooks/files', () => ({ useRename: () => ({}) }))
-vi.mock('@/hooks/media', () => ({ useDeleteItems: () => ({}) }))
+vi.mock('@/hooks/media', () => ({ useDeleteMediaItem: vi.fn() }))
 vi.mock('@/hooks/media-play-history', () => ({ useMediaPlayHistory: () => ({}) }))
 vi.mock('@/hooks/organize-undo', () => ({ useOrganizeUndo: () => ({ count: ref(0) }) }))
 vi.mock('@/hooks/native-resource-url', () => ({ createNativeResourceOwner: () => ({ dispose: vi.fn() }), isNativeResourceUrl: () => false }))

@@ -112,7 +112,7 @@ const { expanded: systemExpanded, visibleItems, systemItems } = useSystemFiles(
 const regularTotal = computed(() => Math.max(0, totalRef.value - systemItems.value.length))
 
 // --- Selection ---
-const { selectedIds, allChecked, realAllChecked, clearSelection, retainSelection, toggleAllChecked, toggleSelect, total, checked, shiftEffectingIds, handleItemClick, handleMouseOver, selectAll, shouldSelect } =
+const { selectedIds, allChecked, realAllChecked, clearSelection, toggleAllChecked, toggleSelect, total, checked, shiftEffectingIds, handleItemClick, handleMouseOver, selectAll, shouldSelect } =
   useSelectable(visibleItems)
 watch(() => systemItems.value.length ? visibleItems.value.length : totalRef.value, (v) => { total.value = v }, { immediate: true })
 watch(systemExpanded, clearSelection)
@@ -170,7 +170,7 @@ const {
   duplicateItem, cutItem, copyItem, pasteItem, copyLinkItem, renameItemClick, createDir,
   addToFavoritesClick, onDeleted,
 } = useFilesActions({
-  items, visibleItems, total: totalRef, selectedIds, clearSelection, retainSelection, filter, rootDir, urlTokenKey, t,
+  items, total: totalRef, selectedIds, clearSelection, filter, rootDir, urlTokenKey, t,
   fetch, refetchMounts, copy, cut, paste, downloadFile, downloadDir, downloadFiles,
   createPath, createVariables, createMutation, renameItem, renameMutation, renameVariables, renameDone,
 })

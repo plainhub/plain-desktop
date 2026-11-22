@@ -12,7 +12,7 @@ vi.hoisted(() => { vi.stubGlobal('__IS_TAURI__', true) })
 vi.mock('@/lib/api/gql-client', async (original) => ({ ...await original<typeof import('@/lib/api/gql-client')>(), gqlFetch: vi.fn() }))
 vi.mock('@/components/modal', () => ({ openModal: vi.fn() }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
-vi.mock('@/hooks/media', () => ({ useDeleteItems: () => ({ deleteItem: vi.fn() }) }))
+vi.mock('@/hooks/media', () => ({ useDeleteMediaItem: () => vi.fn() }))
 vi.mock('@/hooks/files', () => ({ useRename: () => ({ renameItem: ref() }) }))
 
 it('deletes the confirmed lightbox file directly without stacking a dialog', async () => {

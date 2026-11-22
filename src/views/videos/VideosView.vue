@@ -10,7 +10,7 @@
     :limit="limit" :all-checked-alert-visible="allCheckedAlertVisible"
     :show-secondary="isPhone && !checked"
     :confirming-delete="confirmingDelete" :delete-count="deleteCount" :delete-loading="deleteLoading"
-    @toggle-all-checked="toggleAllChecked" @delete="deleteItems(dataType, selectedIds, realAllChecked, total, q)"
+    @toggle-all-checked="toggleAllChecked" @delete="deleteItems"
     @confirm="doDeleteItems" @cancel="cancelDeleteItems"
     @restore="restore(dataType, getQuery())" @download="downloadItems(realAllChecked, selectedIds, q)"
     @download-each="downloadItemsEach(selectedIds)" @download-zip="downloadItems(realAllChecked, selectedIds, q)"

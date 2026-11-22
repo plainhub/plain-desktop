@@ -32,7 +32,7 @@ export function useFilesRecent() {
   const { app, urlTokenKey } = storeToRefs(tempStore)
   const items = ref<IFile[]>([])
 
-  const { selectedIds, allChecked, realAllChecked, clearSelection, retainSelection, toggleAllChecked, toggleSelect, total, checked, shiftEffectingIds, handleItemClick, handleMouseOver, selectAll, shouldSelect } =
+  const { selectedIds, allChecked, realAllChecked, clearSelection, toggleAllChecked, toggleSelect, total, checked, shiftEffectingIds, handleItemClick, handleMouseOver, selectAll, shouldSelect } =
     useSelectable(items)
   const { listError, setListError } = useListError(items, total)
   const { downloadFile, downloadFiles, downloadDir } = useDownload(urlTokenKey)
@@ -113,7 +113,6 @@ export function useFilesRecent() {
     if (remaining.length === previous.length) return
     items.value = remaining
     total.value = remaining.length
-    retainSelection(previous)
   }
   const fileRenamedHandler = (_event: IFileRenamedEvent) => fetch()
   const accessUpdatedHandler = () => fetch()

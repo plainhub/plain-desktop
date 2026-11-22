@@ -4,7 +4,7 @@
     <div class="title">{{ selected.length ? $t('x_selected', { count: selected.length }) : $t('trash') }}</div>
     <template v-if="selected.length">
       <v-icon-button :aria-label="$t('restore')" v-tooltip="$t('restore')" :disabled="busy" @click="apply(selected, false)"><i-material-symbols:restore-from-trash-outline-rounded /></v-icon-button>
-      <v-icon-button id="files-trash-bulk" :aria-label="$t('delete')" v-tooltip="$t('delete')" :disabled="busy" @click="confirm(selected, 'files-trash-bulk')"><i-material-symbols:delete-forever-outline-rounded /></v-icon-button>
+      <v-icon-button id="files-trash-bulk" :aria-label="$t('delete')" v-tooltip="$t('delete')" :disabled="busy" @click="confirm(selected, 'files-trash-bulk', true)"><i-material-symbols:delete-forever-outline-rounded /></v-icon-button>
     </template>
   </div>
   <div class="scroller-wrapper">
@@ -19,16 +19,19 @@
       <NoDataPlaceholder v-else :loading="loading" />
     </div>
   </div>
-  <delete-confirm-popup v-model="confirming" :anchor="anchor" :count="pending.length" :loading="busy" @confirm="apply(pending, true)" />
+  <delete-confirm-popup
+    :model-value="pending !== null" :anchor="pending?.anchor ?? ''" :count="pending?.paths.length ?? 0" :loading="busy"
+    @update:model-value="!$event && close()" @confirm="purgeConfirmed" />
 </template>
 
 <script setup lang="ts">
-import { onActivated, onDeactivated, inject, ref, type Ref } from 'vue'
+import { computed, onActivated, onDeactivated, inject, ref, type Ref } from 'vue'
 import { GqlError } from '@/lib/api/gql-error'
 import { gqlFetch } from '@/lib/api/gql-client'
 import { trashedFilesGQL } from '@/lib/api/query'
 import { restoreFilesGQL, deleteTrashedFilesGQL } from '@/lib/api/mutation'
 import { graphqlSubscriptions } from '@/lib/api/subscription-client'
+import { useListConfirmation } from '@/hooks/list'
 import { showActionError } from '@/hooks/show-action-error'
 
 import type { GqlResultType } from '@/lib/api/graphql/operations'
@@ -38,9 +41,11 @@ type TrashItem = GqlResultType<'trashedFilesGQL'>['trashedFiles'][number]
 const isPhone = inject<Ref<boolean>>('isPhone')!
 const items = ref<TrashItem[]>([])
 const selected = ref<string[]>([])
-const pending = ref<string[]>([])
-const anchor = ref('')
-const confirming = ref(false)
+const paths = computed(() => new Set(items.value.map((item) => item.path)))
+const { pending, open, close } = useListConfirmation<{ paths: string[]; anchor: string; bulk: boolean }>((target) =>
+  target.paths.every((path) => paths.value.has(path))
+  && (!target.bulk || (target.paths.length === selected.value.length && target.paths.every((path) => selected.value.includes(path)))),
+)
 const busy = ref(false)
 const loading = ref(true)
 let version = 0
@@ -50,10 +55,12 @@ function toggle(path: string) {
   selected.value = selected.value.includes(path) ? selected.value.filter(value => value !== path) : [...selected.value, path]
 }
 
-function confirm(paths: string[], button: string) {
-  pending.value = [...paths]
-  anchor.value = button
-  confirming.value = true
+function confirm(paths: string[], anchor: string, bulk = false) {
+  open({ paths: [...paths], anchor, bulk })
+}
+
+function purgeConfirmed() {
+  if (pending.value) return apply(pending.value.paths, true)
 }
 
 async function refresh() {
@@ -70,8 +77,7 @@ async function refresh() {
     }
     if (request !== version) return
     items.value = rows
-    const paths = new Set(rows.map(row => row.path))
-    selected.value = selected.value.filter(path => paths.has(path))
+    selected.value = selected.value.filter(path => paths.value.has(path))
   } catch (error) {
     if (request === version) showActionError(error)
   } finally {
@@ -81,7 +87,7 @@ async function refresh() {
 
 async function apply(paths: string[], purge: boolean) {
   if (busy.value) return
-  confirming.value = false
+  close()
   busy.value = true
   try {
     const response = await gqlFetch(purge ? deleteTrashedFilesGQL : restoreFilesGQL, { paths }, { dedupe: false })
@@ -103,6 +109,6 @@ onDeactivated(() => {
   release.forEach(stop => stop())
   items.value = []
   selected.value = []
-  confirming.value = false
+  close()
 })
 </script>

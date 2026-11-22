@@ -19,7 +19,7 @@ import emitter from '@/plugins/eventbus'
 import { useMediaPlayHistory } from './media-play-history'
 import { useRename } from '@/hooks/files'
 import { download, getFileName } from '@/lib/api/file'
-import { useDeleteItems } from '@/hooks/media'
+import { useDeleteMediaItem } from '@/hooks/media'
 import { DataType } from '@/lib/data'
 import { arrayRemove } from '@/lib/array'
 import { deleteFilesGQL, initMutation } from '@/lib/api/mutation'
@@ -537,7 +537,7 @@ export function useLightboxFileActions(
   lightboxInfoVisible: Ref<boolean>,
 ) {
   const { t } = useI18n()
-  const { deleteItem } = useDeleteItems()
+  const deleteItem = useDeleteMediaItem()
   const { renameItem, renamedPath, renameDone, renameMutation, renameVariables } = useRename(() => {
     refetchInfo()
   })

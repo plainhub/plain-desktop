@@ -16,61 +16,15 @@ import type { IAudio, IBucket, IImageItem, ITag, IVideoItem } from '@/lib/interf
 import { ref } from 'vue'
 import { bucketsTagsGQL, initLazyQuery } from '@/lib/api/query'
 
-export const useDeleteItems = () => {
-  const { t } = useI18n()
-  const confirmingDelete = ref(false)
-  const deleteCount = ref(0)
-  const deleteQuery = ref('')
-  const deleteType = ref('')
-
-  const { mutate: doBulkDelete, loading: deleteLoading, onDone: onBulkDeleteDone } = initMutation({ document: deleteMediaItemsGQL }, showActionError)
-  onBulkDeleteDone(() => {
-    const type = deleteType.value
-    const q = deleteQuery.value
-    confirmingDelete.value = false
-    emitter.emit('media_items_actioned', { type, action: 'DELETE', query: q })
-  })
-
-  const { mutate: doDeleteItem, onDone: onDeleteItemDone } = initMutation({ document: deleteMediaItemsGQL }, showActionError)
-  let pendingDeleteCallback: (() => void) | null = null
-  onDeleteItemDone(() => { pendingDeleteCallback?.(); pendingDeleteCallback = null })
-
-  return {
-    confirmingDelete,
-    deleteCount,
-    deleteLoading,
-    deleteItems: (type: string, ids: string[], realAllChecked: boolean, total: number, query: string) => {
-      let q: string
-      if (!realAllChecked) {
-        if (ids.length === 0) {
-          toast(t('select_first'), 'error')
-          return
-        }
-        q = `ids:${ids.join(',')}`
-      } else {
-        q = selectAllQuery(query)
-      }
-      deleteCount.value = realAllChecked ? total : ids.length
-      deleteQuery.value = q
-      deleteType.value = type
-      confirmingDelete.value = true
-    },
-    doDeleteItems: () => {
-      doBulkDelete({ type: deleteType.value, query: deleteQuery.value })
-    },
-    cancelDeleteItems: () => {
-      confirmingDelete.value = false
-    },
-
-    deleteItem: (type: string, item: IImageItem | IVideoItem | IAudio) => {
-      pendingDeleteCallback = () => {
-        emitter.emit('media_items_actioned', { type, action: 'DELETE', id: item.id, query: `ids:${item.id}` })
-      }
-      return doDeleteItem({ type, query: `ids:${item.id}` })
-    },
+export function useDeleteMediaItem() {
+  const { mutate } = initMutation({ document: deleteMediaItemsGQL }, showActionError)
+  return async (type: string, item: IImageItem | IVideoItem | IAudio) => {
+    const query = `ids:${item.id}`
+    const result = await mutate({ type, query })
+    if (result) emitter.emit('media_items_actioned', { type, action: 'DELETE', id: item.id, query })
+    return result
   }
 }
-
 
 export const useMoveItems = () => {
   const { t } = useI18n()

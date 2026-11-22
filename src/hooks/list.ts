@@ -1,6 +1,6 @@
 import { showActionError } from '@/hooks/show-action-error'
 import type { IData } from '@/lib/interfaces'
-import { computed, ref, type Ref } from 'vue'
+import { computed, ref, shallowRef, watch, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import toast from '@/components/toaster'
 import { initMutation } from '@/lib/api/mutation'
@@ -109,24 +109,22 @@ export const useSelectable = (items: Ref<IData[]>) => {
     setGroupChecked(groupItems, (event.target as HTMLInputElement).checked)
   }
 
-  function retainSelection(previousItems: IData[]) {
+  watch(() => items.value.map((item) => item.id), (ids, previous) => {
+    if (ids.length === previous.length && ids.every((id, index) => id === previous[index])) return
+    const available = new Set(ids)
     if (lastCheckedIndex.value !== null) {
-      const anchor = previousItems[lastCheckedIndex.value]?.id
-      const index = items.value.findIndex((item) => item.id === anchor)
+      const index = ids.indexOf(previous[lastCheckedIndex.value])
       lastCheckedIndex.value = index < 0 ? null : index
     }
     shiftEffectingIds.value = []
-    if (!selectedIds.value.length) return false
-    const available = new Set(items.value.map((item) => item.id))
-    const retained = selectedIds.value.filter((id) => available.has(id))
-    const changed = retained.length !== selectedIds.value.length
-    if (changed) {
-      selectedIds.value = retained
+
+    if (ids.length !== previous.length || previous.some((id) => !available.has(id))) {
       realAllChecked.value = false
     }
+    const retained = selectedIds.value.filter((id) => available.has(id))
+    if (retained.length !== selectedIds.value.length) selectedIds.value = retained
     allChecked.value = retained.length > 0 && retained.length === available.size
-    return changed
-  }
+  }, { flush: 'sync' })
 
   return {
     realAllChecked,
@@ -144,7 +142,6 @@ export const useSelectable = (items: Ref<IData[]>) => {
     groupSelectionState,
     setGroupChecked,
     toggleGroupChecked,
-    retainSelection,
     allCheckedAlertVisible: computed<boolean>(() => {
       return allChecked.value && !realAllChecked.value && selectedIds.value.length < total.value
     }),
@@ -221,43 +218,49 @@ export const useSelectable = (items: Ref<IData[]>) => {
  */
 export const selectAllQuery = (query: string) => query.trim() || 'all:true'
 
-export const useDelete = (gql: string, done: () => void) => {
+export function useListConfirmation<T>(isCurrent: (target: T) => boolean) {
+  const pending = shallowRef<T | null>(null)
+  const close = () => { pending.value = null }
+
+  watch(() => pending.value !== null && !isCurrent(pending.value), (invalid) => {
+    if (invalid) close()
+  }, { flush: 'sync' })
+
+  return { pending, open: (target: T) => { pending.value = target }, close }
+}
+
+type DeleteSelection = Pick<ReturnType<typeof useSelectable>, 'selectedIds' | 'realAllChecked' | 'total'>
+
+export function useDelete(gql: string, selection: DeleteSelection, query: Ref<string>, done: (query: string) => void, type?: string) {
   const { t } = useI18n()
-  const confirmingDelete = ref(false)
-  const deleteCount = ref(0)
-  const deleteQuery = ref('')
-
-  const { mutate, loading: deleteLoading, onDone } = initMutation({ document: gql }, showActionError)
-
-  onDone(() => {
-    confirmingDelete.value = false
-    done()
-  })
+  const target = computed(() => selection.realAllChecked.value
+    ? { query: selectAllQuery(query.value), count: selection.total.value }
+    : { query: `ids:${selection.selectedIds.value.join(',')}`, count: selection.selectedIds.value.length })
+  const { pending, open, close } = useListConfirmation<typeof target.value>(
+    (snapshot) => snapshot.query === target.value.query && snapshot.count === target.value.count,
+  )
+  const { mutate, loading: deleteLoading } = initMutation({ document: gql }, showActionError)
 
   return {
-    confirmingDelete,
-    deleteCount,
+    confirmingDelete: computed(() => pending.value !== null),
+    deleteCount: computed(() => pending.value?.count ?? 0),
     deleteLoading,
-    deleteItems: (selectedIds: string[], realAllChecked: boolean, total: number, query: string) => {
-      let q: string
-      if (!realAllChecked) {
-        if (selectedIds.length === 0) {
-          toast(t('select_first'), 'error')
-          return
-        }
-        q = `ids:${selectedIds.join(',')}`
-      } else {
-        q = selectAllQuery(query)
+    deleteItems: () => {
+      if (deleteLoading.value) return
+      if (!target.value.count) {
+        toast(t('select_first'), 'error')
+        return
       }
-      deleteCount.value = realAllChecked ? total : selectedIds.length
-      deleteQuery.value = q
-      confirmingDelete.value = true
+      open(target.value)
     },
-    doDeleteItems: () => {
-      mutate({ query: deleteQuery.value })
+    doDeleteItems: async () => {
+      if (!pending.value || deleteLoading.value) return
+      const { query } = pending.value
+      if (await mutate(type ? { type, query } : { query })) {
+        close()
+        done(query)
+      }
     },
-    cancelDeleteItems: () => {
-      confirmingDelete.value = false
-    },
+    cancelDeleteItems: close,
   }
 }

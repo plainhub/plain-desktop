@@ -35,7 +35,7 @@ export function useContactsData() {
   const selectable = useSelectable(items)
   const { listError, setListError } = useListError(items, selectable.total)
 
-  const { deleteItems, confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems } = useDelete(deleteContactsGQL, () => {
+  const { deleteItems, confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems } = useDelete(deleteContactsGQL, selectable, q, () => {
     selectable.clearSelection()
     fetch()
     emitter.emit('refetch_tags', dataType)
@@ -54,7 +54,7 @@ export function useContactsData() {
 
   const { keyDown: pageKeyDown, keyUp: pageKeyUp } = useKeyEvents(
     selectable.total, limit, page, selectable.selectAll, selectable.clearSelection, gotoPage,
-    () => { deleteItems(selectable.selectedIds.value, selectable.realAllChecked.value, selectable.total.value, q.value) },
+    deleteItems,
   )
 
   const { loading, fetch } = initLazyQuery({

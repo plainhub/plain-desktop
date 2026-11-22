@@ -9,8 +9,8 @@ import type { IUploadItem } from '@/stores/temp'
 import { decodeBase64 } from '@/lib/strutil'
 import { noDataKey } from '@/lib/list'
 import { useSearch } from '@/hooks/search'
-import { useSelectable, selectAllQuery } from '@/hooks/list'
-import { useBuckets, useBucketsTags, useDeleteItems } from '@/hooks/media'
+import { useSelectable, useDelete, selectAllQuery } from '@/hooks/list'
+import { useBuckets, useBucketsTags, useDeleteMediaItem } from '@/hooks/media'
 import { useDownload, useDownloadItems } from '@/hooks/files'
 import { useMediaPageUpload } from '@/hooks/media-page-upload'
 import { useMediaRestore, useMediaTrash } from '@/hooks/media-trash'
@@ -23,6 +23,7 @@ import { generateDownloadFileName } from '@/lib/format'
 import { hasMediaTrash } from '@/lib/feature'
 import { subscribeMediaLibraryUpdates, type MediaDataType } from '@/lib/media/library-updates'
 import { createRefreshScheduler } from '@/lib/refresh-scheduler'
+import { deleteMediaItemsGQL } from '@/lib/api/mutation'
 import type { QueryFetchOptions } from '@/lib/api/query'
 
 export interface MediaPageOptions {
@@ -63,13 +64,14 @@ export function useMediaPage(options: MediaPageOptions) {
     buckets.value.forEach((it) => { map[it.id] = it })
     return map
   })
-  const { deleteItems, deleteItem, confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems } = useDeleteItems()
   const { view: viewBucket } = useBuckets(dataType)
-
   const sel = useSelectable(items)
-  watch(items, (_, previous) => {
-    if (sel.retainSelection(previous) && confirmingDelete.value) cancelDeleteItems()
-  }, { flush: 'sync' })
+  const deleteItem = useDeleteMediaItem()
+  const { deleteItems, confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems } = useDelete(
+    deleteMediaItemsGQL, sel, q, (query) => {
+      emitter.emit('media_items_actioned', { type: dataType, action: 'DELETE', query })
+    }, dataType,
+  )
   const { downloadItems: downloadItemsZip } = useDownloadItems(
     urlTokenKey,
     dataType,
@@ -127,7 +129,7 @@ export function useMediaPage(options: MediaPageOptions) {
   const trashInEditMode = () => {
     hasMediaTrash(app.value, dataType)
       ? trash(dataType, getQuery())
-      : deleteItems(dataType, sel.selectedIds.value, sel.realAllChecked.value, sel.total.value, q.value)
+      : deleteItems()
   }
   const { keyDown: pageKeyDown, keyUp: pageKeyUp } = useKeyEvents(
     sel.total, limit, page,
@@ -165,7 +167,6 @@ export function useMediaPage(options: MediaPageOptions) {
   function invalidateQuerySelection() {
     if (!sel.realAllChecked.value) return
     sel.realAllChecked.value = false
-    if (confirmingDelete.value) cancelDeleteItems()
   }
 
   function refreshItems() {
@@ -218,7 +219,6 @@ export function useMediaPage(options: MediaPageOptions) {
     const requestedPage = Number.isFinite(nextPage) && nextPage > 0 ? nextPage : 1
     if (requestedPage !== page.value || nextQuery !== q.value) {
       sel.clearSelection()
-      if (confirmingDelete.value) cancelDeleteItems()
     }
     page.value = requestedPage
     q.value = nextQuery

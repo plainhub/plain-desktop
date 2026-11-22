@@ -14,11 +14,9 @@ import { copyTextToClipboard } from '@/lib/clipboard'
 
 interface UseFilesActionsOptions {
   items: Ref<IFile[]>
-  visibleItems: ComputedRef<IFile[]>
   total: Ref<number>
   selectedIds: Ref<string[]>
   clearSelection: () => void
-  retainSelection: (previousItems: IFile[]) => boolean
   filter: IFileFilter
   rootDir: ComputedRef<string>
   urlTokenKey: Ref<Uint8Array | null>
@@ -42,7 +40,7 @@ interface UseFilesActionsOptions {
 
 export function useFilesActions(opts: UseFilesActionsOptions) {
   const {
-    items, visibleItems, total, selectedIds, clearSelection, retainSelection, filter, rootDir, urlTokenKey,
+    items, total, selectedIds, clearSelection, filter, rootDir, urlTokenKey,
     t, fetch, refetchMounts, copy, cut, paste,
     downloadFile, downloadDir, downloadFiles,
     createPath, createVariables, createMutation,
@@ -62,10 +60,8 @@ export function useFilesActions(opts: UseFilesActionsOptions) {
     const remaining = items.value.filter((item) => !removedIds.has(item.id))
     const removed = items.value.length - remaining.length
     if (removed) {
-      const previous = visibleItems.value
       items.value = remaining
       total.value -= removed
-      retainSelection(previous)
     }
     refetchMounts()
   }

@@ -12,7 +12,7 @@
     >
       <template #bulk>
         <template v-if="filter.trash">
-          <bulk-delete-button :confirming="confirmingDelete" :count="deleteCount" :loading="deleteLoading" @click="deleteItems(selectedIds, realAllChecked, total, q)" @confirm="doDeleteItems" @cancel="cancelDeleteItems" />
+          <bulk-delete-button :confirming="confirmingDelete" :count="deleteCount" :loading="deleteLoading" @click="deleteItems" @confirm="doDeleteItems" @cancel="cancelDeleteItems" />
           <v-icon-button v-tooltip="$t('restore')" :loading="restoreLoading(getQuery())" @click.stop="restore(getQuery())">
             <i-material-symbols:restore-from-trash-outline-rounded />
           </v-icon-button>
@@ -81,7 +81,7 @@ const {
   shiftEffectingIds, handleItemClick, handleMouseOver, shouldSelect,
   gotoPage, onChangePageSize,
 } = useNotesData(() => {
-  deleteItems(selectedIds.value, realAllChecked.value, total.value, q.value)
+  deleteItems()
 })
 
 const {

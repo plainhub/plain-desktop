@@ -33,7 +33,7 @@ export function useNotesActions(opts: UseNotesActionsOptions) {
   const mainStore = useMainStore()
   const dataType = DataType.NOTE
 
-  const { deleteItems, confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems } = useDelete(deleteNotesGQL, () => {
+  const { deleteItems, confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems } = useDelete(deleteNotesGQL, opts, q, () => {
     clearSelection()
     fetch()
   })

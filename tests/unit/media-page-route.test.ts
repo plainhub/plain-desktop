@@ -25,10 +25,7 @@ vi.mock('@/lib/api/subscription-client', () => ({
 vi.mock('@/lib/api/gql-client', () => ({ gqlFetch: state.gqlFetch }))
 vi.mock('@/hooks/media', () => ({
   useBucketsTags: () => ({ tags: ref([]), buckets: ref([]), fetch: vi.fn() }),
-  useDeleteItems: () => {
-    const confirmingDelete = ref(false)
-    return { confirmingDelete, cancelDeleteItems: () => { confirmingDelete.value = false } }
-  }, useBuckets: () => ({ view: vi.fn() }),
+  useDeleteMediaItem: () => vi.fn(), useBuckets: () => ({ view: vi.fn() }),
 }))
 vi.mock('@/hooks/files', () => ({ useDownload: () => ({ downloadFile: vi.fn() }), useDownloadItems: () => ({ downloadItems: vi.fn() }) }))
 vi.mock('@/hooks/media-page-upload', () => ({ useMediaPageUpload: () => ({}) }))
@@ -36,7 +33,11 @@ vi.mock('@/hooks/media-trash', () => ({ useMediaRestore: () => ({}), useMediaTra
 vi.mock('@/hooks/key-events', () => ({ useKeyEvents: () => ({ keyDown: vi.fn(), keyUp: vi.fn() }) }))
 vi.mock('@/plugins/router', () => ({ replacePath: vi.fn() }))
 vi.mock('@/components/toaster', () => ({ default: vi.fn() }))
-vi.mock('@/lib/api/mutation', () => ({ initMutation: vi.fn() }))
+vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
+vi.mock('@/lib/api/mutation', () => ({
+  deleteMediaItemsGQL: 'deleteMediaItems',
+  initMutation: () => ({ mutate: vi.fn(), loading: ref(false) }),
+}))
 vi.mock('@/lib/file', () => ({ getDirFromPath: vi.fn() }))
 vi.mock('@/lib/format', () => ({ generateDownloadFileName: vi.fn() }))
 vi.mock('@/lib/feature', () => ({ hasMediaTrash: () => false }))
@@ -97,7 +98,7 @@ it.each(mediaRoutes)('%s keeps surviving selections while the catalog refreshes'
   try {
     await respond(0, [first, second])
     page.selectAll()
-    page.confirmingDelete.value = true
+    page.deleteItems()
     push()
     await vi.advanceTimersByTimeAsync(2000)
     expect(doFetch).toHaveBeenLastCalledWith({ force: true, latest: true })
@@ -121,8 +122,10 @@ it('keeps explicit targets when a catalog push invalidates a query-wide selectio
   const { app, page, push } = mountMediaPage(DataType.IMAGE, 'images')
   try {
     page.selectAll()
+    page.total.value = 10
     page.selectRealAll()
-    page.confirmingDelete.value = true
+    page.deleteItems()
+    expect(page.confirmingDelete.value).toBe(true)
     push()
     await vi.advanceTimersByTimeAsync(2000)
     expect(page.getQuery()).toBe('ids:first,second')

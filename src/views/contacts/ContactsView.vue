@@ -5,7 +5,7 @@
       <span v-if="selectedIds.length">{{ $t('x_selected', { count: realAllChecked ? total.toLocaleString() : selectedIds.length.toLocaleString() }) }}</span>
       <span v-else>{{ $t('page_title.contacts') }} ({{ total.toLocaleString() }})</span>
       <template v-if="checked">
-        <bulk-delete-button :confirming="confirmingDelete" :count="deleteCount" :loading="deleteLoading" @click="deleteItems(selectedIds, realAllChecked, total, q)" @confirm="doDeleteItems" @cancel="cancelDeleteItems" />
+        <bulk-delete-button :confirming="confirmingDelete" :count="deleteCount" :loading="deleteLoading" @click="deleteItems" @confirm="doDeleteItems" @cancel="cancelDeleteItems" />
         <v-icon-button v-tooltip="$t('download')" style="display: none">
           <i-material-symbols:download-rounded />
         </v-icon-button>
