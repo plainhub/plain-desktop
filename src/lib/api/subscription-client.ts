@@ -117,7 +117,14 @@ export class SubscriptionClient {
     if (!operation) return
     if (message.type === 'next') {
       if (!message.payload || Array.isArray(message.payload)) throw new Error('Invalid subscription result')
-      if (message.payload.extensions?.subscriptionReady) this.settled(message.id)
+      if (message.payload.extensions?.subscriptionReady) {
+        // Core can reattach the active operations without replacing the native handle.
+        if (!this.attaching && !this.pending.size) {
+          this.attaching = true
+          this.pending = new Set(this.ids.keys())
+        }
+        this.settled(message.id)
+      }
       if (message.payload.errors?.length) console.error('GraphQL subscription errors', operation.field, message.payload.errors)
       if (message.payload.data && Object.hasOwn(message.payload.data, operation.field)) this.deliver(operation, message.payload.data[operation.field])
     } else if (message.type === 'error') {
