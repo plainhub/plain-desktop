@@ -16,6 +16,7 @@
         </SidebarListItem>
         <SidebarListItem
           v-if="hasMediaTrash(app, props.type)"
+          class="media-trash-row"
           :title="$t('trash')"
           :active="trash"
           @click="viewTrash"
@@ -23,11 +24,18 @@
           <template #start>
             <i-lucide:trash />
           </template>
-          <template #end>
-            <v-icon-button v-if="!isLocalMode()" v-tooltip="$t('trash_tips')" class="btn-help sm">
-              <i-material-symbols:help-outline-rounded />
-            </v-icon-button>
-            <span v-if="totalTrash >= 0" class="count">{{ totalTrash.toLocaleString() }}</span>
+          <template v-if="totalTrash >= 0" #end>
+            <span v-if="isLocalMode()" class="count">{{ totalTrash.toLocaleString() }}</span>
+            <button
+              v-else
+              v-tooltip="$t('trash_tips')"
+              type="button"
+              class="count btn-help trash-count"
+              :aria-label="`${$t('trash')}: ${totalTrash.toLocaleString()}. ${$t('trash_tips')}`"
+            >
+              <span>{{ totalTrash.toLocaleString() }}</span>
+              <i-material-symbols:help-outline-rounded class="trash-count-icon" aria-hidden="true" />
+            </button>
           </template>
         </SidebarListItem>
       </ul>
@@ -53,3 +61,34 @@ const props = defineProps({
 
 const { app, total, totalTrash, trash, selectedTagId, selectedBucketId, selectedExt, extGroups, viewAll, viewTrash, viewByExt } = useMediaSidebar(props.type, props.gql)
 </script>
+
+<style lang="scss" scoped>
+.trash-count {
+  display: inline-grid;
+  place-items: center;
+  min-block-size: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: inherit;
+
+  > * {
+    grid-area: 1 / 1;
+  }
+
+  .trash-count-icon {
+    width: 20px;
+    height: 20px;
+    visibility: hidden;
+  }
+}
+
+@media (hover: hover) {
+  .media-trash-row:hover .trash-count {
+    > span { visibility: hidden; }
+    .trash-count-icon { visibility: visible; }
+  }
+}
+</style>
