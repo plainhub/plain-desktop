@@ -2,12 +2,14 @@ import type { IAudioItem, IItemTagsUpdatedEvent, IItemsTagsUpdatedEvent, IFileDe
 import type { PairingRequest, PairingResult } from '@/lib/pairing-types'
 import type { IUploadItem } from '@/stores/temp'
 
+export type AudioPlayRequest = IAudioItem & { direct?: boolean }
+
 type Events = {
   upload_task_done: IUploadItem
   upload_progress: IUploadItem
   refetch_app: undefined
   refetch_favorite_folders: undefined
-  do_play_audio: IAudioItem
+  do_play_audio: AudioPlayRequest
   pause_audio: undefined
   item_tags_updated: IItemTagsUpdatedEvent
   items_tags_updated: IItemsTagsUpdatedEvent

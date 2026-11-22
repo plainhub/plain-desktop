@@ -21,7 +21,7 @@
       <BulkTagDropdown :type="dataType" :tags="tags" :items="items" :selected-ids="selectedIds" :real-all-checked="realAllChecked" :q="q" />
     </template>
     <template #extra-actions>
-      <v-icon-button v-tooltip="$t('add_to_playlist')" @click.stop="addItemsToPlaylist($event, selectedIds, realAllChecked, q)">
+      <v-icon-button v-if="!filter.trash" v-tooltip="$t('add_to_playlist')" @click.stop="addItemsToPlaylist($event, selectedIds, realAllChecked, q)">
         <i-material-symbols:playlist-add />
       </v-icon-button>
       <v-icon-button v-if="!filter.trash && hasMediaMove(app)" v-tooltip="$t('move_to_folder')" :loading="moveLoading" @click.stop="onMoveClick(dataType, selectedIds, realAllChecked, getQuery())">
@@ -144,7 +144,7 @@ const {
 
 const isAudioPlaying = (item: IAudioWithFileId) => audioPlaying.value && audioPlayback.value.mediaId === item.id
 const effectiveQ = computed(() => q.value)
-const { play, playPath, loading: playLoading, pause } = useAudioPlayer()
+const { play, playPath, loading: playLoading, pause } = useAudioPlayer(() => !!filter.trash)
 const { moveLoading, onMoveClick } = useMoveToFolder('move-audios-picker')
 const { addItemsToPlaylist, addToPlaylist, removeFromPlaylist, isInPlaylist } = useAddToPlaylist(items, clearSelection)
 const onImageError = (id: string) => { imageErrorIds.value.push(id) }

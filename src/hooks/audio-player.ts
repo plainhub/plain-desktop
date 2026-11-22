@@ -4,12 +4,13 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch, type Ref } from
 import { useTempStore } from '@/stores/temp'
 import { storeToRefs } from 'pinia'
 import type { IAudioItem } from '@/lib/interfaces'
-import { getFileUrlByPath } from '@/lib/api/file'
+import { getFileId, getFileUrl, getFileUrlByPath } from '@/lib/api/file'
 import { initMutation, selectAudioGQL, updateAudioPlayModeGQL, removeAudioFromQueueGQL, clearAudioQueueGQL, reorderAudioQueueGQL, enqueueAndSelectAudioGQL } from '@/lib/api/mutation'
 import { audioPlayMode, audioPlayback, useAudioPlaylistStore } from '@/hooks/audio-playlist-store'
-import emitter from '@/plugins/eventbus'
+import emitter, { type AudioPlayRequest } from '@/plugins/eventbus'
 import { useMediaPlayHistory } from './media-play-history'
 import { getGraphqlContextKey } from '@/lib/api/gql-client'
+import { isTrashedMediaPath } from '@/lib/media/trash-path'
 
 let playbackIntent = 0
 let pendingSelection = Promise.resolve()
@@ -23,10 +24,12 @@ function beginSelection() {
 export function usePlayAudio(enqueue = false) {
   const store = useAudioPlaylistStore()
   const { mutate, loading } = initMutation({ document: enqueue ? enqueueAndSelectAudioGQL : selectAudioGQL }, showActionError)
-  function play(track: IAudioItem, active = beginSelection()) {
+  function play(track: AudioPlayRequest, active = beginSelection()) {
     const mediaId = track.mediaId
     if (!mediaId) return
-    emitter.emit('do_play_audio', track)
+    const direct = !!track.direct || isTrashedMediaPath(track.path)
+    emitter.emit('do_play_audio', { ...track, direct })
+    if (direct) return
     const command = pendingSelection.then(async () => {
       if (!active()) return
       const result = await mutate(enqueue ? { mediaId, query: `ids:${mediaId}` } : { mediaId })
@@ -50,7 +53,13 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
   })
 
   const current = ref<IAudioItem | undefined>()
-  const src = ref('')
+  const src = computed(() => {
+    const { path, mediaId, direct } = audioPlayback.value
+    if (!path || !urlTokenKey.value) return ''
+    return direct && mediaId
+      ? getFileUrl(getFileId(urlTokenKey.value, path, mediaId))
+      : getFileUrlByPath(urlTokenKey.value, path)
+  })
 
   function updateMediaSessionPlaybackState() {
     if (!('mediaSession' in navigator)) return
@@ -95,8 +104,7 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
 
   async function setCurrent() {
     const c = audioPlayback.value.path
-    src.value = c ? getFileUrlByPath(urlTokenKey.value, c) : ''
-    const item = audios.value.find((it) => it.mediaId === audioPlayback.value.mediaId)
+    const item = audioPlayback.value.direct ? undefined : audios.value.find((it) => it.mediaId === audioPlayback.value.mediaId)
     if (item) current.value = item
     else if (current.value?.path !== c) current.value = undefined
     updateMediaSessionMetadata()
@@ -273,7 +281,7 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
     audioPlaying.value = false
     updateMediaSessionPlaybackState()
   }
-  const doPlayAudio = async (track: IAudioItem) => {
+  const doPlayAudio = async (track: AudioPlayRequest) => {
     const intent = playbackIntent
     const context = getGraphqlContextKey()
     const active = () => !disposed && intent === playbackIntent && context === getGraphqlContextKey()
@@ -291,7 +299,7 @@ export function useAudioPlaylist(audioRef: Ref<HTMLAudioElement | undefined>) {
     if (pendingPause || pendingPlay) await Promise.all([pendingPause, pendingPlay])
     if (!active()) return
     current.value = track
-    audioPlayback.value = { mediaId: track.mediaId, path: track.path }
+    audioPlayback.value = { mediaId: track.mediaId, path: track.path, direct: track.direct }
     await nextTick()
     if (active()) _play(0)
   }

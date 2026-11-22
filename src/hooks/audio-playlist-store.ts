@@ -12,6 +12,7 @@ export const audioPlaylistLoading = ref(false)
 export interface IAudioPlayback {
   mediaId: string | null
   path: string | null
+  direct?: boolean
 }
 
 function idleAudioPlayback(): IAudioPlayback {
@@ -43,7 +44,9 @@ async function fetchPage(offset: number, limit = PAGE_SIZE): Promise<boolean> {
     if (seq !== fetchSeq || context !== getGraphqlContextKey()) return false
     if (r.errors?.length || !r.data?.items) return false
     const page = r.data
-    if (page.playback && audioPlayback.value === playback) audioPlayback.value = page.playback
+    if (page.playback && audioPlayback.value === playback && !playback.direct) {
+      audioPlayback.value = page.playback
+    }
     const storedMode = page.prefs?.audio_play_mode
     if (audioPlayMode.value === mode && page.prefs) {
       audioPlayMode.value = storedMode === 'SHUFFLE' || storedMode === 'REPEAT_ONE' ? storedMode : 'REPEAT'

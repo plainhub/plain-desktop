@@ -85,9 +85,13 @@ describe('audio queue pages', () => {
 
 vi.mock('@/stores/temp', async () => {
   const { ref } = await import('vue')
-  return { useTempStore: () => ({ app: ref({}), urlTokenKey: ref(null), audioPlaying: ref(false) }) }
+  return { useTempStore: () => ({ app: ref({}), urlTokenKey: ref(new Uint8Array(32)), audioPlaying: ref(false) }) }
 })
-vi.mock('@/lib/api/file', () => ({ getFileUrlByPath: (_: unknown, path: string) => path }))
+vi.mock('@/lib/api/file', () => ({
+  getFileUrlByPath: (_: unknown, path: string) => path,
+  getFileId: (_: unknown, _path: string, mediaId: string) => mediaId,
+  getFileUrl: (id: string) => '/media/' + id,
+}))
 vi.mock('@/lib/api/mutation', () => ({
   recordMediaPlayGQL: 'record-media-play',
   saveMediaPlayProgressGQL: 'save-media-progress',
@@ -509,5 +513,35 @@ it('starts an explicitly reselected audio at the authoritative selection positio
     player.playItem(tracks(1, 1)[0]!)
     await vi.waitFor(() => expect(element.play).toHaveBeenCalledOnce())
     expect(element.currentTime).toBe(0)
+  } finally { app.unmount() }
+})
+
+it.each([
+  ['/storage/Music/.trashed-123-track.mp3', false],
+  ['/volume/.plain-trash/tracks/track.mp3', false],
+  ['/storage/Music/original-track.mp3', true],
+])('plays %s from its media ID without changing the queue', async (path, inTrashView) => {
+  const { useAudioPlayer } = await import('@/views/audios/hooks/useAudiosHooks')
+  const items = tracks(1, 2)
+  const store = useAudioPlaylistStore()
+  fetch.mockResolvedValue({ data: { total: 2, items, playback: { mediaId: '1', path: '/audio/1' } } })
+  await store.ensureLoaded()
+  const element = mediaElement()
+  const { app, player } = await mountPlayer(element as unknown as HTMLAudioElement)
+  try {
+    const track = { id: '785968', path, title: 'Trashed audio', artist: '', durationMs: 123 } as import('@/lib/interfaces').IAudio
+    await useAudioPlayer(() => inTrashView).play(track)
+    await vi.waitFor(() => expect(element.play).toHaveBeenCalledOnce())
+    expect(commands).toEqual([])
+    expect(player.src.value).toBe('/media/785968')
+    expect(player.current.value?.title).toBe(track.title)
+    expect(store.items.value).toEqual(items)
+
+    await store.refetch()
+    expect(player.src.value).toBe('/media/785968')
+    expect(store.items.value).toEqual(items)
+
+    await useAudioPlayer().play({ ...track, id: '2', path: '/audio/2' })
+    expect(commands).toEqual([{ document: 'enqueue-play', variables: { mediaId: '2', query: 'ids:2' } }])
   } finally { app.unmount() }
 })

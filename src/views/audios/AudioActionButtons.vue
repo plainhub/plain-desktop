@@ -40,11 +40,11 @@
       <v-icon-button v-else-if="!isInPlaylist(item) && animatingIds.includes(item.id)" class="sm" :disabled="true">
         <i-material-symbols:playlist-add class="playlist-add-icon rotating" />
       </v-icon-button>
-      <v-circular-progress v-if="playLoading && item.path === playPath" indeterminate class="sm" />
-      <v-icon-button v-else-if="isAudioPlaying(item)" v-tooltip="$t('pause')" class="sm" @click.stop="pause()">
-        <i-material-symbols:pause-circle-outline-rounded />
-      </v-icon-button>
     </template>
+    <v-circular-progress v-if="playLoading && item.path === playPath" indeterminate class="sm" />
+    <v-icon-button v-else-if="isAudioPlaying(item)" v-tooltip="$t('pause')" class="sm" @click.stop="pause()">
+      <i-material-symbols:pause-circle-outline-rounded />
+    </v-icon-button>
     <delete-confirm-popup v-model="confirming" :anchor="deleteAnchor" :name="item.title" @confirm="onConfirmDelete" />
   </div>
 </template>

@@ -86,7 +86,7 @@ export const useAddToPlaylist = (items: Ref<IAudio[]>, clearSelection: () => voi
   }
 }
 
-export const useAudioPlayer = () => {
+export const useAudioPlayer = (isTrash = () => false) => {
   const playPath = ref('')
 
   const { play, loading } = usePlayAudio(true)
@@ -96,7 +96,7 @@ export const useAudioPlayer = () => {
     playPath,
     play: (item: IAudio) => {
       playPath.value = item.path
-      return play({ ...item, mediaId: item.id })
+      return play({ ...item, mediaId: item.id, direct: isTrash() })
     },
     pause: () => {
       emitter.emit('pause_audio')
