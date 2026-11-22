@@ -172,3 +172,28 @@ it('previews a direct file link without requesting authenticated metadata', asyn
     expect(text.canEdit.value).toBe(false)
   } finally { scope.stop() }
 })
+
+it.each(['/disk/.plain-trash/files/f-id-note.txt', '/storage/.trashed-123-note.txt'])(
+  'previews a trashed text file without offering or allowing edits (%s)',
+  async (path) => {
+    io.cached = true
+    io.token = 'owner-session'
+    const id = resourceId(new Uint8Array(32), { mode: 'c', id: 'owner-session' }, { type: 'FILE', id: path })
+    io.route = reactive({ name: 'text-file', query: { id } })
+    const fetch = vi.fn().mockResolvedValue(new Response('Trash preview'))
+    vi.stubGlobal('fetch', fetch)
+    vi.stubGlobal('document', { title: '' })
+    vi.mocked(runMutation).mockClear()
+    const scope = effectScope()
+    try {
+      const text = scope.run(() => useTextFile())!
+      await vi.waitFor(() => expect(text.loading.value).toBe(false))
+      expect(text.content.value).toBe('Trash preview')
+      expect(text.canEdit.value).toBe(false)
+      io.route.name = 'text-edit'
+      text.draft.value = 'Do not write'
+      await text.save()
+      expect(runMutation).not.toHaveBeenCalled()
+    } finally { scope.stop() }
+  },
+)

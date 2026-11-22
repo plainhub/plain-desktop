@@ -69,11 +69,11 @@ it('keeps a surviving selection in Recent Files after a file-viewer deletion', (
   const unmount = mountPage(() => { page = useFilesRecent() })
   try {
     state.loadRecent({ recentFiles: [first, second] }, '')
-    page.toggleSelect(click, first, 0)
-    page.toggleSelect(click, second, 1)
+    page.list.selection.toggleSelect(click, first, 0)
+    page.list.selection.toggleSelect(click, second, 1)
     emitter.emit('file_deleted', { item: first })
-    expect(page.selectedIds.value).toEqual([second.id])
-    expect(page.checked.value).toBe(true)
+    expect(page.list.selection.selectedIds.value).toEqual([second.id])
+    expect(page.list.selection.checked.value).toBe(true)
   } finally { unmount() }
 })
 

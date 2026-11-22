@@ -151,11 +151,11 @@ export const useView = (sources: Ref<ISource[]>, ivView: (sources: ISource[], i:
   return {
     view(items: IFile[], f: IFile) {
       sources.value = items
-        .filter((it) => isImage(it.name) || isVideo(it.name) || isAudio(it.name))
+        .filter((it) => !it.isDir && (isImage(it.name) || isVideo(it.name) || isAudio(it.name)))
         .map((it) => ({
           path: it.path,
           src: '',
-          name: getFileName(it.path),
+          name: it.name,
           size: it.size,
           updatedAt: it.updatedAt,
           durationMs: 0,

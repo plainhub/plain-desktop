@@ -1,20 +1,23 @@
 <template>
   <div class="top-app-bar">
-    <v-checkbox touch-target="wrapper" :checked="!!items.length && selected.length === items.length" :indeterminate="!!selected.length && selected.length < items.length" @change="selected = selected.length === items.length ? [] : items.map(item => item.path)" />
-    <div class="title">{{ selected.length ? $t('x_selected', { count: selected.length }) : $t('trash') }}</div>
-    <template v-if="selected.length">
-      <v-icon-button :aria-label="$t('restore')" v-tooltip="$t('restore')" :disabled="busy" @click="apply(selected, false)"><i-material-symbols:restore-from-trash-outline-rounded /></v-icon-button>
-      <v-icon-button id="files-trash-bulk" :aria-label="$t('delete')" v-tooltip="$t('delete')" :disabled="busy" @click="confirm(selected, 'files-trash-bulk', true)"><i-material-symbols:delete-forever-outline-rounded /></v-icon-button>
+    <v-checkbox touch-target="wrapper" :checked="allChecked" :indeterminate="!allChecked && checked" @change="toggleAllChecked" />
+    <div class="title">{{ selectedIds.length ? $t('x_selected', { count: selectedIds.length }) : $t('trash') }}</div>
+    <template v-if="selectedIds.length">
+      <v-icon-button v-tooltip="$t('restore')" :aria-label="$t('restore')" :disabled="busy" @click="apply(selectedIds, false)"><i-material-symbols:restore-from-trash-outline-rounded /></v-icon-button>
+      <v-icon-button id="files-trash-bulk" v-tooltip="$t('delete')" :aria-label="$t('delete')" :disabled="busy" @click="confirm(selectedIds, 'files-trash-bulk', true)"><i-material-symbols:delete-forever-outline-rounded /></v-icon-button>
     </template>
   </div>
   <div class="scroller-wrapper">
     <div class="scroller main-list">
       <div v-if="items.length" role="list">
-        <FileTrashItem
-          v-for="(item, index) in items" :key="item.path" role="listitem"
-          :item="item" :index="index" :selected="selected.includes(item.path)" :is-phone="isPhone" :busy="busy"
-          @toggle="toggle(item.path)" @restore="apply([item.path], false)" @delete="confirm([item.path], $event)"
-        />
+        <FilePreviewListItem
+          v-for="(item, index) in items" :key="item.id" role="listitem"
+          :item="item" :index="index" :is-phone="isPhone" :list="list"
+        >
+          <template #actions>
+            <FileTrashActions :busy="busy" @restore="apply([item.path], false)" @delete="confirm([item.path], $event)" />
+          </template>
+        </FilePreviewListItem>
       </div>
       <NoDataPlaceholder v-else :loading="loading" />
     </div>
@@ -35,25 +38,25 @@ import { useListConfirmation } from '@/hooks/list'
 import { showActionError } from '@/hooks/show-action-error'
 
 import type { GqlResultType } from '@/lib/api/graphql/operations'
-import FileTrashItem from './FileTrashItem.vue'
+import { enrichFile, type IFile } from '@/lib/file'
+import { useFilePreviewList } from '@/hooks/file-preview-list'
+import FilePreviewListItem from './FilePreviewListItem.vue'
+import FileTrashActions from './FileTrashActions.vue'
 
 type TrashItem = GqlResultType<'trashedFilesGQL'>['trashedFiles'][number]
 const isPhone = inject<Ref<boolean>>('isPhone')!
-const items = ref<TrashItem[]>([])
-const selected = ref<string[]>([])
+const items = ref<(IFile & Pick<TrashItem, 'childCount'>)[]>([])
+const list = useFilePreviewList(items, true)
+const { selectedIds, selectedIdSet, checked, allChecked, toggleAllChecked, clearSelection } = list.selection
 const paths = computed(() => new Set(items.value.map((item) => item.path)))
 const { pending, open, close } = useListConfirmation<{ paths: string[]; anchor: string; bulk: boolean }>((target) =>
   target.paths.every((path) => paths.value.has(path))
-  && (!target.bulk || (target.paths.length === selected.value.length && target.paths.every((path) => selected.value.includes(path)))),
+  && (!target.bulk || (target.paths.length === selectedIds.value.length && target.paths.every((path) => selectedIdSet.value.has(path)))),
 )
 const busy = ref(false)
 const loading = ref(true)
 let version = 0
 let release: (() => void)[] = []
-
-function toggle(path: string) {
-  selected.value = selected.value.includes(path) ? selected.value.filter(value => value !== path) : [...selected.value, path]
-}
 
 function confirm(paths: string[], anchor: string, bulk = false) {
   open({ paths: [...paths], anchor, bulk })
@@ -76,8 +79,7 @@ async function refresh() {
       if (page.length < 200) break
     }
     if (request !== version) return
-    items.value = rows
-    selected.value = selected.value.filter(path => paths.value.has(path))
+    items.value = rows.map(enrichFile)
   } catch (error) {
     if (request === version) showActionError(error)
   } finally {
@@ -108,7 +110,7 @@ onDeactivated(() => {
   version++
   release.forEach(stop => stop())
   items.value = []
-  selected.value = []
+  clearSelection()
   close()
 })
 </script>

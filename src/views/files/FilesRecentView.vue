@@ -12,39 +12,20 @@
   </div>
   <VirtualList v-if="items.length > 0" class="scroller main-list" :data-key="'id'" :data-sources="items" :estimate-size="isPhone ? 120 : 80">
     <template #item="{ index, item }">
-      <FileRecentItem
-        :key="item.id"
-        :item="item"
-        :index="index"
-        :selected-ids="selectedIds"
-        :shift-effecting-ids="shiftEffectingIds"
-        :should-select="shouldSelect"
-        :is-phone="isPhone"
-        :image-error-ids="imageErrorIds"
-        :extension-image-error-ids="extensionImageErrorIds"
-        :handle-item-click="handleItemClick"
-        :handle-mouse-over="handleMouseOver"
-        :toggle-select="toggleSelect"
-        :on-image-error="onImageError"
-        :on-extension-image-error="onExtensionImageError"
-        :download-file="downloadFile"
-        :click-item="clickItem"
-      />
+      <FilePreviewListItem :key="item.id" :item="item" :index="index" :is-phone="isPhone" :list="list" />
     </template>
   </VirtualList>
-  <NoDataPlaceholder :placeholder-key="listError" v-if="!loading && items.length === 0" :loading="loading" :access="app.access" feature="FILES" />
+  <NoDataPlaceholder v-if="!loading && items.length === 0" :placeholder-key="listError" :loading="loading" :access="app.access" feature="FILES" />
 </template>
 
 <script setup lang="ts">
 import NoDataPlaceholder from '@/components/NoDataPlaceholder.vue'
 import VirtualList from '@/components/virtualscroll'
+import FilePreviewListItem from './FilePreviewListItem.vue'
 import { useFilesRecent } from '@/hooks/files-recent'
 
 const {
-  app, items, listError, loading, isPhone,
-  selectedIds, allChecked, realAllChecked, checked, total,
-  shiftEffectingIds, shouldSelect, imageErrorIds, extensionImageErrorIds,
-  toggleAllChecked, toggleSelect, handleItemClick, handleMouseOver,
-  onImageError, onExtensionImageError, downloadFile, clickItem, downloadSelectedItem, downloadEachItems, downloadZipItems,
+  app, items, list, listError, loading, isPhone, downloadSelectedItem, downloadEachItems, downloadZipItems,
 } = useFilesRecent()
+const { selectedIds, allChecked, realAllChecked, checked, total, toggleAllChecked } = list.selection
 </script>

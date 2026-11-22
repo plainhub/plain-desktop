@@ -6,63 +6,28 @@ import { onActivated, onDeactivated, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { type IFile, enrichFile } from '@/lib/file'
-import { getFileUrlByPath } from '@/lib/api/file'
-import { getTextFileId } from '@/lib/api/text-file'
-import { useDownload, useView } from '@/hooks/files'
 import { useTempStore, type IUploadItem } from '@/stores/temp'
 import { generateRecordId } from '@/lib/record-id.generated'
 import { initMutation, setTempValueGQL } from '@/lib/api/mutation'
-import type { ISource } from '@/components/lightbox/types'
-import { useSelectable } from '@/hooks/list'
-import { useFilesKeyEvents } from '@/hooks/key-events'
 import { initLazyQuery, recentFilesGQL } from '@/lib/api/query'
 import emitter from '@/plugins/eventbus'
 import type { IFileDeletedEvent, IFileRenamedEvent } from '@/lib/interfaces'
 import { createRefreshScheduler } from '@/lib/refresh-scheduler'
 import { getIsPhone } from '@/hooks/device'
-import { useOpenMedia } from '@/hooks/open-media'
-import { useFileOpen } from '@/hooks/file-open'
-import { openUrl } from '@/lib/browser'
+import { useFilePreviewList } from '@/hooks/file-preview-list'
 
 export function useFilesRecent() {
   const { t } = useI18n()
-  const sources = ref([])
   const isPhone = getIsPhone()
-  const tempStore = useTempStore()
-  const { app, urlTokenKey } = storeToRefs(tempStore)
+  const { app } = storeToRefs(useTempStore())
   const items = ref<IFile[]>([])
-
-  const { selectedIds, allChecked, realAllChecked, clearSelection, toggleAllChecked, toggleSelect, total, checked, shiftEffectingIds, handleItemClick, handleMouseOver, selectAll, shouldSelect } =
-    useSelectable(items)
+  const list = useFilePreviewList(items)
+  const { selectedIds, clearSelection, total } = list.selection
+  const { downloadFile, downloadFiles, downloadDir } = list
   const { listError, setListError } = useListError(items, total)
-  const { downloadFile, downloadFiles, downloadDir } = useDownload(urlTokenKey)
-  const { open: openMedia } = useOpenMedia()
-  const { view } = useView(sources, (s: ISource[], index: number) => {
-    const target = s[index]
-    if (!target) return
-    openMedia(index, s)
-  })
-  const { keyDown: pageKeyDown, keyUp: pageKeyUp } = useFilesKeyEvents(selectAll, clearSelection, () => {})
-
-  const imageErrorIds = ref<string[]>([])
-  const extensionImageErrorIds = ref<string[]>([])
-  const onImageError = (id: string) => imageErrorIds.value.push(id)
-  const onExtensionImageError = (id: string) => extensionImageErrorIds.value.push(id)
 
   const { mutate: setTempValue, onDone: setTempValueDone } = initMutation({ document: setTempValueGQL }, showActionError)
   setTempValueDone((r: any) => { downloadFiles(r.data.setTempValue.key); clearSelection() })
-
-  const { openFile } = useFileOpen<IFile>({
-    items,
-    getName: (item) => item.name,
-    openTextFile: (item) => {
-      const fileId = getTextFileId(urlTokenKey.value, item.path)
-      openUrl(`/text-file?id=${encodeURIComponent(fileId)}`)
-    },
-    openBrowserFile: (item) => window.open(getFileUrlByPath(urlTokenKey.value, item.path), '_blank'),
-    viewMedia: view,
-    download: (item) => downloadFile(item.path),
-  })
 
   const { loading, fetch } = initLazyQuery({
     handle: async (data: any, error: string) => {
@@ -124,8 +89,6 @@ export function useFilesRecent() {
     emitter.on('file_deleted', fileDeletedHandler)
     emitter.on('file_renamed', fileRenamedHandler)
     stopPermissionsUpdated = graphqlSubscriptions.subscribe('accessUpdated', accessUpdatedHandler)
-    window.addEventListener('keydown', pageKeyDown)
-    window.addEventListener('keyup', pageKeyUp)
   })
 
   onDeactivated(() => {
@@ -134,15 +97,7 @@ export function useFilesRecent() {
     emitter.off('file_deleted', fileDeletedHandler)
     emitter.off('file_renamed', fileRenamedHandler)
     stopPermissionsUpdated?.()
-    window.removeEventListener('keydown', pageKeyDown)
-    window.removeEventListener('keyup', pageKeyUp)
   })
 
-  return {
-    app, items, listError, loading, isPhone,
-    selectedIds, allChecked, realAllChecked, checked, total,
-    shiftEffectingIds, shouldSelect, imageErrorIds, extensionImageErrorIds,
-    toggleAllChecked, toggleSelect, handleItemClick, handleMouseOver,
-    onImageError, onExtensionImageError, downloadFile, clickItem: openFile, downloadSelectedItem, downloadEachItems, downloadZipItems,
-  }
+  return { app, items, list, listError, loading, isPhone, downloadSelectedItem, downloadEachItems, downloadZipItems }
 }

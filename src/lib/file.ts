@@ -220,8 +220,8 @@ export function getDirectoryBreadcrumbs(path: string, rootPath: string, rootName
   return items
 }
 
-export function enrichFile(item: Pick<IFile, 'path' | 'isDir' | 'updatedAt' | 'size'> & { createdAt?: string; isSystem?: boolean }) {
-  const name = getFileName(item.path.replace(/\/+$/, ''))
+export function enrichFile<T extends Pick<IFile, 'path' | 'isDir' | 'updatedAt' | 'size'> & Partial<Pick<IFile, 'name' | 'createdAt' | 'isSystem'>>>(item: T) {
+  const name = item.name ?? getFileName(item.path.replace(/\/+$/, ''))
   const extension = item.isDir ? '' : getFileExtension(name)
   return {
     ...item,
