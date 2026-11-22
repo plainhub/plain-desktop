@@ -41,7 +41,6 @@ export default {
   no_api_key: 'কোন API কী নেই',
   app_files: 'অ্যাপ ফাইল',
   send_to_phone_clipboard: 'ফোন ক্লিপবোর্ডে পাঠান',
-  clipboard_text: 'ক্লিপবোর্ড পাঠ্য',
   devices: 'ডিভাইস',
   channels: 'চ্যানেল',
   create_channel: 'চ্যানেল তৈরি করুন',

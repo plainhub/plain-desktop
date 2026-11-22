@@ -40,7 +40,6 @@ export default {
   no_api_key: 'Geen API-sleutel',
   app_files: 'App-bestanden',
   send_to_phone_clipboard: 'Verzenden naar telefoonklembord',
-  clipboard_text: 'Klembord tekst',
   devices: 'Apparaten',
   channels: 'Kanalen',
   create_channel: 'Kanaal maken',

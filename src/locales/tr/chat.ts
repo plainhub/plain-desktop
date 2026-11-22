@@ -41,7 +41,6 @@ export default {
   no_api_key: 'API anahtarı yok',
   app_files: 'Uygulama dosyaları',
   send_to_phone_clipboard: 'Telefon panosuna gönder',
-  clipboard_text: 'Pano metni',
   devices: 'Cihazlar',
   channels: 'Kanallar',
   create_channel: 'Kanal oluştur',

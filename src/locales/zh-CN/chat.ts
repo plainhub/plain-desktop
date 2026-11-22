@@ -14,7 +14,6 @@ export default {
   share_expires_on: '{date} 过期',
   share_expired: '已过期',
   send_to_phone_clipboard: '发送到手机剪贴板',
-  clipboard_text: '剪贴板内容',
   my_phone: '我的手机',
   me: '我',
   this_device: '本设备',

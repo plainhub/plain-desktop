@@ -40,7 +40,6 @@ export default {
   no_api_key: 'APIキーがありません。',
   app_files: 'アプリファイル',
   send_to_phone_clipboard: '携帯電話のクリップボードに送信',
-  clipboard_text: 'クリップボードのテキスト',
   devices: 'デバイス',
   channels: 'チャンネル',
   create_channel: 'チャンネルの作成',

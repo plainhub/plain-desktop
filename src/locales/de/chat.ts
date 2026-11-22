@@ -41,7 +41,6 @@ export default {
   no_api_key: 'Kein API-Schlüssel',
   app_files: 'App-Dateien',
   send_to_phone_clipboard: 'An die Zwischenablage des Telefons senden',
-  clipboard_text: 'Text in der Zwischenablage',
   devices: 'Geräte',
   channels: 'Kanäle',
   create_channel: 'Kanal erstellen',

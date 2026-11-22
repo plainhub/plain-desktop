@@ -17,7 +17,6 @@ export default {
   share_expires_on: 'Expires {date}',
   share_expired: 'Expired',
   send_to_phone_clipboard: 'Send to phone clipboard',
-  clipboard_text: 'Clipboard text',
   my_phone: 'My phone',
   me: 'Me',
   this_device: 'This device',

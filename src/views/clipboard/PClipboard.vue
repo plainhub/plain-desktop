@@ -13,11 +13,10 @@
 
     <div class="quick-content-body">
       <template v-if="clipboardSync">
-        <div class="section-title">{{ $t('send_to_phone_clipboard') }}</div>
         <div class="clip-composer">
           <v-text-field
             v-model="clipText"
-            :label="$t('clipboard_text')"
+            :placeholder="$t('send_to_phone_clipboard')"
             class="composer-input"
             :error="clipTextError"
             :error-text="$t('valid.required')"
@@ -81,7 +80,7 @@ watch(clipboardSync, (enabled) => {
   display: flex;
   gap: 8px;
   align-items: flex-start;
-  margin: 4px 16px 8px;
+  margin: 16px 16px 8px;
 
   .composer-input {
     flex: 1;
@@ -89,8 +88,17 @@ watch(clipboardSync, (enabled) => {
   }
 
   .send-btn {
+    flex: none;
     margin-top: 8px;
     min-width: 80px;
+    padding-inline: 24px;
+    white-space: nowrap;
+
+    :deep(.v-circular-progress) {
+      position: absolute;
+      inset-inline-start: 4px;
+      --size: 16px;
+    }
   }
 }
 
