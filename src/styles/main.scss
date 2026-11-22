@@ -442,7 +442,6 @@
     }
 
     .btn-icon {
-      display: none;
       margin-inline-end: 4px;
     }
 
@@ -453,13 +452,6 @@
     &:hover {
       cursor: pointer;
       background: color-mix(in srgb, var(--md-sys-color-primary) 8%, transparent);
-
-      .btn-icon+.count {
-        display: none;
-      }
-      .btn-icon {
-        display: inline-flex;
-      }
     }
   }
 }
