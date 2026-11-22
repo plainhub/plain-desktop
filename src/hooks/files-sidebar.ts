@@ -81,7 +81,6 @@ export function useFilesSidebar() {
       title: t('name'), placeholder: item.title || '',
       value: currentAlias || '', mutation: mutationFactory,
       getVariables: (value: string) => ({ fullPath: item.fullPath, alias: (value || '').trim() }),
-      done: () => toast(t('saved')),
     })
   }
 
