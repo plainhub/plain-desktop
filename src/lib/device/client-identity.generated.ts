@@ -3,10 +3,15 @@ import { bytesToHex } from '@/lib/strutil'
 
 const prefix = [112, 108, 97, 105, 0, 0, 128, 0, 128, 0, 0, 0, 0, 0, 0, 0]
 const mask = [255, 255, 255, 255, 0, 0, 240, 0, 192, 0, 0, 0, 0, 0, 0, 0]
+const migratedPrefix = [112, 108, 97, 105, 0, 1, 128, 0, 128, 0, 0, 0, 0, 0, 0, 0]
+const migratedMask = [255, 255, 255, 255, 255, 255, 255, 254, 192, 0, 0, 0, 0, 0, 0, 0]
 
 export function generateClientId(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(16))
-  for (let i = 0; i < bytes.length; i++) bytes[i] = (bytes[i] & ~mask[i]) | prefix[i]
+  const bytes = new Uint8Array(16)
+  do {
+    crypto.getRandomValues(bytes)
+    for (let i = 0; i < bytes.length; i++) bytes[i] = (bytes[i] & ~mask[i]) | prefix[i]
+  } while (bytes.every((byte, i) => (byte & migratedMask[i]) === migratedPrefix[i]))
   const hex = bytesToHex(bytes)
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }

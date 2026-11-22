@@ -13,6 +13,24 @@ describe('shared identity layouts', () => {
     }
   })
 
+  it('rerolls a candidate in the legacy device ID range', () => {
+    const random = vi.spyOn(crypto, 'getRandomValues')
+      .mockImplementationOnce((bytes) => {
+        if (bytes instanceof Uint8Array) bytes.set([0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0x30, 0x39])
+        return bytes
+      })
+      .mockImplementationOnce((bytes) => {
+        if (bytes instanceof Uint8Array) {
+          bytes.fill(0)
+          bytes[5] = 2
+        }
+        return bytes
+      })
+
+    expect(generateClientId()).toBe('706c6169-0002-8000-8000-000000000000')
+    expect(random).toHaveBeenCalledTimes(2)
+  })
+
   it('stores Unix milliseconds in UUIDv7 database record IDs', () => {
     const millis = 1793836800123
     vi.spyOn(Date, 'now').mockReturnValue(millis)
