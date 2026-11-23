@@ -150,6 +150,7 @@ declare module 'vue' {
     'ILucide:bot': typeof import('~icons/lucide/bot')['default']
     'ILucide:brain': typeof import('~icons/lucide/brain')['default']
     'ILucide:calendarDays': typeof import('~icons/lucide/calendar-days')['default']
+    'ILucide:check': typeof import('~icons/lucide/check')['default']
     'ILucide:chevronDown': typeof import('~icons/lucide/chevron-down')['default']
     'ILucide:chevronRight': typeof import('~icons/lucide/chevron-right')['default']
     'ILucide:circleMinus': typeof import('~icons/lucide/circle-minus')['default']

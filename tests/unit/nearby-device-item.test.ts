@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest'
 import { createSSRApp, h, type Slots } from 'vue'
 import { renderToString } from 'vue/server-renderer'
+import { createServer } from 'vite'
 import NearbyDeviceItem from '@/views/chat/NearbyDeviceItem.vue'
 import PeerIcon from '@/components/PeerIcon.vue'
 import DeviceTypeIcon from '@/components/DeviceTypeIcon.vue'
@@ -81,8 +82,20 @@ it('shows waiting and cancel from the device pairing status', async () => {
 })
 
 it('marks the selected peer with a labelled icon rather than visible status text', async () => {
-  const html = await render({ peer, current: true, fullControl: true })
-  expect(html).toMatch(/<i-lucide:check[^>]*role="img"[^>]*aria-label="device_discovery.current"/)
-  expect(html).not.toContain('>device_discovery.current<')
-  expect(html).not.toContain('aria-label="switch"')
+  const server = await createServer({ server: { middlewareMode: true, hmr: false, watch: null }, optimizeDeps: { noDiscovery: true } })
+  try {
+    const { default: DeviceItem } = await server.ssrLoadModule('/src/views/chat/NearbyDeviceItem.vue')
+    const app = createSSRApp(DeviceItem, { peer, current: true, fullControl: true })
+    app.config.globalProperties.$t = (key: string) => key
+    app.directive('tooltip', {})
+    const warnings: string[] = []
+    app.config.warnHandler = message => warnings.push(message)
+    const html = await renderToString(app)
+    expect(warnings).toEqual([])
+    expect(html).toMatch(/<svg[^>]*role="img"[^>]*aria-label="device_discovery.current"[^>]*><path/)
+    expect(html).not.toContain('>device_discovery.current<')
+    expect(html).not.toContain('aria-label="switch"')
+  } finally {
+    await server.close()
+  }
 })
