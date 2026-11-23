@@ -376,6 +376,7 @@ export interface Fragment_ImageFragment {
   takenAt?: string
   createdAt: string
   updatedAt: string
+  thumbHash?: string
   tags: Array<Fragment_TagSubFragment>
 }
 
@@ -496,6 +497,7 @@ export interface Fragment_VideoFragment {
   createdAt: string
   updatedAt: string
   takenAt?: string
+  thumbHash?: string
   tags: Array<Fragment_TagSubFragment>
 }
 
@@ -717,6 +719,8 @@ export interface GqlOperations {
         itemCount: number
         coverItems: Array<{
           path: string
+          updatedAt: string
+          thumbHash?: string
         }>
       }>
     }
@@ -1941,6 +1945,8 @@ export interface GqlOperations {
         itemCount: number
         coverItems: Array<{
           path: string
+          updatedAt: string
+          thumbHash?: string
         }>
       }>
     }

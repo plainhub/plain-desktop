@@ -12,8 +12,7 @@
       <span class="number"><field-id :id="index + 1" :raw="item" /></span>
     </div>
     <div class="image">
-      <img v-if="imageErrorIds.includes(item.id)" :src="`/ficons/${getFileExtension(item.path)}.svg`" class="svg" />
-      <img v-else class="image-thumb" :src="getFileUrl(item.fileId, '&size=SM&v=' + encodeURIComponent(item.updatedAt))" loading="lazy" @error="onImageError(item.id)" />
+      <MediaThumbnail class="image-thumb" :src="getFileUrl(item.fileId, '&size=SM&v=' + encodeURIComponent(item.updatedAt))" :thumb-hash="item.thumbHash" scale-down />
     </div>
     <div class="title">{{ getFileName(item.path) }}</div>
     <div class="subtitle">
@@ -55,8 +54,7 @@
   >
     <template #image>
       <div class="image">
-        <img v-if="imageErrorIds.includes(item.id)" :src="`/ficons/${getFileExtension(item.path)}.svg`" class="svg" />
-        <img v-else class="image-thumb" :src="getFileUrl(item.fileId, '&size=SM&v=' + encodeURIComponent(item.updatedAt))" loading="lazy" @error="onImageError(item.id)" />
+        <MediaThumbnail class="image-thumb" :src="getFileUrl(item.fileId, '&size=SM&v=' + encodeURIComponent(item.updatedAt))" :thumb-hash="item.thumbHash" />
       </div>
     </template>
     
@@ -94,7 +92,8 @@
 import type { IVideoItem, IBucket, IFilter, ITag } from '@/lib/interfaces'
 import { DataType } from '@/lib/data'
 import { formatFileSize, formatDurationMs, formatSeconds, formatDateTime, formatTimeAgo } from '@/lib/format'
-import { getFileUrl, getFileName, getFileExtension } from '@/lib/api/file'
+import MediaThumbnail from '@/components/media/MediaThumbnail.vue'
+import { getFileUrl, getFileName } from '@/lib/api/file'
 
 interface Props {
   item: IVideoItem
@@ -103,7 +102,6 @@ interface Props {
   shiftEffectingIds: string[]
   shouldSelect: boolean
   isPhone: boolean
-  imageErrorIds: string[]
   bucketsMap: Record<string, IBucket>
   filter: IFilter
   dataType: DataType
@@ -114,7 +112,6 @@ interface Props {
   handleItemClick: (event: MouseEvent, item: IVideoItem, index: number, callback: () => void) => void
   handleMouseOver: (event: MouseEvent, index: number) => void
   toggleSelect: (event: MouseEvent, item: IVideoItem, index: number) => void
-  onImageError: (id: string) => void
   viewBucket: (store: any, bucketId: string) => void
   deleteItem: (dataType: DataType, item: IVideoItem) => void
   restore: (dataType: DataType, query: string) => void

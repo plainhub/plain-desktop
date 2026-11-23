@@ -401,6 +401,7 @@ declare module 'vue' {
     MediaPageActions: typeof import('./src/components/media/MediaPageActions.vue')['default']
     MediaPreviewView: typeof import('./src/views/media-preview/MediaPreviewView.vue')['default']
     MediaSidebar: typeof import('./src/components/MediaSidebar.vue')['default']
+    MediaThumbnail: typeof import('./src/components/media/MediaThumbnail.vue')['default']
     MediaToolbar: typeof import('./src/components/media/MediaToolbar.vue')['default']
     MessageActionButtons: typeof import('./src/views/messages/MessageActionButtons.vue')['default']
     MessageChatBubble: typeof import('./src/views/messages/MessageChatBubble.vue')['default']

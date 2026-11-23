@@ -11,7 +11,7 @@
       <v-checkbox v-else class="checkbox" touch-target="wrapper" :checked="selectedIds.includes(item.id)" @click.stop="toggleSelect($event, item, index)" />
       <span class="number"><field-id :id="index + 1" :raw="item" /></span>
     </div>
-    <img class="image" :src="getFileUrl(item.fileId, '&size=SM&v=' + encodeURIComponent(item.updatedAt))" loading="lazy" onerror="this.src='/broken-image.png'" />
+    <MediaThumbnail class="image" :src="getFileUrl(item.fileId, '&size=SM&v=' + encodeURIComponent(item.updatedAt))" :thumb-hash="item.thumbHash" scale-down />
     <div class="title">{{ getFileName(item.path) }}</div>
     <div class="subtitle">
       <span>{{ formatFileSize(item.size) }}</span>
@@ -51,7 +51,7 @@
   >
     <template #image>
       <div class="image">
-        <img class="image-thumb" :src="getFileUrl(item.fileId, '&size=SM&v=' + encodeURIComponent(item.updatedAt))" loading="lazy" onerror="this.src='/broken-image.png'" />
+        <MediaThumbnail class="image-thumb" :src="getFileUrl(item.fileId, '&size=SM&v=' + encodeURIComponent(item.updatedAt))" :thumb-hash="item.thumbHash" />
       </div>
     </template>
 
@@ -88,6 +88,7 @@
 import type { IImageItem, IBucket, IFilter, ITag } from '@/lib/interfaces'
 import { DataType } from '@/lib/data'
 import { formatFileSize, formatDateTime, formatTimeAgo } from '@/lib/format'
+import MediaThumbnail from '@/components/media/MediaThumbnail.vue'
 import { getFileUrl, getFileName } from '@/lib/api/file'
 
 interface Props {

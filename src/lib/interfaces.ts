@@ -35,7 +35,13 @@ export interface IBucket extends IData {
   id: string
   name: string
   itemCount: number
-  coverItems: Array<{ path: string }>
+  coverItems: IMediaBucketCover[]
+}
+
+export interface IMediaBucketCover {
+  path: string
+  updatedAt: string
+  thumbHash: string | null
 }
 
 export const smsFilterTypes = ['INBOX', 'SENT', 'DRAFT'] as const satisfies readonly SmsType[]
@@ -238,10 +244,12 @@ export interface IAudio extends IMedia {
 }
 
 export interface IImage extends IMedia {
+  thumbHash?: string | null
   takenAt?: string
 }
 
 export interface IVideo extends IMedia {
+  thumbHash?: string | null
   durationMs: number
   takenAt?: string
 }

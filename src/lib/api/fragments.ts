@@ -217,6 +217,7 @@ export const imageFragment = `
     takenAt
     createdAt
     updatedAt
+    thumbHash
     tags {
       ...TagSubFragment
     }
@@ -235,6 +236,7 @@ export const videoFragment = `
     createdAt
     updatedAt
     takenAt
+    thumbHash
     tags {
       ...TagSubFragment
     }

@@ -1,7 +1,7 @@
 <template>
   <span class="thumb" :class="`count-${thumbs.length}`">
     <template v-if="thumbs.length">
-      <img v-for="(p, i) in thumbs" :key="i" class="thumb-img" :src="thumbUrl(p)" loading="lazy" alt="" onerror="this.style.display='none'" />
+      <MediaThumbnail v-for="cover in thumbs" :key="cover.path" class="thumb-img" :src="thumbUrl(cover)" :thumb-hash="cover.thumbHash" />
     </template>
     <i-material-symbols:folder-rounded v-else />
   </span>
@@ -12,21 +12,18 @@ import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useTempStore } from '@/stores/temp'
 import { getFileId, getFileUrl } from '@/lib/api/file'
+import type { IMediaBucketCover } from '@/lib/interfaces'
+import MediaThumbnail from '@/components/media/MediaThumbnail.vue'
 
-const props = defineProps({
-  items: {
-    type: Array as () => string[],
-    default: () => [],
-  },
-})
+const props = defineProps<{ items: IMediaBucketCover[] }>()
 
 const tempStore = useTempStore()
 const { urlTokenKey } = storeToRefs(tempStore)
 
-const thumbs = computed(() => props.items?.slice(0, 4) ?? [])
+const thumbs = computed(() => props.items.slice(0, 4))
 
-function thumbUrl(path: string): string {
-  return getFileUrl(getFileId(urlTokenKey.value, path), '&size=SM')
+function thumbUrl(cover: IMediaBucketCover): string {
+  return getFileUrl(getFileId(urlTokenKey.value, cover.path), '&size=SM&v=' + encodeURIComponent(cover.updatedAt))
 }
 </script>
 
@@ -69,9 +66,6 @@ function thumbUrl(path: string): string {
     height: 100%;
     min-width: 0;
     min-height: 0;
-    display: block;
-    object-fit: cover;
-    object-position: center;
   }
 }
 </style>

@@ -2,7 +2,7 @@
   <LightboxFileInfoItem v-if="sortedBuckets.length" :label="$t('move_to_folder')">
     <ul class="folder-grid">
       <li v-for="bucket in visibleBuckets" :key="bucket.id" class="folder-item" @click="onPick(bucket)">
-        <BucketThumb :items="bucket.coverItems.map(({ path }) => path)" />
+        <BucketThumb :items="bucket.coverItems" />
         <span class="name">{{ bucket.name }}</span>
       </li>
     </ul>

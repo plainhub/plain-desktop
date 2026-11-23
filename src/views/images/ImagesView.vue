@@ -61,7 +61,7 @@
             :selected="selectedIdSet.has(item.id)" :shift-selected="shiftEffectingIdSet.has(item.id)" :should-select="shouldSelect" :data-type="dataType"
             @item-click="(e) => handleItemClick(e, item, idx, view)" @item-mouse-enter="(e) => handleMouseOverMode(e, idx)"
             @toggle-select="(e) => toggleSelect(e, item, idx)" @view="view(idx)">
-            <template #thumbnail><img class="image-thumb image" :src="getFileUrl(item.fileId, '&size=SM&v=' + encodeURIComponent(item.updatedAt))" loading="lazy" onerror="this.src='/broken-image.png'" /></template>
+            <template #thumbnail><MediaThumbnail class="image-thumb image" :src="getFileUrl(item.fileId, '&size=SM&v=' + encodeURIComponent(item.updatedAt))" :thumb-hash="item.thumbHash" /></template>
             <template #info-right>{{ formatFileSize(item.size) }}</template>
           </MediaGridItem>
           <!-- eslint-enable vue/valid-v-memo -->
@@ -77,7 +77,7 @@
         :selected="selectedIdSet.has(item.id)" :shift-selected="shiftEffectingIdSet.has(item.id)" :should-select="shouldSelect" :data-type="dataType"
         @item-click="(e) => handleItemClick(e, item, i, view)" @item-mouse-enter="(e) => handleMouseOverMode(e, i)"
         @toggle-select="(e) => toggleSelect(e, item, i)" @view="view(i)">
-        <template #thumbnail><img class="image-thumb image" :src="getFileUrl(item.fileId, '&size=SM&v=' + encodeURIComponent(item.updatedAt))" loading="lazy" onerror="this.src='/broken-image.png'" /></template>
+        <template #thumbnail><MediaThumbnail class="image-thumb image" :src="getFileUrl(item.fileId, '&size=SM&v=' + encodeURIComponent(item.updatedAt))" :thumb-hash="item.thumbHash" /></template>
         <template #info-right>{{ formatFileSize(item.size) }}</template>
       </MediaGridItem>
       <template v-if="loading && items.length === 0"><section v-for="i in limit" :key="i" class="skeleton-image media-item"></section></template>
@@ -122,6 +122,7 @@ import { mediaListPage } from '@/lib/media/list-page'
 import { useMediaPageActions } from '@/hooks/media-page-actions'
 import ImageListItem from '@/views/images/ImageListItem.vue'
 import MediaPageActions from '@/components/media/MediaPageActions.vue'
+import MediaThumbnail from '@/components/media/MediaThumbnail.vue'
 import MediaGridItem from '@/components/media/MediaGridItem.vue'
 import MediaToolbar from '@/components/media/MediaToolbar.vue'
 import ImageSearchButton from '@/components/ai/ImageSearchButton.vue'

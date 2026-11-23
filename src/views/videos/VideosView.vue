@@ -55,14 +55,13 @@
           <!-- eslint-disable vue/valid-v-memo -->
           <MediaGridItem
             v-for="{ item, idx } in group.entries" :key="item.id"
-            v-memo="[checked, selectedIdSet.has(item.id), shiftEffectingIdSet.has(item.id), shiftEffectingIdSet.has(item.id) && shouldSelect, item, imageErrorIdSet.has(item.id), idx]"
+            v-memo="[checked, selectedIdSet.has(item.id), shiftEffectingIdSet.has(item.id), shiftEffectingIdSet.has(item.id) && shouldSelect, item, idx]"
             :item="item" :checked="checked"
             :selected="selectedIdSet.has(item.id)" :shift-selected="shiftEffectingIdSet.has(item.id)" :should-select="shouldSelect" :data-type="dataType"
             @item-click="handleItemClick($event, item, idx, view)" @item-mouse-enter="handleMouseOverMode($event, idx)"
             @toggle-select="toggleSelect($event, item, idx)" @view="view(idx)">
             <template #thumbnail>
-              <img v-if="imageErrorIdSet.has(item.id)" :src="`/ficons/${getFileExtension(item.path)}.svg`" class="image svg" />
-              <img v-else class="image image-thumb" :src="getFileUrl(item.fileId, '&size=SM&v=' + encodeURIComponent(item.updatedAt))" loading="lazy" @error="onImageError(item.id)" />
+              <MediaThumbnail class="image image-thumb" :src="getFileUrl(item.fileId, '&size=SM&v=' + encodeURIComponent(item.updatedAt))" :thumb-hash="item.thumbHash" />
             </template>
             <template #info-right>{{ formatDurationMs(item.durationMs) }}</template>
           </MediaGridItem>
@@ -74,14 +73,13 @@
     <div v-else-if="!mainStore.videosCardView" class="media-grid" :class="{ 'select-mode': checked }">
       <MediaGridItem
         v-for="(item, i) in items" :key="item.id"
-        v-memo="[checked, selectedIdSet.has(item.id), shiftEffectingIdSet.has(item.id), shiftEffectingIdSet.has(item.id) && shouldSelect, item, imageErrorIdSet.has(item.id), videoSortBy, i]"
+        v-memo="[checked, selectedIdSet.has(item.id), shiftEffectingIdSet.has(item.id), shiftEffectingIdSet.has(item.id) && shouldSelect, item, videoSortBy, i]"
         :item="item" :checked="checked"
         :selected="selectedIdSet.has(item.id)" :shift-selected="shiftEffectingIdSet.has(item.id)" :should-select="shouldSelect" :data-type="dataType"
         @item-click="handleItemClick($event, item, i, view)" @item-mouse-enter="handleMouseOverMode($event, i)"
         @toggle-select="toggleSelect($event, item, i)" @view="view(i)">
         <template #thumbnail>
-          <img v-if="imageErrorIdSet.has(item.id)" :src="`/ficons/${getFileExtension(item.path)}.svg`" class="image svg" />
-          <img v-else class="image image-thumb" :src="getFileUrl(item.fileId, '&size=SM&v=' + encodeURIComponent(item.updatedAt))" loading="lazy" @error="onImageError(item.id)" />
+          <MediaThumbnail class="image image-thumb" :src="getFileUrl(item.fileId, '&size=SM&v=' + encodeURIComponent(item.updatedAt))" :thumb-hash="item.thumbHash" />
         </template>
         <template #info-right>{{ ['SIZE_ASC', 'SIZE_DESC'].includes(videoSortBy) ? formatFileSize(item.size) : formatDurationMs(item.durationMs) }}</template>
       </MediaGridItem>
@@ -92,9 +90,9 @@
       <VideoListItem
 v-for="(item, i) in items" :key="item.id" :item="item" :index="i" :is-phone="isPhone"
         :selected-ids="selectedIds" :shift-effecting-ids="shiftEffectingIds" :should-select="shouldSelect"
-        :image-error-ids="imageErrorIds" :buckets-map="bucketsMap" :filter="filter" :data-type="dataType" :tags="tags"
+        :buckets-map="bucketsMap" :filter="filter" :data-type="dataType" :tags="tags"
         :main-store="mainStore" :app="app" :handle-item-click="handleItemClick" :handle-mouse-over="handleMouseOverMode"
-        :toggle-select="toggleSelect" :on-image-error="onImageError" :view-bucket="viewBucket"
+        :toggle-select="toggleSelect" :view-bucket="viewBucket"
         :delete-item="deleteItem" :restore="restore" :download-file="downloadFile" :trash="trash"
         :view="view"
         :restore-loading="restoreLoading" :trash-loading="trashLoading" />
@@ -114,7 +112,7 @@ import { computed, ref, watch } from 'vue'
 import { useListError } from '@/hooks/list-error'
 import { formatDurationMs, formatSeconds, formatFileSize } from '@/lib/format'
 import { videosGQL, initLazyQuery } from '@/lib/api/query'
-import { getFileId, getFileUrl, getFileExtension, getFileName } from '@/lib/api/file'
+import { getFileId, getFileUrl, getFileName } from '@/lib/api/file'
 import type { IVideo, IVideoItem } from '@/lib/interfaces'
 import type { ISource } from '@/components/lightbox/types'
 import { DataType, Capability } from '@/lib/data'
@@ -128,6 +126,7 @@ import { mediaListPage } from '@/lib/media/list-page'
 import { useMediaPageActions } from '@/hooks/media-page-actions'
 import { useMoveToFolder } from '@/hooks/media'
 import MediaPageActions from '@/components/media/MediaPageActions.vue'
+import MediaThumbnail from '@/components/media/MediaThumbnail.vue'
 import MediaGridItem from '@/components/media/MediaGridItem.vue'
 import MediaToolbar from '@/components/media/MediaToolbar.vue'
 import NoDataPlaceholder from '@/components/NoDataPlaceholder.vue'
@@ -137,8 +136,6 @@ const { videoSortBy, videosCardView, videosGroupBy, videosScrollPaging } = store
 const items = ref<IVideoItem[]>([])
 const sortItems = getSortItems()
 const groupByItems = getVideoGroupByItems()
-const imageErrorIds = ref<string[]>([])
-const imageErrorIdSet = computed(() => new Set(imageErrorIds.value))
 
 const mp = useMediaPage({
   dataType: DataType.VIDEO, routePath: 'videos',
@@ -176,8 +173,6 @@ const toggleGroupByText = (group: MediaGroup<IVideoItem>) => setGroupChecked(gro
 
 watch(() => mainStore.videosGroupBy, () => { page.value = 1; noMore.value = false; items.value = []; fetch() })
 watch(() => mainStore.videosScrollPaging, () => { page.value = 1; items.value = []; fetch() })
-
-const onImageError = (id: string) => { imageErrorIds.value.push(id) }
 
 const effectiveQ = computed(() => q.value)
 
