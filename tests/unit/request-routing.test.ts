@@ -49,9 +49,26 @@ it('uses configured browser API hosts and preserves HTTPS on custom ports', () =
   target.local = false
   vi.stubEnv('VITE_APP_API_HOST', 'configured.example:8043')
   expect(getApiBaseUrl()).toBe('https://configured.example:8043')
+  vi.stubGlobal('__IS_TAURI__', false)
+  vi.stubGlobal('window', { location: new URL('http://localhost:3000/nearby') })
+  expect(getApiBaseUrl()).toBe('https://configured.example:8043')
   vi.stubEnv('VITE_APP_API_HOST', '')
-  window.location.protocol = 'https:'
+  vi.stubGlobal('window', { location: new URL('https://web.example:8080/nearby') })
   expect(getWebSocketBaseUrl()).toBe('wss://web.example:8080')
+})
+
+it.each(['localhost', '127.0.0.1', '[::1]'])('uses the development page origin for the configured browser API on %s', (host) => {
+  target.local = false
+  vi.stubGlobal('__IS_TAURI__', false)
+  vi.stubGlobal('window', { location: new URL('http://' + host + ':3000/nearby') })
+  vi.stubEnv('VITE_APP_API_HOST', 'configured.example:8080')
+  expect(getApiBaseUrl()).toBe(window.location.origin)
+  expect(getWebSocketBaseUrl()).toBe('ws://' + host + ':3000')
+
+  setPendingLoginDevice({ host: 'configured.example:8080', deviceType: DeviceType.OTHER })
+  expect(getApiBaseUrl()).toBe(window.location.origin)
+  setPendingLoginDevice({ host: 'other.example:8443', deviceType: DeviceType.OTHER })
+  expect(getApiBaseUrl()).toBe('https://other.example:8443')
 })
 
 it('keeps production browser requests on the current origin despite development environment files', () => {

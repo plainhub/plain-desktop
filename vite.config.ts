@@ -7,7 +7,8 @@ import { isTauriBuildMode } from './build-support/app-mode'
 import { crossOriginIsolationHeaders, isPotentiallyTrustworthyHost } from './build-support/cross-origin-isolation'
 import { svgComponents } from './build-support/svg-components'
 import { componentImports } from './build-support/component-imports'
-import type { Plugin } from 'vite'
+import { isLoopbackHost, isSecurePort } from './src/lib/url'
+import type { Plugin, ProxyOptions } from 'vite'
 
 const INVALID_CHAR_REGEX = /[_\x00-\x1F\x7F<>*#"{}|^[\]`;?:&=+$,]/g
 const DRIVE_LETTER_REGEX = /^[a-z]:/i
@@ -36,11 +37,33 @@ function crossOriginIsolation(): Plugin {
   }
 }
 
+function devApiProxy(apiHost: string): Record<string, ProxyOptions> {
+  const target = new URL('http://' + apiHost).origin
+  return {
+    '^/(?:auth|fs|graphql|guest_graphql|image_editor|init|screen|upload(?:_chunk)?|zip/(?:dir|files))(?:\\?|$)|^/proxy/': {
+      target,
+      changeOrigin: true,
+      ws: true,
+      bypass(request) {
+        const { host = '', origin, 'sec-fetch-site': site } = request.headers
+        const address = request.socket.remoteAddress
+        if (!isLoopbackHost(host) || !['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(address ?? '')) return false
+        if ((origin !== undefined && origin !== 'http://' + host) || site === 'cross-site' || site === 'same-site') return false
+        // Core checks the origin against the upstream request authority.
+        request.headers.origin = target
+      },
+    },
+  }
+}
+
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command, isPreview }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const apiHost = env.VITE_APP_API_HOST || ''
   const isTauriMode = isTauriBuildMode(mode, process.env.VITE_APP_MODE)
+  const proxy = command === 'serve' && !isPreview && apiHost && !isTauriMode && !isSecurePort(apiHost)
+    ? devApiProxy(apiHost)
+    : undefined
   const isTauri = JSON.stringify(isTauriMode)
   const appVersion = (JSON.parse(readFileSync(new URL('./src-tauri/tauri.conf.json', import.meta.url), 'utf-8')) as { version: string }).version
 
@@ -66,15 +89,7 @@ export default defineConfig(({ mode }) => {
     host: '0.0.0.0',
     port: isTauriMode ? 4000 : 3000,
     strictPort: isTauriMode,
-    // Dev-only proxy: forwards /fs and /proxyfs to the device server so that
-    // fetch() and WebGL textures are same-origin (no CORS / canvas tainting).
-    // In production the app is served from the device itself (same-origin).
-    ...(apiHost ? {
-      proxy: {
-        '/fs': { target: `http://${apiHost}`, changeOrigin: true },
-        '/proxyfs': { target: `http://${apiHost}`, changeOrigin: true },
-      },
-    } : {}),
+    proxy,
   },
   build: {
     // The `markdown` chunk (katex + markdown-it) intentionally bundles the

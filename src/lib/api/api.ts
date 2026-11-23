@@ -5,7 +5,7 @@ import { getDeviceRequestPath } from './device-path'
 import { getDesktopClientId } from '@/lib/device/client-id'
 import { isMacPlatform } from '../platform'
 import { DeviceType } from '../status'
-import { applyScheme, peerProxyPath } from '../url'
+import { applyScheme, isLoopbackHost, isSecurePort, peerProxyPath } from '../url'
 import { encryptResourcePayload } from './resource-link'
 
 export interface PendingLoginDevice {
@@ -41,11 +41,6 @@ export function setLocalServerHttpsPort(port: number): void { _localServerHttpsP
 export function getLocalServerHttpsPort(): number { return _localServerHttpsPort }
 
 // ─── URL builders ─────────────────────────────────────────────────────────────
-
-function isSecurePort(host: string): boolean {
-  const m = host.match(/:(\d+)$/)
-  return m ? m[1].endsWith('43') : false
-}
 
 /** Base URL for a device host (`ip:port`) — phones serve TLS on *43 ports. */
 export function deviceBaseUrl(host: string): string {
@@ -104,6 +99,11 @@ export function getApiBaseUrl() {
     return `http://localhost:${_localServerPort}`
   }
   const host = getApiHost()
+  // Keep TLS connections on the browser's certificate trust path.
+  if (!__IS_TAURI__ && import.meta.env.DEV && host === import.meta.env.VITE_APP_API_HOST && !isSecurePort(host) &&
+      window.location.protocol === 'http:' && isLoopbackHost(window.location.host)) {
+    return window.location.origin
+  }
   const scheme = window.location.protocol === 'https:' || isSecurePort(host) ? 'https' : 'http'
   return applyScheme(scheme, host)
 }

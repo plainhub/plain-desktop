@@ -14,6 +14,14 @@ export function applyScheme(scheme: string, hostWithPort: string): string {
   return `${scheme}://${hostWithPort}`
 }
 
+export function isLoopbackHost(host: string): boolean {
+  return /^(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i.test(host)
+}
+
+export function isSecurePort(host: string): boolean {
+  return /:\d*43$/.test(host)
+}
+
 export function peerProxyPath(peerId: string, path: string): string {
   return `/proxy/${encodeURIComponent(peerId)}/${path.replace(/^\//, '')}`
 }
