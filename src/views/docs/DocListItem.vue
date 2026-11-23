@@ -105,7 +105,7 @@ function onIconError(e: Event) {
 }
 </script>
 
-<style scoped lang="scss">
+<style lang="scss">
 .doc-item {
   grid-template-areas:
     'start icon title actions'
@@ -146,7 +146,5 @@ function onIconError(e: Event) {
     font-size: 0.85rem;
     margin-block-end: 8px;
   }
-
-  :deep(.actions) { grid-area: actions; }
 }
 </style>
