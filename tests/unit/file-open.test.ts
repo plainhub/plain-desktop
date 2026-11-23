@@ -35,3 +35,15 @@ it('opens Office documents through the text viewer without a capability gate', (
   expect(browser).not.toHaveBeenCalled()
   expect(download).not.toHaveBeenCalled()
 })
+
+it('opens source code and configuration files directly in the text viewer', () => {
+  const names = ['main.cpp', 'HEADER.HPP', 'native.c', 'Main.cs', 'settings.toml', 'script.mjs', 'data.tsv', 'Dockerfile', '.gitignore']
+  const items = ref(names.map(title => ({ title })))
+  const text = vi.fn(), browser = vi.fn(), media = vi.fn(), download = vi.fn()
+  const { openFile } = useFileOpen({ items, getName: item => item.title, openTextFile: text, openBrowserFile: browser, viewMedia: media, download })
+  items.value.forEach(openFile)
+  expect(text.mock.calls.map(([item]) => item)).toEqual(items.value)
+  expect(browser).not.toHaveBeenCalled()
+  expect(media).not.toHaveBeenCalled()
+  expect(download).not.toHaveBeenCalled()
+})

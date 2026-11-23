@@ -88,7 +88,8 @@ it.each([
   ['Notes', 'md', 'text'],
   ['Quarterly report', 'DOC', 'text'],
   ['Manual', 'pdf', 'browser'],
-  ['Configuration.md', 'toml', 'download'],
+  ['Configuration', 'toml', 'text'],
+  ['Configuration.md', 'bin', 'download'],
 ] as const)('uses the actual file name for the marker and native row click on %s (%s)', async (title, extension, action) => {
   vi.clearAllMocks()
   const popup = vi.fn()
