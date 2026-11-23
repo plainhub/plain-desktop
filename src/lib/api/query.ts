@@ -561,7 +561,7 @@ export const mediaBucketsGQL = `
       id
       name
       itemCount
-      topItemPaths
+      coverItems { path }
     }
   }
 `
@@ -645,7 +645,7 @@ export const bucketsTagsGQL = `
       id
       name
       itemCount
-      topItemPaths
+      coverItems { path }
     }
   }
   ${tagFragment}

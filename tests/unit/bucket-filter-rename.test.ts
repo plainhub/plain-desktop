@@ -10,11 +10,11 @@ vi.mock('@/hooks/media', () => ({ useBuckets: () => ({ view: state.view }) }))
 vi.mock('@/lib/api/query', () => ({
   mediaBucketsGQL: 'mediaBuckets',
   initQuery: ({ handle }: any) => {
-    handle({ mediaBuckets: [{ id: '431', name: 'Photos', itemCount: 12, topItemPaths: ['/fixture/Photos/image.jpg'] }] }, '')
+    handle({ mediaBuckets: [{ id: '431', name: 'Photos', itemCount: 12, coverItems: [{ path: '/fixture/Photos/image.jpg' }] }] }, '')
     state.refetch.mockImplementation(async () => {
       handle({ mediaBuckets: [
-        { id: 'other', name: 'Album', itemCount: 2, topItemPaths: ['/elsewhere/Album/another.jpg'] },
-        { id: '782', name: 'Album', itemCount: 12, topItemPaths: ['/fixture/Album/image.jpg'] },
+        { id: 'other', name: 'Album', itemCount: 2, coverItems: [{ path: '/elsewhere/Album/another.jpg' }] },
+        { id: '782', name: 'Album', itemCount: 12, coverItems: [{ path: '/fixture/Album/image.jpg' }] },
       ] }, '')
     })
     return { refetch: state.refetch }
@@ -136,7 +136,7 @@ it('opens raw image bucket data from the thumbnail and selects the album from it
   clickThrough(thumbnail)
   await flush()
   expect(JSON.parse(content(nodes(view.portal).find(node => node.tag === 'pre')!))).toEqual({
-    id: '431', name: 'Photos', itemCount: 12, topItemPaths: ['/fixture/Photos/image.jpg'],
+    id: '431', name: 'Photos', itemCount: 12, coverItems: [{ path: '/fixture/Photos/image.jpg' }],
   })
   expect(state.view).not.toHaveBeenCalled()
   clickThrough(elements.find(node => node.props.class === 'title')!)

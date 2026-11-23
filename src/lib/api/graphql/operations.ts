@@ -715,7 +715,9 @@ export interface GqlOperations {
         id: string
         name: string
         itemCount: number
-        topItemPaths: Array<string>
+        coverItems: Array<{
+          path: string
+        }>
       }>
     }
     variables: {
@@ -1937,7 +1939,9 @@ export interface GqlOperations {
         id: string
         name: string
         itemCount: number
-        topItemPaths: Array<string>
+        coverItems: Array<{
+          path: string
+        }>
       }>
     }
     variables: {

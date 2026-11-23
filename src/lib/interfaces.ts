@@ -35,7 +35,7 @@ export interface IBucket extends IData {
   id: string
   name: string
   itemCount: number
-  topItemPaths: string[]
+  coverItems: Array<{ path: string }>
 }
 
 export const smsFilterTypes = ['INBOX', 'SENT', 'DRAFT'] as const satisfies readonly SmsType[]

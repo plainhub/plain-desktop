@@ -2,7 +2,7 @@
   <LightboxFileInfoItem v-if="sortedBuckets.length" :label="$t('move_to_folder')">
     <ul class="folder-grid">
       <li v-for="bucket in visibleBuckets" :key="bucket.id" class="folder-item" @click="onPick(bucket)">
-        <BucketThumb :items="bucket.topItemPaths" />
+        <BucketThumb :items="bucket.coverItems.map(({ path }) => path)" />
         <span class="name">{{ bucket.name }}</span>
       </li>
     </ul>
@@ -51,7 +51,7 @@ const currentBucketId = computed(() => props.current?.data?.bucketId as string |
 
 function isCurrentBucket(bucket: IBucket): boolean {
   if (currentBucketId.value) return bucket.id === currentBucketId.value
-  return currentDir.value !== '' && bucket.topItemPaths?.some((p) => getDirFromPath(p) === currentDir.value)
+  return currentDir.value !== '' && bucket.coverItems.some(({ path }) => getDirFromPath(path) === currentDir.value)
 }
 
 const sortedBuckets = computed(() =>
@@ -69,8 +69,7 @@ const visibleBuckets = computed(() =>
 function onPick(bucket: IBucket) {
   const source = props.current
   if (!source?.data?.id || !source.type) return
-  // topItemPaths are paths inside the bucket, so the bucket dir can be derived from them
-  const destDir = getDirFromPath(bucket.topItemPaths?.[0] ?? '')
+  const destDir = getDirFromPath(bucket.coverItems[0]?.path ?? '')
   if (!destDir) return
   const q = moveItems(source.type, [source.data.id], false, `ids:${source.data.id}`)
   if (q === undefined) return
