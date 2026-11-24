@@ -37,7 +37,6 @@
       v-if="!readOnly && filter && app && trashLoading && restoreLoading && trash && restore && deleteItem"
       :item="item"
       :filter="filter"
-      :app="app"
       :data-type="dataType"
       :tags="tags"
       :trash-loading="trashLoading"

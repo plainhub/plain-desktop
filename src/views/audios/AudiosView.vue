@@ -4,8 +4,7 @@
     :selected-count="selectedIds.length"
     :all-checked="allChecked" :checked="checked" :real-all-checked="realAllChecked" :total="total"
     :filter-trash="!!filter.trash"
-    :can-trash="hasMediaTrash(app)"
-    :can-delete="hasMediaDelete(app)"
+    :can-delete="canDeleteSelection"
     :restore-query-loading="restoreLoading(getQuery())" :trash-query-loading="trashLoading(getQuery())"
     :limit="limit" :all-checked-alert-visible="allCheckedAlertVisible"
     :show-secondary="false"
@@ -40,7 +39,7 @@
 v-for="(item, i) in items" :key="item.id" :item="item" :index="i" :is-phone="isPhone"
         :selected-ids="selectedIds" :shift-effecting-ids="shiftEffectingIds" :should-select="shouldSelect"
         :image-error-ids="imageErrorIds" :buckets-map="bucketsMap" :filter="filter" :data-type="dataType" :tags="tags"
-        :animating-ids="animatingIds" :play-loading="playLoading" :play-path="playPath" :main-store="mainStore" :app="app"
+        :animating-ids="animatingIds" :play-loading="playLoading" :play-path="playPath" :main-store="mainStore"
         :handle-item-click="handleItemClick" :handle-mouse-over="handleMouseOverMode" :toggle-select="toggleSelect"
         :on-image-error="onImageError" :view-bucket="viewBucket" :delete-item="deleteItem" :restore="restore"
         :download-file="downloadFile" :trash="trash" :handle-remove-from-playlist="handleRemoveFromPlaylist"
@@ -66,7 +65,7 @@ import { audiosGQL, initLazyQuery } from '@/lib/api/query'
 import type { IAudio, IAudioWithFileId } from '@/lib/interfaces'
 import { DataType, Capability } from '@/lib/data'
 import { getSortItems, isAudio } from '@/lib/file'
-import { hasFeature, hasMediaTrash, hasMediaDelete, hasMediaMove } from '@/lib/feature'
+import { hasFeature, hasMediaMove } from '@/lib/feature'
 import { getFileId } from '@/lib/api/file'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
@@ -133,7 +132,7 @@ const {
   isPhone, mainStore, app, urlTokenKey,
   filter, page, q, limit, dataType,
   fileInput, dirFileInput, uploadChanged, dirUploadChanged, dropping, fileDragEnter, fileDragLeave,
-  bucketsMap, deleteItems, deleteItem, confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems, viewBucket, tags,
+  bucketsMap, deleteItems, canDeleteSelection, deleteItem, confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems, viewBucket, tags,
   selectedIds, allChecked, realAllChecked, selectRealAll, allCheckedAlertVisible,
   clearSelection, toggleAllChecked, toggleSelect, total, checked, shiftEffectingIds, handleItemClick, shouldSelect,
   downloadItems, downloadItemsEach, downloadFile, trashLoading, trash, restoreLoading, restore,

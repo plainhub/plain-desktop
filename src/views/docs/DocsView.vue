@@ -4,8 +4,7 @@
     :selected-count="selectedIds.length"
     :all-checked="allChecked" :checked="checked" :real-all-checked="realAllChecked" :total="total"
     :filter-trash="!!filter.trash"
-    :can-trash="hasMediaTrash(app)"
-    :can-delete="hasMediaDelete(app)"
+    :can-delete="canDeleteSelection"
     :restore-query-loading="restoreLoading(getQuery())" :trash-query-loading="trashLoading(getQuery())"
     :limit="limit" :all-checked-alert-visible="allCheckedAlertVisible"
     :show-secondary="false"
@@ -45,7 +44,7 @@
         :shift-effecting-ids="shiftEffectingIds"
         :should-select="shouldSelect"
         :filter="filter"
-        :app="app"
+
         :data-type="dataType"
         :trash-loading="trashLoading"
         :restore-loading="restoreLoading"
@@ -81,7 +80,7 @@ import { deleteMediaItemsGQL, initMutation } from '@/lib/api/mutation'
 import type { IDoc } from '@/lib/interfaces'
 import { DataType } from '@/lib/data'
 import { getSortItems, isDoc } from '@/lib/file'
-import { hasMediaTrash, hasMediaDelete, hasMediaMove } from '@/lib/feature'
+import { hasMediaMove } from '@/lib/feature'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
 import { useMediaPage } from '@/hooks/media-page'
@@ -139,7 +138,7 @@ const {
   isPhone, mainStore, app, urlTokenKey,
   filter, page, q, limit, dataType,
   fileInput, dirFileInput, uploadChanged, dirUploadChanged, dropping, fileDragEnter, fileDragLeave,
-  deleteItems, confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems, bucketsMap, viewBucket, tags,
+  deleteItems, canDeleteSelection, confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems, bucketsMap, viewBucket, tags,
   selectedIds, allChecked, realAllChecked, selectRealAll, allCheckedAlertVisible,
   clearSelection, toggleAllChecked, toggleSelect, total, checked, shiftEffectingIds, handleItemClick, shouldSelect,
   downloadItems, downloadItemsEach, downloadFile, trashLoading, trash, restoreLoading, restore,

@@ -41,6 +41,7 @@ export interface ISource {
   size: number
   durationMs: number
   updatedAt?: string
+  trashed?: boolean
   type?: DataType
   fileId?: string
   extension?: string

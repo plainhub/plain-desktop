@@ -4,8 +4,7 @@
     :selected-count="selectedIds.length"
     :all-checked="allChecked" :checked="checked" :real-all-checked="realAllChecked" :total="total"
     :filter-trash="!!filter.trash"
-    :can-trash="hasMediaTrash(app)"
-    :can-delete="hasMediaDelete(app)"
+    :can-delete="canDeleteSelection"
     :restore-query-loading="restoreLoading(getQuery())" :trash-query-loading="trashLoading(getQuery())"
     :limit="limit" :all-checked-alert-visible="allCheckedAlertVisible"
     :show-secondary="isPhone && !checked"
@@ -91,7 +90,7 @@
 v-for="(item, i) in items" :key="item.id" :item="item" :index="i" :is-phone="isPhone"
         :selected-ids="selectedIds" :shift-effecting-ids="shiftEffectingIds" :should-select="shouldSelect"
         :buckets-map="bucketsMap" :filter="filter" :data-type="dataType" :tags="tags"
-        :main-store="mainStore" :app="app" :handle-item-click="handleItemClick" :handle-mouse-over="handleMouseOverMode"
+        :main-store="mainStore" :handle-item-click="handleItemClick" :handle-mouse-over="handleMouseOverMode"
         :toggle-select="toggleSelect" :view-bucket="viewBucket"
         :delete-item="deleteItem" :restore="restore" :download-file="downloadFile" :trash="trash"
         :view="view"
@@ -117,7 +116,7 @@ import type { IVideo, IVideoItem } from '@/lib/interfaces'
 import type { ISource } from '@/components/lightbox/types'
 import { DataType, Capability } from '@/lib/data'
 import { getSortItems, getVideoGroupByItems, isVideo } from '@/lib/file'
-import { hasFeature, hasMediaTrash, hasMediaDelete, hasMediaMove } from '@/lib/feature'
+import { hasFeature, hasMediaMove } from '@/lib/feature'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
 import { useGroupedScroll, type MediaGroup } from '@/hooks/grouped-scroll'
@@ -149,7 +148,7 @@ const {
   isPhone, mainStore, tempStore, app, urlTokenKey,
   filter, page, q, limit, dataType,
   fileInput, dirFileInput, uploadChanged, dirUploadChanged, dropping, fileDragEnter, fileDragLeave,
-  tags, bucketsMap, deleteItems, deleteItem, confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems, viewBucket,
+  tags, bucketsMap, deleteItems, canDeleteSelection, deleteItem, confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems, viewBucket,
   selectedIds, allChecked, realAllChecked, selectRealAll, allCheckedAlertVisible,
   clearSelection, toggleAllChecked, toggleSelect, total, checked, shiftEffectingIds, handleItemClick, shouldSelect, groupSelectionState, setGroupChecked, toggleGroupChecked,
   selectedIdSet, shiftEffectingIdSet,
@@ -203,7 +202,7 @@ const { loading, fetch } = initLazyQuery({
 })
 
 const sources = computed<ISource[]>(() => items.value.map((it: IVideoItem) => ({
-  src: getFileUrl(it.fileId), name: getFileName(it.path), durationMs: it.durationMs, size: it.size, path: it.path, data: it, type: dataType,
+  src: getFileUrl(it.fileId), name: getFileName(it.path), durationMs: it.durationMs, size: it.size, path: it.path, trashed: !!filter.trash, data: it, type: dataType,
 })) as ISource[])
 const { open: openMedia } = useOpenMedia(sources)
 function view(index: number) { openMedia(index) }

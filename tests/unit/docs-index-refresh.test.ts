@@ -16,7 +16,7 @@ vi.mock('@/lib/api/query', () => ({ docsGQL: 'docs', initLazyQuery: ({ handle }:
 } }))
 vi.mock('@/lib/api/mutation', () => ({ deleteMediaItemsGQL: 'delete', initMutation: () => ({ onDone: vi.fn() }) }))
 vi.mock('@/lib/file', () => ({ getSortItems: () => [], isDoc: () => true }))
-vi.mock('@/lib/feature', () => ({ hasMediaTrash: () => false, hasMediaDelete: () => false, hasMediaMove: () => false }))
+vi.mock('@/lib/feature', () => ({ hasMediaMove: () => false }))
 vi.mock('@/components/toaster', () => ({ default: vi.fn() }))
 vi.mock('@/hooks/media', () => ({ useMoveToFolder: () => ({}) }))
 vi.mock('@/hooks/media-page-actions', () => ({ useMediaPageActions: () => ({}) }))

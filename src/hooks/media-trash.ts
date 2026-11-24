@@ -4,10 +4,10 @@ import { DataType } from '@/lib/data'
 import emitter from '@/plugins/eventbus'
 
 import { reactive, computed, type Ref } from 'vue'
-import { hasMediaTrash, hasMediaDelete, hasMediaMove } from '@/lib/feature'
+import { hasMediaMove } from '@/lib/feature'
 import { storeToRefs } from 'pinia'
 import { useTempStore } from '@/stores/temp'
-import { isTrashedMediaPath } from '@/lib/media/trash-path'
+import { isSystemPhotoPath, isTrashedMediaPath } from '@/lib/media/trash-path'
 import type { ISource } from '@/components/lightbox/types'
 
 function useMediaTrashAction(action: 'trash' | 'restore') {
@@ -51,11 +51,11 @@ export function useFileTrashState(current: (() => ISource | undefined) | Ref<ISo
   const { app } = storeToRefs(useTempStore())
   const source = computed(() => typeof current === 'function' ? current() : current.value)
   const type = computed(() => source.value?.type as DataType | undefined)
-  const isTrashed = computed(() => isTrashedMediaPath(source.value?.path))
+  const isTrashed = computed(() => source.value?.trashed ?? isTrashedMediaPath(source.value?.path))
   const isMedia = computed(() => !!type.value && [DataType.VIDEO, DataType.AUDIO, DataType.IMAGE, DataType.DOC].includes(type.value))
-  const canTrash = computed(() => isMedia.value && hasMediaTrash(app.value))
-  const canDelete = computed(() => !isMedia.value || hasMediaDelete(app.value))
-  const canMove = computed(() => !isMedia.value || hasMediaMove(app.value))
+  const canTrash = isMedia
+  const canDelete = computed(() => !isSystemPhotoPath(source.value?.path))
+  const canMove = computed(() => !isSystemPhotoPath(source.value?.path) && (!isMedia.value || hasMediaMove(app.value)))
 
   return { isTrashed, canTrash, canDelete, canMove }
 }

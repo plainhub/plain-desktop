@@ -393,7 +393,6 @@ fn open_desktop_core(data: &Path, cache: &Path) -> Result<ContentServer, String>
     }
     let mut config = plain_rs::infrastructure::platform::startup::config();
     config.cache_dir = Some(cache.to_string_lossy().into_owned());
-    config.filesystem_media_trash = true;
     let prefs = Arc::new(Prefs::load(&paths.prefs()).map_err(|error| error.to_string())?);
     ContentServer::start_core_with_config(data, &plain_libs::crypto::gen_token(), prefs, config)
 }

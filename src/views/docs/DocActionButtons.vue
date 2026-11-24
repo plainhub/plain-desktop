@@ -1,10 +1,10 @@
 <template>
   <div class="actions">
     <template v-if="filter.trash">
-      <v-icon-button v-if="hasMediaDelete(app)" :id="deleteAnchor" v-tooltip="$t('delete')" class="sm" :aria-label="$t('delete')" @click.stop="confirming = true">
+      <v-icon-button :id="deleteAnchor" v-tooltip="$t('delete')" class="sm" :aria-label="$t('delete')" @click.stop="confirming = true">
         <i-material-symbols:delete-forever-outline-rounded />
       </v-icon-button>
-      <v-icon-button v-if="hasMediaTrash(app)" v-tooltip="$t('restore')" class="sm" :loading="restoreLoading(`ids:${item.id}`)" @click.stop="restore(dataType, `ids:${item.id}`)">
+      <v-icon-button v-tooltip="$t('restore')" class="sm" :loading="restoreLoading(`ids:${item.id}`)" @click.stop="restore(dataType, `ids:${item.id}`)">
         <i-material-symbols:restore-from-trash-outline-rounded />
       </v-icon-button>
       <v-icon-button v-tooltip="$t('download')" class="sm" @click.stop="$emit('download-file', item.path)">
@@ -13,16 +13,12 @@
     </template>
     <template v-else>
       <v-icon-button
-        v-if="hasMediaTrash(app)"
         v-tooltip="$t('move_to_trash')"
         class="sm"
         :loading="trashLoading(`ids:${item.id}`)"
         @click.stop="trash(dataType, `ids:${item.id}`)"
       >
         <i-material-symbols:delete-outline-rounded />
-      </v-icon-button>
-      <v-icon-button v-else-if="hasMediaDelete(app)" :id="deleteAnchor" v-tooltip="$t('delete')" class="sm" :aria-label="$t('delete')" @click.stop="confirming = true">
-        <i-material-symbols:delete-forever-outline-rounded />
       </v-icon-button>
       <v-icon-button v-tooltip="$t('download')" class="sm" @click.stop="$emit('download-file', item.path)">
         <i-material-symbols:download-rounded />
@@ -74,15 +70,13 @@
 
 <script setup lang="ts">
 import { ref, useId } from 'vue'
-import type { IDoc, IFilter, IApp, ITag } from '@/lib/interfaces'
+import type { IDoc, IFilter, ITag } from '@/lib/interfaces'
 import { DataType } from '@/lib/data'
-import { hasMediaTrash, hasMediaDelete } from '@/lib/feature'
 import { formatFileSize, formatDateTimeFull } from '@/lib/format'
 
 const props = defineProps<{
   item: IDoc
   filter: IFilter
-  app: IApp
   dataType: DataType
   tags: ITag[]
   trashLoading: (query: string) => boolean

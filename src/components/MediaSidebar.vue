@@ -15,7 +15,6 @@
           </template>
         </SidebarListItem>
         <SidebarListItem
-          v-if="hasMediaTrash(app)"
           class="media-trash-row"
           :title="$t('trash')"
           :active="trash"
@@ -51,7 +50,6 @@ import type { PropType } from 'vue'
 import { DataType } from '@/lib/data'
 import type { MediaDataType } from '@/lib/media/library-updates'
 import { isLocalMode } from '@/lib/device/local-mode'
-import { hasMediaTrash } from '@/lib/feature'
 import { useMediaSidebar } from '@/hooks/media-sidebar'
 
 const props = defineProps({
@@ -59,7 +57,7 @@ const props = defineProps({
   gql: { type: String, required: true },
 })
 
-const { app, total, totalTrash, trash, selectedTagId, selectedBucketId, selectedExt, extGroups, viewAll, viewTrash, viewByExt } = useMediaSidebar(props.type, props.gql)
+const { total, totalTrash, trash, selectedTagId, selectedBucketId, selectedExt, extGroups, viewAll, viewTrash, viewByExt } = useMediaSidebar(props.type, props.gql)
 </script>
 
 <style lang="scss" scoped>

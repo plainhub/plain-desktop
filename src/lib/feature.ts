@@ -5,11 +5,5 @@ import { Capability } from '@/lib/data'
 export const hasFeature = (feature: Capability, features: string[] | undefined) =>
   !!features?.includes(feature)
 
-export const hasMediaTrash = (app: { capabilities?: string[] } | undefined) =>
-  hasFeature(Capability.MEDIA_TRASH, app?.capabilities)
-
-export const hasMediaDelete = (app: { capabilities?: string[] } | undefined) =>
-  hasFeature(Capability.MEDIA_DELETE, app?.capabilities)
-
 export const hasMediaMove = (app: { capabilities?: string[] } | undefined) =>
   hasFeature(Capability.MEDIA_MOVE, app?.capabilities)

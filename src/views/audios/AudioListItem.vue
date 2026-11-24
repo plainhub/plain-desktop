@@ -32,7 +32,6 @@
       :animating-ids="animatingIds"
       :play-loading="playLoading"
       :play-path="playPath"
-      :app="app"
       :delete-item="deleteItem"
       :restore="restore"
       :download-file="downloadFile"
@@ -97,7 +96,6 @@
         :animating-ids="animatingIds"
         :play-loading="playLoading"
         :play-path="playPath"
-        :app="app"
         :delete-item="deleteItem"
         :restore="restore"
         :download-file="downloadFile"
@@ -136,7 +134,6 @@ interface Props {
   playLoading: boolean
   playPath: string
   mainStore: any
-  app: any
   // Functions passed from parent
   handleItemClick: (event: MouseEvent, item: IAudioWithFileId, index: number, callback: () => void) => void
   handleMouseOver: (event: MouseEvent, index: number) => void

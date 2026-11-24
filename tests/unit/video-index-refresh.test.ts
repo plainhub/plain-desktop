@@ -16,7 +16,7 @@ vi.mock('@/lib/api/query', () => ({
 }))
 vi.mock('@/lib/api/file', () => ({ getFileId: vi.fn(), getFileUrl: vi.fn(), getFileExtension: vi.fn(), getFileName: vi.fn() }))
 vi.mock('@/lib/file', () => ({ getSortItems: () => [], getVideoGroupByItems: () => [], isVideo: () => true, getImageSortItems: () => [], getImageGroupByItems: () => [], isImage: () => true, getGroupDateKey: () => '2026-01-01', formatGroupDateLabel: (day: string) => day }))
-vi.mock('@/lib/feature', () => ({ hasFeature: () => true, hasMediaTrash: () => false, hasMediaDelete: () => false, hasMediaMove: () => false }))
+vi.mock('@/lib/feature', () => ({ hasFeature: () => true, hasMediaMove: () => false }))
 vi.mock('@/components/toaster', () => ({ default: vi.fn() }))
 vi.mock('@/hooks/media', () => ({ useMoveToFolder: () => ({}) }))
 vi.mock('@/hooks/media-page-actions', () => ({ useMediaPageActions: () => ({}) }))

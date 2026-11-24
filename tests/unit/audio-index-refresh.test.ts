@@ -7,7 +7,7 @@ vi.mock('@/stores/temp', () => ({ useTempStore: () => ({ audioPlaying: ref(false
 vi.mock('pinia', () => ({ storeToRefs: (store: any) => toRefs(reactive(store)) }))
 vi.mock('@/lib/api/query', () => ({ audiosGQL: 'audios', initLazyQuery: ({ handle }: any) => { state.handle = handle; return { loading: state.loading, fetch: state.fetch } } }))
 vi.mock('@/lib/api/file', () => ({ getFileId: (_: unknown, path: string) => path }))
-vi.mock('@/lib/feature', () => ({ hasMediaTrash: () => false, hasMediaDelete: () => false, hasMediaMove: () => false }))
+vi.mock('@/lib/feature', () => ({ hasMediaMove: () => false }))
 vi.mock('@/lib/file', () => ({ getSortItems: () => [], isAudio: () => true }))
 vi.mock('@/components/toaster', () => ({ default: vi.fn() }))
 vi.mock('@/hooks/audio-playlist-store', () => ({ audioPlayback: ref({}) }))

@@ -2,15 +2,14 @@ import { h, ref, type SetupContext } from 'vue'
 import { expect, it, vi } from 'vitest'
 import MediaSidebar from '@/components/MediaSidebar.vue'
 import SidebarListItem from '@/components/SidebarListItem.vue'
-import { Capability, DataType } from '@/lib/data'
+import { DataType } from '@/lib/data'
 import { click, clientTemplate, content, flush, nodes, renderView } from '../helpers/vue-node-renderer'
 
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => local.value }))
 vi.mock('@/hooks/media-sidebar', () => ({ useMediaSidebar: () => ({
-  app, total: 42, totalTrash, trash: true, viewTrash,
+  total: 42, totalTrash, trash: true, viewTrash,
 }) }))
 
-const app = { capabilities: [Capability.MEDIA_TRASH] }
 const local = ref(false)
 const totalTrash = ref(18)
 const viewTrash = vi.fn()

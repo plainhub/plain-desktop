@@ -20,7 +20,7 @@ import emitter from '@/plugins/eventbus'
 import { type DataType } from '@/lib/data'
 import { getDirFromPath } from '@/lib/file'
 import { generateDownloadFileName } from '@/lib/format'
-import { hasMediaTrash } from '@/lib/feature'
+import { isSystemPhotoPath } from '@/lib/media/trash-path'
 import { subscribeMediaLibraryUpdates, type MediaDataType } from '@/lib/media/library-updates'
 import { createRefreshScheduler } from '@/lib/refresh-scheduler'
 import { deleteMediaItemsGQL } from '@/lib/api/mutation'
@@ -66,6 +66,9 @@ export function useMediaPage(options: MediaPageOptions) {
   })
   const { view: viewBucket } = useBuckets(dataType)
   const sel = useSelectable(items)
+  const canDeleteSelection = computed(() => !items.value.some(item =>
+    (sel.realAllChecked.value || sel.selectedIds.value.includes(item.id)) && isSystemPhotoPath(item.path),
+  ))
   const deleteItem = useDeleteMediaItem()
   const { deleteItems, confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems } = useDelete(
     deleteMediaItemsGQL, sel, q, (query) => {
@@ -127,9 +130,11 @@ export function useMediaPage(options: MediaPageOptions) {
     ? selectAllQuery(q.value)
     : `ids:${sel.selectedIds.value.join(',')}`
   const trashInEditMode = () => {
-    hasMediaTrash(app.value)
-      ? trash(dataType, getQuery())
-      : deleteItems()
+    if (filter.trash) {
+      if (canDeleteSelection.value) deleteItems()
+    } else {
+      trash(dataType, getQuery())
+    }
   }
   const { keyDown: pageKeyDown, keyUp: pageKeyUp } = useKeyEvents(
     sel.total, limit, page,
@@ -266,7 +271,7 @@ export function useMediaPage(options: MediaPageOptions) {
     isPhone, mainStore, tempStore, app, urlTokenKey, noDataKey,
     filter, page, q, sorting, limit, dataType,
     ...upload,
-    tags, buckets, bucketsMap, deleteItems, deleteItem, confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems, viewBucket,
+    tags, buckets, bucketsMap, deleteItems, canDeleteSelection, deleteItem, confirmingDelete, deleteCount, deleteLoading, doDeleteItems, cancelDeleteItems, viewBucket,
     ...sel, downloadItems, downloadItemsEach, downloadFile,
     trashLoading, trash, restoreLoading, restore,
     gotoPage, onChangePageSize, getQuery, sort, handleMouseOverMode, refreshItems,

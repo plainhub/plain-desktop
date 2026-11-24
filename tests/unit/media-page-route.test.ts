@@ -40,7 +40,6 @@ vi.mock('@/lib/api/mutation', () => ({
 }))
 vi.mock('@/lib/file', () => ({ getDirFromPath: vi.fn() }))
 vi.mock('@/lib/format', () => ({ generateDownloadFileName: vi.fn() }))
-vi.mock('@/lib/feature', () => ({ hasMediaTrash: () => false }))
 import { useMediaPage, type MediaPageOptions } from '@/hooks/media-page'
 import { initLazyQuery } from '@/lib/api/query'
 import { encodeBase64 } from '@/lib/strutil'

@@ -8,11 +8,6 @@ import VOutlinedButton from '@/components/base/VOutlinedButton.vue'
 import { DataType } from '@/lib/data'
 import { click, clientTemplate, content, flush, nodes, renderView } from '../helpers/vue-node-renderer'
 
-vi.mock('@/lib/feature', () => ({
-  hasMediaDelete: () => true,
-  hasMediaTrash: (app: { capabilities: string[] }) => app.capabilities.includes('trash'),
-}))
-
 clientTemplate(DocActionButtons, 'src/views/docs/DocActionButtons.vue')
 clientTemplate(VDropdownMenu, 'src/components/base/VDropdownMenu.vue')
 clientTemplate(DeleteConfirmPopup, 'src/components/base/DeleteConfirmPopup.vue')
@@ -26,7 +21,7 @@ it('confirms permanent deletion in the anchored Files popup and preserves the do
   const onDeleteItem = vi.fn()
   const empty = { render: () => null }
   const view = renderView(DocActionButtons, {
-    item, app: { capabilities: [] }, filter: { trash: false }, dataType: DataType.DOC, tags: [],
+    item, filter: { trash: true }, dataType: DataType.DOC, tags: [],
     trash: vi.fn(), restore: vi.fn(), restoreLoading: () => false, trashLoading: () => false, deleteItem, onDeleteItem,
   }, {
     VIconButton, VFilledButton, VOutlinedButton, DeleteConfirmPopup, VDropdownMenu, VDropdown: empty, TagRelationsDropdown: empty, VCircularProgress: empty,

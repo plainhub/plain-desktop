@@ -23,7 +23,6 @@
       :filter="filter"
       :data-type="dataType"
       :tags="tags"
-      :app="app"
       :delete-item="deleteItem"
       :restore="restore"
       :download-file="downloadFile"
@@ -72,7 +71,6 @@
         :filter="filter"
         :data-type="dataType"
         :tags="tags"
-        :app="app"
         :delete-item="deleteItem"
         :restore="restore"
         :download-file="downloadFile"
@@ -103,7 +101,6 @@ interface Props {
   dataType: DataType
   tags: ITag[]
   mainStore: any
-  app: any
   // Functions passed from parent
   handleItemClick: (event: MouseEvent, item: IImageItem, index: number, callback: () => void) => void
   handleMouseOver: (event: MouseEvent, index: number) => void
