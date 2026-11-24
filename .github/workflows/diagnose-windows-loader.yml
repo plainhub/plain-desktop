@@ -1,0 +1,81 @@
+name: Diagnose Windows test loader
+on:
+  push:
+    branches: [diagnose/windows-loader-45445822661]
+permissions:
+  contents: read
+jobs:
+  windows-loader:
+    runs-on: windows-2022
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.99.0
+      - name: Run the original screen capture tests
+        id: tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml --locked --lib commands::screen_capture::
+      - name: Identify unresolved DLL imports in the test program
+        if: failure() && steps.tests.outcome == 'failure'
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem target/debug/deps/plainapp_lib-*.exe | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (!$exe) { throw 'The Windows test executable was not built.' }
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $dumpbin = & $vswhere -latest -products '*' -find 'VC\Tools\MSVC\**\bin\Hostx64\x64\dumpbin.exe' | Select-Object -First 1
+          if (!$dumpbin) { throw 'dumpbin not found.' }
+          Add-Type @'
+          using System;
+          using System.Runtime.InteropServices;
+          public static class WindowsImportProbe {
+            [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
+            public static extern IntPtr LoadLibraryExW(string path, IntPtr file, uint flags);
+            [DllImport("kernel32.dll", CharSet = CharSet.Ansi, ExactSpelling = true, SetLastError = true)]
+            public static extern IntPtr GetProcAddress(IntPtr dll, string name);
+            [DllImport("kernel32.dll", EntryPoint = "GetProcAddress", ExactSpelling = true, SetLastError = true)]
+            public static extern IntPtr GetProcAddressByOrdinal(IntPtr dll, IntPtr ordinal);
+            [DllImport("kernel32.dll", ExactSpelling = true)]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            public static extern bool FreeLibrary(IntPtr dll);
+          }
+          '@
+          $queue = [Collections.Generic.Queue[string]]::new()
+          $queue.Enqueue($exe.FullName)
+          $seen = @{}
+          while ($queue.Count) {
+            $binary = $queue.Dequeue()
+            if ($seen.ContainsKey($binary)) { continue }
+            $seen[$binary] = $true
+            $dll = ''
+            $module = [IntPtr]::Zero
+            Write-Output "Imports: $([IO.Path]::GetFileName($binary))"
+            try {
+              foreach ($line in (& $dumpbin /nologo /imports $binary)) {
+                if ($line -match '^\s+section contains the following delay load imports\s*:') { break }
+                if ($line -match '^    ([\w.+-]+\.dll)\s*$') {
+                  if ($module -ne [IntPtr]::Zero) { [void][WindowsImportProbe]::FreeLibrary($module) }
+                  $dll = $Matches[1]
+                  $local = Join-Path $exe.DirectoryName $dll
+                  $path = if (Test-Path -LiteralPath $local) { $queue.Enqueue($local); $local } else { $dll }
+                  $flags = if ($path -eq $dll) { 0x800 } else { 0x1100 }
+                  $module = [WindowsImportProbe]::LoadLibraryExW($path, [IntPtr]::Zero, $flags)
+                  $errorCode = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
+                  if ($module -eq [IntPtr]::Zero) {
+                    Write-Output "DLL LOAD FAILED: ${dll} (Win32 $errorCode)"
+                    $systemPath = Join-Path "$env:windir\System32" $dll
+                    if (Test-Path -LiteralPath $systemPath) { $queue.Enqueue($systemPath) }
+                  }
+                } elseif ($module -ne [IntPtr]::Zero -and $line -match '^\s+[0-9A-F]+\s+([A-Za-z_?@][^\s]*)\s*$') {
+                  $symbol = $Matches[1]
+                  if ([WindowsImportProbe]::GetProcAddress($module, $symbol) -eq [IntPtr]::Zero) { Write-Output "EXPORT MISSING: $dll!$symbol" }
+                } elseif ($module -ne [IntPtr]::Zero -and $line -match '^\s+Ordinal\s+(\d+)\s*$') {
+                  $ordinal = [int]$Matches[1]
+                  if ([WindowsImportProbe]::GetProcAddressByOrdinal($module, [IntPtr]::new($ordinal)) -eq [IntPtr]::Zero) { Write-Output "EXPORT MISSING: $dll ordinal $ordinal" }
+                }
+              }
+            } finally {
+              if ($module -ne [IntPtr]::Zero) { [void][WindowsImportProbe]::FreeLibrary($module) }
+            }
+          }
+          Get-WinEvent -FilterHashtable @{LogName='System'; ProviderName='Application Popup'; StartTime=(Get-Date).AddMinutes(-12)} -ErrorAction SilentlyContinue |
+            Where-Object Message -Like '*plainapp_lib*' | Select-Object -First 4 -ExpandProperty Message
+          exit 0
