@@ -15,7 +15,7 @@
           </template>
         </SidebarListItem>
         <SidebarListItem
-          v-if="hasMediaTrash(app, props.type)"
+          v-if="hasMediaTrash(app)"
           class="media-trash-row"
           :title="$t('trash')"
           :active="trash"

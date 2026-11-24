@@ -62,6 +62,14 @@ async fn fresh_desktop_defaults_once_and_preserves_explicit_off_on_restart() {
     second.shutdown().await;
 }
 
+#[tokio::test]
+async fn desktop_declares_filesystem_media_trash_at_core_startup() {
+    let fixture = Fixture::new();
+    let core = fixture.open();
+    assert!(core.runtime().host.startup().filesystem_media_trash);
+    core.shutdown().await;
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn existing_data_without_permissions_is_not_enabled() {
     let fixture = Fixture::new();

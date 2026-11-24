@@ -53,7 +53,7 @@ export function useFileTrashState(current: (() => ISource | undefined) | Ref<ISo
   const type = computed(() => source.value?.type as DataType | undefined)
   const isTrashed = computed(() => isTrashedMediaPath(source.value?.path))
   const isMedia = computed(() => !!type.value && [DataType.VIDEO, DataType.AUDIO, DataType.IMAGE, DataType.DOC].includes(type.value))
-  const canTrash = computed(() => isMedia.value && hasMediaTrash(app.value, type.value))
+  const canTrash = computed(() => isMedia.value && hasMediaTrash(app.value))
   const canDelete = computed(() => !isMedia.value || hasMediaDelete(app.value))
   const canMove = computed(() => !isMedia.value || hasMediaMove(app.value))
 

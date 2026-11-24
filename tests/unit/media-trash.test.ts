@@ -30,27 +30,6 @@ it('refreshes instead of removing every selected row when only part of a move su
   expect(emitter.emit).toHaveBeenCalledWith('media_items_actioned', { type: DataType.IMAGE, action: 'trash', query: '' })
 })
 
-it('uses the existing Trash capability only for the local image gallery', async () => {
-  const { hasMediaTrash } = await import('@/lib/feature')
-  const { Capability } = await import('@/lib/data')
-  const { setRemoteClientId, clearRemoteClientId } = await import('@/lib/device/client-id')
-  vi.stubGlobal('__IS_TAURI__', true)
-  const app = { capabilities: [Capability.MEDIA_TRASH] }
-  try {
-    clearRemoteClientId()
-    expect(hasMediaTrash(app, DataType.IMAGE)).toBe(true)
-    for (const type of [DataType.VIDEO, DataType.AUDIO, DataType.DOC]) {
-      expect(hasMediaTrash(app, type)).toBe(false)
-    }
-    setRemoteClientId('fixture-remote')
-    expect(hasMediaTrash(app, DataType.VIDEO)).toBe(true)
-    expect(hasMediaTrash({ capabilities: [] }, DataType.IMAGE)).toBe(false)
-  } finally {
-    clearRemoteClientId()
-    vi.unstubAllGlobals()
-  }
-})
-
 it('identifies local trashed image previews without blocking lookalike folders', async () => {
   const { isTrashedMediaPath } = await import('@/lib/media/trash-path')
   expect(isTrashedMediaPath('/volume/.plain-trash/album/image.png')).toBe(true)

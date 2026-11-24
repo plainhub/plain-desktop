@@ -4,7 +4,7 @@
     :selected-count="selectedIds.length"
     :all-checked="allChecked" :checked="checked" :real-all-checked="realAllChecked" :total="total"
     :filter-trash="!!filter.trash"
-    :can-trash="hasMediaTrash(app, dataType)"
+    :can-trash="hasMediaTrash(app)"
     :can-delete="hasMediaDelete(app)"
     :restore-query-loading="restoreLoading(getQuery())" :trash-query-loading="trashLoading(getQuery())"
     :limit="limit" :all-checked-alert-visible="allCheckedAlertVisible"

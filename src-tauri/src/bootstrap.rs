@@ -391,7 +391,11 @@ fn open_desktop_core(data: &Path, cache: &Path) -> Result<ContentServer, String>
             .and_then(|prefs| prefs.set(API_PERMISSIONS, AccessFeature::FILE_FEATURES))
             .map_err(|error| error.to_string())?;
     }
-    ContentServer::open_with_cache(data, cache)
+    let mut config = plain_rs::infrastructure::platform::startup::config();
+    config.cache_dir = Some(cache.to_string_lossy().into_owned());
+    config.filesystem_media_trash = true;
+    let prefs = Arc::new(Prefs::load(&paths.prefs()).map_err(|error| error.to_string())?);
+    ContentServer::start_core_with_config(data, &plain_libs::crypto::gen_token(), prefs, config)
 }
 
 #[cfg(test)]

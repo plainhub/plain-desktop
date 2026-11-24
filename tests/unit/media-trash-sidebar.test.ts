@@ -1,16 +1,16 @@
-import { h, ref } from 'vue'
+import { h, ref, type SetupContext } from 'vue'
 import { expect, it, vi } from 'vitest'
 import MediaSidebar from '@/components/MediaSidebar.vue'
 import SidebarListItem from '@/components/SidebarListItem.vue'
-import { DataType } from '@/lib/data'
+import { Capability, DataType } from '@/lib/data'
 import { click, clientTemplate, content, flush, nodes, renderView } from '../helpers/vue-node-renderer'
 
 vi.mock('@/lib/device/local-mode', () => ({ isLocalMode: () => local.value }))
-vi.mock('@/lib/feature', () => ({ hasMediaTrash: () => true }))
 vi.mock('@/hooks/media-sidebar', () => ({ useMediaSidebar: () => ({
-  app: {}, total: 42, totalTrash, trash: true, viewTrash,
+  app, total: 42, totalTrash, trash: true, viewTrash,
 }) }))
 
+const app = { capabilities: [Capability.MEDIA_TRASH] }
 const local = ref(false)
 const totalTrash = ref(18)
 const viewTrash = vi.fn()
@@ -18,14 +18,32 @@ const viewTrash = vi.fn()
 clientTemplate(MediaSidebar, 'src/components/MediaSidebar.vue')
 clientTemplate(SidebarListItem, 'src/components/SidebarListItem.vue')
 
+const components = {
+  LeftSidebar: { setup: (_: unknown, { slots }: SetupContext) => () => h('aside', slots.body?.()) },
+  SidebarListItem,
+  BucketFilter: () => null,
+  ExtFilter: () => null,
+  TagFilter: () => null,
+}
+
+it.each([DataType.IMAGE, DataType.VIDEO, DataType.AUDIO, DataType.DOC])('renders the shared %s Trash entry on Desktop and Web', async (type) => {
+  const view = renderView(MediaSidebar, { type, gql: 'fixture' }, components)
+  const row = () => nodes(view.root).find(node => node.tag === 'li' && content(node).startsWith('trash'))
+  try {
+    local.value = true
+    await flush()
+    expect(row()).toBeDefined()
+    local.value = false
+    await flush()
+    expect(row()).toBeDefined()
+  } finally {
+    local.value = false
+    view.unmount()
+  }
+})
+
 it('anchors remote count help to the whole Trash row and leaves local counts plain', async () => {
-  const view = renderView(MediaSidebar, { type: DataType.IMAGE, gql: 'fixture' }, {
-    LeftSidebar: { setup: (_, { slots }) => () => h('aside', slots.body?.()) },
-    SidebarListItem,
-    BucketFilter: () => null,
-    ExtFilter: () => null,
-    TagFilter: () => null,
-  })
+  const view = renderView(MediaSidebar, { type: DataType.IMAGE, gql: 'fixture' }, components)
   const row = () => nodes(view.root).find(node => node.tag === 'li' && content(node).startsWith('trash'))!
   const end = () => row().children.find(node => node.props.class === 'end')
   try {

@@ -4,7 +4,7 @@
       <v-icon-button v-if="hasMediaDelete(app)" :id="deleteAnchor" v-tooltip="$t('delete')" class="sm" :aria-label="$t('delete')" @click.stop="confirming = true">
         <i-material-symbols:delete-forever-outline-rounded />
       </v-icon-button>
-      <v-icon-button v-if="hasMediaTrash(app, dataType)" v-tooltip="$t('restore')" class="sm" :loading="restoreLoading(`ids:${item.id}`)" @click.stop="restore(dataType, `ids:${item.id}`)">
+      <v-icon-button v-if="hasMediaTrash(app)" v-tooltip="$t('restore')" class="sm" :loading="restoreLoading(`ids:${item.id}`)" @click.stop="restore(dataType, `ids:${item.id}`)">
         <i-material-symbols:restore-from-trash-outline-rounded />
       </v-icon-button>
       <v-icon-button v-tooltip="$t('download')" class="sm" @click.stop="$emit('download-file', item.path)">
@@ -13,7 +13,7 @@
     </template>
     <template v-else>
       <v-icon-button
-        v-if="hasMediaTrash(app, dataType)"
+        v-if="hasMediaTrash(app)"
         v-tooltip="$t('move_to_trash')"
         class="sm"
         :loading="trashLoading(`ids:${item.id}`)"
