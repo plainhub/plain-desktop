@@ -63,18 +63,3 @@ export enum ImageSearchStatusType {
   READY = 'READY',
   ERROR = 'ERROR',
 }
-
-export enum ChannelSystemMessageType {
-  INVITE = 'INVITE',
-  INVITE_ACCEPT = 'INVITE_ACCEPT',
-  INVITE_DECLINE = 'INVITE_DECLINE',
-  UPDATE = 'UPDATE',
-  KICK = 'KICK',
-  LEAVE = 'LEAVE',
-}
-
-export enum ChannelSystemMessageAction {
-  INVITE = 'INVITE',
-  UPDATE = 'UPDATE',
-  KICK = 'KICK',
-}

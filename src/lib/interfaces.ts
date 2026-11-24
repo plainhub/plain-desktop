@@ -2,7 +2,7 @@ import type { Fragment_AppFragment } from './api/graphql/operations'
 export type AccessFeature = Fragment_AppFragment['access'][number]
 import type { Capability } from './data'
 import type { IFile } from './file'
-import { ChannelStatus, ChannelSystemMessageAction, ChannelSystemMessageType, DeviceType, DriveType, ImageSearchStatusType, MemberStatus, PackageType, PeerStatus, ScreenMirrorMode } from './status'
+import { ChannelStatus, DeviceType, DriveType, ImageSearchStatusType, MemberStatus, PackageType, PeerStatus, ScreenMirrorMode } from './status'
 
 export interface IData {
   id: string

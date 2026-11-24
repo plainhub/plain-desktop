@@ -8,6 +8,5 @@ export enum SignaturePurpose {
   PeerRequest = 'PEER_REQUEST',
   PeerStatus = 'PEER_STATUS',
   QrPairAccept = 'QR_PAIR_ACCEPT',
-  ChannelMembership = 'CHANNEL_MEMBERSHIP',
   PeerTlsCertificate = 'PEER_TLS_CERTIFICATE',
 }
