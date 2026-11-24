@@ -79,3 +79,22 @@ jobs:
           Get-WinEvent -FilterHashtable @{LogName='System'; ProviderName='Application Popup'; StartTime=(Get-Date).AddMinutes(-12)} -ErrorAction SilentlyContinue |
             Where-Object Message -Like '*plainapp_lib*' | Select-Object -First 4 -ExpandProperty Message
           exit 0
+      - name: Verify the manifest in the test executable and app
+        shell: pwsh
+        run: |
+          cargo build --manifest-path src-tauri/Cargo.toml --locked --bin plainapp-desktop
+          if ($LASTEXITCODE) { throw "Desktop build failed: $LASTEXITCODE" }
+          $exe = Get-ChildItem target/debug/deps/plainapp_lib-*.exe | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          $app = Get-Item target/debug/plainapp-desktop.exe
+          $sdk = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits/10/bin'
+          $mt = Get-ChildItem "$sdk/*/x64/mt.exe" | Sort-Object FullName -Descending | Select-Object -First 1
+          if (!$exe -or !$app -or !$mt) { throw 'Test executable, app or mt.exe not found.' }
+          foreach ($binary in @($exe, $app)) {
+            $path = Join-Path $env:RUNNER_TEMP "$($binary.Name).manifest"
+            & $mt.FullName "-inputresource:$($binary.FullName);#1" "-out:$path"
+            if ($LASTEXITCODE) { throw "Manifest extraction failed: $($binary.Name)" }
+            [xml]$manifest = Get-Content -LiteralPath $path -Raw
+            $commonControls = $manifest.SelectSingleNode("//*[local-name()='assemblyIdentity' and @name='Microsoft.Windows.Common-Controls' and @version='6.0.0.0']")
+            if (!$commonControls) { throw "Common Controls v6 manifest missing: $($binary.Name)" }
+            Write-Output "Common Controls v6 manifest verified: $($binary.Name)"
+          }
