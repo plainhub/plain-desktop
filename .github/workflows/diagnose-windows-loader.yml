@@ -13,7 +13,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.99.0
       - name: Run the original screen capture tests
         id: tests
-        run: cargo test --manifest-path src-tauri/Cargo.toml --locked --lib commands::screen_capture::
+        run: 'cargo test --manifest-path src-tauri/Cargo.toml --locked --lib commands::screen_capture::'
       - name: Identify unresolved DLL imports in the test program
         if: failure() && steps.tests.outcome == 'failure'
         shell: pwsh
