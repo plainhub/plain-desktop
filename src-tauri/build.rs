@@ -40,5 +40,27 @@ fn main() {
         println!("cargo:rustc-link-lib=static=plain_macos_ble");
         println!("cargo:rustc-link-lib=framework=CoreBluetooth");
     }
-    tauri_build::build();
+    build_tauri();
+}
+
+fn build_tauri() {
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows")
+        || std::env::var("CARGO_CFG_TARGET_ENV").as_deref() != Ok("msvc")
+    {
+        tauri_build::build();
+        return;
+    }
+
+    // Link the manifest into both the app and the unit-test executable.
+    // TaskDialogIndirect is only exported by Common Controls v6.
+    let manifest =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("windows-app-manifest.xml");
+    println!("cargo:rerun-if-changed={}", manifest.display());
+    println!("cargo:rustc-link-arg=/MANIFEST:EMBED");
+    println!("cargo:rustc-link-arg=/MANIFESTUAC:NO");
+    println!("cargo:rustc-link-arg=/MANIFESTINPUT:{}", manifest.display());
+
+    let windows = tauri_build::WindowsAttributes::new_without_app_manifest();
+    tauri_build::try_build(tauri_build::Attributes::new().windows_attributes(windows))
+        .expect("Run Tauri build");
 }
