@@ -7,7 +7,6 @@ it('uses the generated Rust signature purposes without duplicate domains', () =>
   const values = Object.values(SignaturePurpose)
   expect(new Set(values).size).toBe(values.length)
   expect(values.sort()).toEqual([
-    'CHANNEL_MEMBERSHIP',
     'PAIR_REQUEST',
     'PAIRING_ACCEPT',
     'PAIRING_REJECT',
