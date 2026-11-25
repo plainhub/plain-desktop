@@ -1,3 +1,4 @@
+use plain_rs::features::access::AccessFeature;
 use plain_rs::features::capability::Capability;
 use std::sync::Arc;
 
@@ -86,10 +87,11 @@ impl Runtime {
                 Ok(Value::Bool(true))
             }
             "systemRequestAccess" => Ok(plain_libs::serde_json::json!(false)),
-            "systemAccessFacts" => plain_rs::infrastructure::host::access_facts::facts(
-                &plain_rs::features::access::AccessFeature::FILE_FEATURES,
-                params,
-            ),
+            "systemAccessFacts" => {
+                let mut granted = AccessFeature::FILE_FEATURES.to_vec();
+                granted.push(AccessFeature::Clipboard);
+                plain_rs::infrastructure::host::access_facts::facts(&granted, params)
+            }
             method if plain_server::native::audio::handles(method) => {
                 self.core.native_audio()?.handle(method, params).await
             }
