@@ -8,6 +8,10 @@ export interface SubscriptionOperation {
   access: readonly AccessFeature[]
   capability?: Capability
 }
+export const clipboardHistoryChanged: SubscriptionOperation = {
+  field: 'clipboardHistoryChanged', document: 'subscription { clipboardHistoryChanged }',
+  access: ['CLIPBOARD'], capability: Capability.CLIPBOARD,
+}
 export const subscriptionOperations: readonly SubscriptionOperation[] = [
   { field: 'httpServerChanged', document: 'subscription { httpServerChanged { state { revision restarting httpPort httpsPort error } addresses onlineClients remoteAccess mdnsHostname } }', access: [], capability: Capability.HTTP_SERVER },
   {field: 'pairingRequested', document: 'subscription { pairingRequested { fromId fromName fromIp deviceType verificationCode identityChanged } }', access: []},
@@ -42,5 +46,6 @@ export const subscriptionOperations: readonly SubscriptionOperation[] = [
   {"field": "uploadMergeResult", "document": "subscription { uploadMergeResult { fileId ok value mergedSize error } }", "access": ["FILES"]},
   {"field": "smsChanged", "document": "subscription { smsChanged { uris } }", "access": ["SMS"], "capability": Capability.TELEPHONY},
   {"field": "smsSendResult", "document": "subscription { smsSendResult { requestId success resultCode } }", "access": ["SMS"], "capability": Capability.TELEPHONY},
+  clipboardHistoryChanged,
   {"field": "clipboardChanged", "document": "subscription { clipboardChanged { text sensitive time } }", "access": ["CLIPBOARD"], "capability": Capability.CLIPBOARD},
 ]

@@ -856,6 +856,12 @@ export interface GqlOperations {
     }
     variables: undefined
   }
+  clipboardHistoryChangedSubscription: {
+    result: {
+      clipboardHistoryChanged: boolean
+    }
+    variables: undefined
+  }
   clipboardItemsGQL: {
     result: {
       clipboardItems: Array<Fragment_ClipboardItemFragment>
