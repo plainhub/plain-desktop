@@ -610,7 +610,6 @@ export const feedEntriesGQL = `
       image
       author
       feedId
-      rawId
       publishedAt
       createdAt
       updatedAt

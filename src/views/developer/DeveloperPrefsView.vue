@@ -12,10 +12,9 @@
       v-else-if="entries.length > 0"
       :columns="['key', 'value']"
       :rows="entries"
-      row-key="key"
       :debug="app.debug || app.developerMode"
-      :deleting-key="deletingKey"
-      @delete="deleteEntry"
+      :deleting-row="entries.find(row => row.key === deletingKey)"
+      @delete="row => deleteEntry(String(row.key))"
     />
     <div v-else class="state-wrap">
       <i-lucide:archive class="state-icon" />
@@ -40,7 +39,7 @@ onDeactivated(() => { isActive.value = false })
 
 const { app } = storeToRefs(useTempStore())
 
-interface KeyValuePair {
+type KeyValuePair = {
   key: string
   value: string
 }

@@ -215,7 +215,6 @@ export interface IFeedEntry extends IData {
   content: string
   author: string
   feedId: string
-  rawId: string
   tags: ITag[]
   publishedAt: string
   createdAt: string

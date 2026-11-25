@@ -6,7 +6,7 @@ export type Bookmark = {
   url: string
   title: string
   faviconPath: string
-  groupId: string
+  groupId: string | null
   pinned: boolean
   clickCount: number
   lastClickedAt: string | null
@@ -114,7 +114,7 @@ export const useBookmarksStore = defineStore('bookmarks', {
     deleteGroup(id: string) {
       this.groups = this.groups.filter((g) => g.id !== id)
       // move orphaned bookmarks to ungrouped
-      this.bookmarks = this.bookmarks.map((b) => (b.groupId === id ? { ...b, groupId: '' } : b))
+      this.bookmarks = this.bookmarks.map((b) => (b.groupId === id ? { ...b, groupId: null } : b))
     },
 
     // Optimistic toggle so the collapse animation is instant without a refetch

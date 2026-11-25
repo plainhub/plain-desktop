@@ -736,7 +736,7 @@ export const importBookmarksGQL = `
 `
 
 export const addBookmarksGQL = `
-  mutation addBookmarks($urls: [String!]!, $groupId: ID!) {
+  mutation addBookmarks($urls: [String!]!, $groupId: ID) {
     addBookmarks(urls: $urls, groupId: $groupId) {
       ...BookmarkFragment
     }
@@ -904,8 +904,8 @@ export const createDbTableRowGQL = `
 `
 
 export const deleteDbTableRowsGQL = `
-  mutation DeleteDbTableRows($table: String!, $ids: [String!]!) {
-    deleteDbTableRows(table: $table, ids: $ids)
+  mutation DeleteDbTableRows($table: String!, $keys: [JSON!]!) {
+    deleteDbTableRows(table: $table, keys: $keys) { affectedCount }
   }
 `
 

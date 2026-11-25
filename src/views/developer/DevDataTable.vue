@@ -16,8 +16,8 @@
             <v-icon-button
               v-tooltip="$t('delete')"
               class="delete-btn"
-              :loading="deletingKey === String(row[rowKey] ?? '')"
-              @click="emit('delete', String(row[rowKey] ?? ''))"
+              :loading="deletingRow === row"
+              @click="emit('delete', row)"
             >
               <i-lucide:trash-2 />
             </v-icon-button>
@@ -35,19 +35,16 @@ withDefaults(
   defineProps<{
     columns: string[]
     rows: Record<string, string | null>[]
-    rowKey?: string
     debug?: boolean
-    deletingKey?: string
+    deletingRow?: Record<string, string | null>
   }>(),
   {
-    rowKey: 'id',
     debug: false,
-    deletingKey: '',
   },
 )
 
 const emit = defineEmits<{
-  delete: [key: string]
+  delete: [row: Record<string, string | null>]
 }>()
 
 function display(val: string | null | undefined): string {

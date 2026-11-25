@@ -8,7 +8,7 @@ export type GqlResultType<Name extends GqlOperationName> = GqlOperations[Name]['
 
 export type GqlVariablesType<Name extends GqlOperationName> = GqlOperations[Name]['variables']
 
-export type Input_BookmarkInput = { url: string; title: string; faviconUrl?: string | null; groupId: string; pinned: boolean; sortOrder: number }
+export type Input_BookmarkInput = { url: string; title: string; faviconUrl?: string | null; groupId?: string | null; pinned: boolean; sortOrder: number }
 
 export type Input_ChatAttachmentInput = { id: string; uri: string; size: number; durationMs?: number; width?: number; height?: number; summary?: string; fileName?: string }
 
@@ -96,7 +96,7 @@ export interface Fragment_BookmarkFragment {
   url: string
   title: string
   faviconPath: string
-  groupId: string
+  groupId?: string
   pinned: boolean
   clickCount: number
   lastClickedAt?: string
@@ -339,7 +339,6 @@ export interface Fragment_FeedEntryFragment {
   description: string
   content: string
   feedId: string
-  rawId: string
   publishedAt: string
   createdAt: string
   updatedAt: string
@@ -538,7 +537,7 @@ export interface GqlOperations {
     }
     variables: {
       urls: Array<string>
-      groupId: string
+      groupId?: string | null
     }
   }
   addChatChannelMemberGQL: {
@@ -699,7 +698,7 @@ export interface GqlOperations {
         url: string
         title: string
         faviconPath: string
-        groupId: string
+        groupId?: string
         pinned: boolean
         clickCount: number
         lastClickedAt?: string
@@ -1180,11 +1179,13 @@ export interface GqlOperations {
   }
   deleteDbTableRowsGQL: {
     result: {
-      deleteDbTableRows: boolean
+      deleteDbTableRows: {
+        affectedCount: number
+      }
     }
     variables: {
       table: string
-      ids: Array<string>
+      keys: Array<unknown>
     }
   }
   deleteFeedEntriesGQL: {
@@ -1524,7 +1525,6 @@ export interface GqlOperations {
         image: string
         author: string
         feedId: string
-        rawId: string
         publishedAt: string
         createdAt: string
         updatedAt: string

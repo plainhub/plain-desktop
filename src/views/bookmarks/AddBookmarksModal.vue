@@ -77,7 +77,7 @@ onMounted(async () => {
 
 function save() {
   if (!validUrls.value.length) return
-  mutateAdd({ urls: validUrls.value, groupId: selectedGroupId.value })
+  mutateAdd({ urls: validUrls.value, groupId: selectedGroupId.value || null })
 }
 </script>
 

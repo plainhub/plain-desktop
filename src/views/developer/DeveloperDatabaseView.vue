@@ -37,9 +37,8 @@
             <dev-data-table
               :columns="columns"
               :rows="rows"
-              :row-key="idKey"
-              :debug="app.debug || app.developerMode"
-              :deleting-key="deletingId"
+              :debug="(app.debug || app.developerMode) && keyColumns.length > 0"
+              :deleting-row="deletingRow"
               @delete="deleteRow"
             />
             <v-pagination v-if="totalCount > PAGE_SIZE" :page="currentPage" :go="gotoPage" :total="totalCount" :limit="PAGE_SIZE" :page-size="PAGE_SIZE" />
@@ -86,9 +85,9 @@ const activeTable = ref('')
 const rows = ref<Record<string, string | null>[]>([])
 const totalCount = ref(0)
 const offset = ref(0)
-const deletingId = ref('')
+const deletingRow = ref<Record<string, string | null>>()
 const selectedTable = computed(() => tables.value.find((table) => table.name === activeTable.value))
-const idKey = computed(() => selectedTable.value?.columns.find((column) => column.primaryKey)?.name ?? 'id')
+const keyColumns = computed(() => selectedTable.value?.columns.filter(column => column.primaryKey).map(column => column.name) ?? [])
 const infoColumns = computed(() => selectedTable.value?.columns.map((column) => column.name) ?? [])
 const dbPath = ref('')
 const pathOpen = ref(false)
@@ -167,12 +166,15 @@ function gotoPage(page: number) {
 
 const { mutate: deleteMutate } = initMutation({ document: deleteDbTableRowsGQL }, showActionError)
 
-async function deleteRow(id: string) {
-  if (!id) return
-  deletingId.value = id
-  await deleteMutate({ table: activeTable.value, ids: [id] })
-  deletingId.value = ''
-  loadTable(activeTable.value)
+async function deleteRow(row: Record<string, string | null>) {
+  const key = Object.fromEntries(keyColumns.value.map(column => [column, row[column]]))
+  deletingRow.value = row
+  try {
+    await deleteMutate({ table: activeTable.value, keys: [key] })
+    loadTable(activeTable.value)
+  } finally {
+    deletingRow.value = undefined
+  }
 }
 </script>
 

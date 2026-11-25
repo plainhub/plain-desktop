@@ -6,7 +6,7 @@ import VIconButton from '@/components/base/VIconButton.vue'
 
 const fixture = vi.hoisted(() => ({
   resource: vi.fn((_: unknown, image: string) => 'local-' + image),
-  mutate: vi.fn<(input: { urls: string[]; groupId: string }) => Promise<unknown>>(),
+  mutate: vi.fn<(input: { urls: string[]; groupId: string | null }) => Promise<unknown>>(),
   openUrl: vi.fn(),
 }))
 vi.mock('@/stores/temp', () => ({ useTempStore: () => ({ urlTokenKey: new Uint8Array(32).fill(7) }) }))
@@ -89,7 +89,7 @@ it('saves only the selected preview as an ungrouped bookmark without opening its
     expect(actionButtons.map(button => button.props.disabled)).toEqual([false, true])
     expect(triggers.map(trigger => nodes(trigger).some(element => element.props['data-spinner']))).toEqual([false, true])
     click(action)
-    expect(fixture.mutate).toHaveBeenCalledExactlyOnceWith({ urls: ['https://example.invalid/1'], groupId: '' })
+    expect(fixture.mutate).toHaveBeenCalledExactlyOnceWith({ urls: ['https://example.invalid/1'], groupId: null })
     expect(fixture.openUrl).not.toHaveBeenCalled()
     expect(nodes(root).some(element => element.tag === 'button' && content(element) === 'add_to_bookmarks')).toBe(false)
     finishSaving(undefined)

@@ -317,7 +317,6 @@ export const feedEntryFragment = `
     description
     content
     feedId
-    rawId
     publishedAt
     createdAt
     updatedAt

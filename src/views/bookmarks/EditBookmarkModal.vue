@@ -44,7 +44,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const localTitle = ref(props.bookmark.title)
 const localUrl = ref(props.bookmark.url)
-const localGroupId = ref(props.bookmark.groupId)
+const localGroupId = ref(props.bookmark.groupId ?? '')
 
 const groupOptions = computed(() => [
   { value: '', label: t('ungrouped') },
@@ -67,7 +67,7 @@ function save() {
     input: {
       title: localTitle.value.trim(),
       url: localUrl.value.trim(),
-      groupId: localGroupId.value,
+      groupId: localGroupId.value || null,
       pinned: props.bookmark.pinned,
       sortOrder: props.bookmark.sortOrder,
     },

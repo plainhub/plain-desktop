@@ -68,7 +68,7 @@ async function addBookmark(url: string) {
   openMenu.value = ''
   savingUrls.add(url)
   try {
-    await saveBookmark({ urls: [url], groupId: '' })
+    await saveBookmark({ urls: [url], groupId: null })
   } finally {
     savingUrls.delete(url)
   }

@@ -28,7 +28,7 @@ const images: SearchHit[] = [
 const video: SearchHit = { domain: 'videos', item: { ...file, title: '旅行视频.mp4', path: '/archive/travel.mp4', durationMs: 42000 } }
 const document: SearchHit = { domain: 'docs', item: { ...file, title: '旅行计划.md', path: '/notes/plan.md', extension: 'md' } }
 const note: SearchHit = { domain: 'notes', item: { ...data, title: '旅行笔记' } }
-const feed: SearchHit = { domain: 'feeds', item: { ...data, title: '旅行订阅', author: '', feedId: 'travel', url: '', image: '', rawId: '', publishedAt: '' } }
+const feed: SearchHit = { domain: 'feeds', item: { ...data, title: '旅行订阅', author: '', feedId: 'travel', url: '', image: '', publishedAt: '' } }
 const collapsed = ref(false)
 const router = createRouter({
   history: createMemoryHistory(),
