@@ -20,7 +20,7 @@
           v-if="peerId"
           :model-value="direction"
           :options="directionOptions"
-          :icon="IconSync"
+          :icon="directionIcons[direction]"
           :aria-label="`${$t('clipboard_sync_direction')}: ${directionLabel}`"
           :disabled="savingDirection"
           plain
@@ -56,15 +56,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
 import IconSync from '~icons/material-symbols/sync-rounded'
+import IconSend from '~icons/material-symbols/upload-rounded'
+import IconReceive from '~icons/material-symbols/download-rounded'
+import IconSyncOff from './sync-off.svg?component'
 import IconDevices from '~icons/lucide/monitor-smartphone'
 import VChipSelect from '@/components/base/VChipSelect.vue'
 import NoDataPlaceholder from '@/components/NoDataPlaceholder.vue'
 import toast from '@/components/toaster'
 import type { IClipboardItem } from '@/lib/interfaces'
-import { isClipboardDirection, peerClipboardDirection, setPeerClipboardDirection } from '@/lib/peer/local-clipboard-data'
+import { isClipboardDirection, peerClipboardDirection, setPeerClipboardDirection, type ClipboardDirection } from '@/lib/peer/local-clipboard-data'
 import { useMainStore } from '@/stores/main'
 import ClipboardHistory from './ClipboardHistory.vue'
 import { useLocalClipboard } from './local-clipboard'
@@ -83,6 +86,12 @@ const directionOptions = computed(() => [
   { value: 'RECEIVE', label: t('clipboard_direction_receive') },
   { value: 'BOTH', label: t('clipboard_direction_both') },
 ])
+const directionIcons = {
+  OFF: IconSyncOff,
+  SEND: IconSend,
+  RECEIVE: IconReceive,
+  BOTH: IconSync,
+} satisfies Record<ClipboardDirection, Component>
 const direction = computed(() => peerClipboardDirection(peerId.value))
 const directionLabel = computed(() => directionOptions.value.find(option => option.value === direction.value)!.label)
 const { enabled: clipboardEnabled, saving: savingMaster, setEnabled } = useClipboardMasterSwitch(() => !peerId.value && store.quick === 'clipboard')
