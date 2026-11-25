@@ -1,3 +1,6 @@
+import { SubscriptionClient } from '@/lib/api/subscription-client'
+import { clipboardHistoryChanged } from '@/lib/api/subscription-operations'
+import { openNative } from '@/lib/api/subscription-connection'
 import { computed, ref, watch } from 'vue'
 import { useMainStore } from '@/stores/main'
 import { getLoginPeerRevision } from '@/lib/device/login-peers'
@@ -59,8 +62,23 @@ export function useLocalClipboard() {
     }
     status.value = 'loading'
     refresh = load
-    onCleanup(onClipboardHistoryChanged(id, load))
-    void load()
+    if (peer) {
+      const stream = new SubscriptionClient(callbacks => openNative(callbacks, { kind: 'PEER', peerId: id }), () => true)
+      stream.setOperations([clipboardHistoryChanged])
+      stream.subscribe('clipboardHistoryChanged', load)
+      stream.onAttached(load)
+      stream.onConnectionChange(connected => { if (connected === false && active) {
+        version++
+        items.value = []
+        total.value = 0
+        status.value = 'offline'
+      } })
+      onCleanup(() => stream.stop())
+      stream.start()
+    } else {
+      onCleanup(onClipboardHistoryChanged(id, load))
+      void load()
+    }
   }, { immediate: true })
 
   function gotoPage(value: number) {

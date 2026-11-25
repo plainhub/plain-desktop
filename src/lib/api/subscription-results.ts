@@ -58,6 +58,7 @@ export interface SubscriptionResults {
   uploadMergeResult: { fileId: string; ok: boolean; value: string | null; mergedSize: number | null; error: string | null }
   smsChanged: { uris: string[] } | null
   smsSendResult: { requestId: string; success: boolean; resultCode: number | null }
+  clipboardHistoryChanged: boolean
   clipboardChanged: { text: string; sensitive: boolean; time: string }
 }
 export type SubscriptionField = keyof SubscriptionResults

@@ -3,12 +3,27 @@ import { PeerStatus } from '@/lib/status'
 import { beforeEach, expect, it, vi } from 'vitest'
 
 const mock = vi.hoisted(() => ({
+  streams: new Map<string, (value: unknown) => void>(),
   local: vi.fn(), remote: vi.fn(), save: vi.fn(), get: vi.fn(), invoke: vi.fn(),
   channels: [] as Array<{ onmessage: (value: unknown) => void }>,
 }))
 vi.mock('@tauri-apps/api/core', () => ({
   Channel: class { onmessage = (_value: unknown) => {}; constructor() { mock.channels.push(this) } },
   invoke: mock.invoke,
+}))
+vi.mock('@/lib/api/subscription-connection', () => ({
+  openSubscriptionConnection: vi.fn(),
+  openNative: (callbacks: { opened(): void; message(value: unknown): void }, target: { peerId: string }) => {
+    queueMicrotask(callbacks.opened)
+    return {
+      send(message: { id: string }) {
+        const next = (payload: unknown) => callbacks.message({ type: 'next', id: message.id, payload })
+        mock.streams.set(target.peerId, next)
+        next({ extensions: { subscriptionReady: true } })
+      },
+      close() { mock.streams.delete(target.peerId) },
+    }
+  },
 }))
 vi.mock('@/lib/peer/local-peer-data', () => ({ managedPeerCapabilities: { get value() { return capabilities.value } } }))
 vi.mock('@/lib/api/peer-client', () => ({ gqlFetchPeer: mock.remote }))
@@ -93,11 +108,11 @@ it('refreshes only the selected managed peer and reports disabled and offline wi
     mock.channels[0].onmessage({ peerIds: ['b'], refreshAll: false })
     expect(mock.remote).toHaveBeenCalledTimes(1)
     mock.remote.mockResolvedValueOnce({ errors: [{ message: 'CLIPBOARD_SYNC_DISABLED' }] })
-    mock.channels[0].onmessage({ peerIds: ['a'], refreshAll: false })
+    mock.streams.get('a')!({ data: { clipboardHistoryChanged: true } })
     await vi.waitFor(() => expect(clipboard.status.value).toBe('disabled'))
     expect(clipboard.items.value).toEqual([])
     mock.remote.mockRejectedValueOnce(new Error('Network unavailable'))
-    mock.channels[0].onmessage({ peerIds: ['a'], refreshAll: false })
+    mock.streams.get('a')!({ data: { clipboardHistoryChanged: true } })
     await vi.waitFor(() => expect(clipboard.status.value).toBe('offline'))
     expect(mock.save).not.toHaveBeenCalled()
   } finally { scope.stop() }

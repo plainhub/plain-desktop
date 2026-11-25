@@ -10,7 +10,7 @@ interface Message {
   payload?: { data?: Record<string, unknown>; errors?: { message: string; extensions?: { code?: string } }[]; extensions?: { subscriptionReady?: boolean } } | { message: string; extensions?: { code?: string } }[]
 }
 export class SubscriptionClient {
-  constructor(private readonly openConnection: (callbacks: SubscriptionCallbacks) => SubscriptionConnection = openSubscriptionConnection) {}
+  constructor(private readonly openConnection: (callbacks: SubscriptionCallbacks) => SubscriptionConnection = openSubscriptionConnection, private readonly retryConnection = () => !isLocalMode()) {}
   private connection: SubscriptionConnection | undefined
   private operations = new Map<string, SubscriptionOperation>()
   private ids = new Map<string, string>()
@@ -160,7 +160,7 @@ export class SubscriptionClient {
     this.connection = undefined
     this.pending.clear()
     this.ids.clear()
-    if (this.active && !isLocalMode()) this.retry = setTimeout(() => this.connect(), Math.min(5000, ++this.failures * 1000))
+    if (this.active && this.retryConnection()) this.retry = setTimeout(() => this.connect(), Math.min(5000, ++this.failures * 1000))
   }
   stop() {
     this.active = false
