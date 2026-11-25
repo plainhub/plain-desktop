@@ -2181,7 +2181,7 @@ export interface GqlOperations {
         lastSeen: string
         status: 'PAIRED' | 'UNPAIRED' | 'CHANNEL'
         discoveryMethods: Array<'LAN' | 'BLE' | 'QR'>
-        remoteAccess?: boolean
+        remoteAccess: boolean
       }>
       isDiscovering: boolean
     }

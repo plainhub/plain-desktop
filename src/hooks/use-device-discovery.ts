@@ -18,7 +18,7 @@ export interface DiscoveredDevice {
   ips: string[]
   bestIp?: string
   port: number
-  remoteAccess?: boolean | null
+  remoteAccess: boolean
   deviceType: DeviceType
   version: string
   platform: string
