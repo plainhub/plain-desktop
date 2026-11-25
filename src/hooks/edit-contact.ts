@@ -41,7 +41,6 @@ export function useEditContact(data: IContact | undefined, sources: any[], done:
     websites: [] as EditWebsite[],
     events: [] as EditEvent[],
     ims: [] as EditIm[],
-    groupIds: [] as string[],
   })
 
   const complexName = ref(false)

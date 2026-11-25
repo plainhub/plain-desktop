@@ -32,7 +32,7 @@ export type Input_ContactEventInput = { value: string; type: 'CUSTOM' | 'ANNIVER
 
 export type Input_ContactImInput = { value: string; protocol: 'CUSTOM' | 'AIM' | 'MSN' | 'YAHOO' | 'SKYPE' | 'QQ' | 'GOOGLE_TALK' | 'ICQ' | 'JABBER' | 'NETMEETING'; customProtocol: string }
 
-export type Input_ContactInput = { prefix: string; firstName: string; middleName: string; lastName: string; suffix: string; nickname: string; phoneNumbers: Array<Input_ContactPhoneInput>; emails: Array<Input_ContactEmailInput>; addresses: Array<Input_ContactAddressInput>; events: Array<Input_ContactEventInput>; source: string; starred: boolean; notes: string; groupIds: Array<string>; organization?: Input_ContactOrganizationInput | null; websites: Array<Input_ContactWebsiteInput>; ims: Array<Input_ContactImInput> }
+export type Input_ContactInput = { prefix: string; firstName: string; middleName: string; lastName: string; suffix: string; nickname: string; phoneNumbers: Array<Input_ContactPhoneInput>; emails: Array<Input_ContactEmailInput>; addresses: Array<Input_ContactAddressInput>; events: Array<Input_ContactEventInput>; source: string; starred: boolean; notes: string; organization?: Input_ContactOrganizationInput | null; websites: Array<Input_ContactWebsiteInput>; ims: Array<Input_ContactImInput> }
 
 export type Input_ContactOrganizationInput = { company: string; title: string }
 
