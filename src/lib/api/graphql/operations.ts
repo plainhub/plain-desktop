@@ -831,7 +831,7 @@ export interface GqlOperations {
       chatItems: Array<Fragment_ChatItemFragment>
     }
     variables: {
-      target: string
+      query: string
     }
   }
   clearAppLogsGQL: {

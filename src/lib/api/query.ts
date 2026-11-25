@@ -211,8 +211,8 @@ export function initLazyQuery<TResult = any>(params: InitQueryParams<TResult>) {
 // --- GraphQL Query Definitions ---
 
 export const chatItemsGQL = `
-  query ($target: String!) {
-    chatItems(target: $target, query: "", offset: 0, limit: 200) {
+  query ($query: String!) {
+    chatItems(query: $query, offset: 0, limit: 200, sortBy: NEWEST_FIRST) {
       ...ChatItemFragment
     }
   }

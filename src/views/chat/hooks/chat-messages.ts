@@ -36,12 +36,12 @@ export function useChatMessages(chatId: ComputedRef<string>, channelId: Computed
       if (error) {
         toast(t(error), 'error')
       } else if (data) {
-        chatItems.value = data.chatItems.map(normalizeChatItem)
+        chatItems.value = data.chatItems.map(normalizeChatItem).reverse()
         if (!initialized) { scrollBottom(); initialized = true }
       }
     },
     document: chatItemsGQL,
-    variables: () => ({ target: chatId.value }),
+    variables: () => ({ query: chatId.value }),
   })
 
   const { mutate: sendMutate, loading: sendLoading } = initMutation({ document: sendChatItemsGQL })
