@@ -40,6 +40,11 @@ fn main() {
         println!("cargo:rustc-link-lib=static=plain_macos_ble");
         println!("cargo:rustc-link-lib=framework=CoreBluetooth");
     }
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("linux")
+        && std::env::var_os("CARGO_FEATURE_AI_IMAGE_SEARCH").is_some()
+    {
+        println!("cargo:rustc-link-arg-bin=plainapp-desktop=-Wl,-rpath,$ORIGIN/../lib/PlainApp");
+    }
     build_tauri();
 }
 

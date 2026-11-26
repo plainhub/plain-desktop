@@ -39,7 +39,7 @@ jobs:
           - platform: windows
             os: windows-latest
           - platform: linux
-            os: ubuntu-latest
+            os: ubuntu-26.04
     outputs:
       version_name: ${{ steps.meta.outputs.version_name }}
     steps:
@@ -108,7 +108,11 @@ jobs:
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf \
             pkg-config libclang-dev libxcb1-dev libxrandr-dev libdbus-1-dev \
-            libpipewire-0.3-dev libwayland-dev libegl-dev libgbm-dev
+            libpipewire-0.3-dev libwayland-dev libegl-dev libgbm-dev gcc-14 g++-14
+          gcc-14 --version
+          g++-14 --version
+          echo 'CC=gcc-14' >> "$GITHUB_ENV"
+          echo 'CXX=g++-14' >> "$GITHUB_ENV"
 
       - name: Validate macOS signing secrets
         if: matrix.platform == 'macos'
@@ -232,6 +236,44 @@ jobs:
             cp "$file" "release-artifacts/PlainApp-${VERSION}-${{ matrix.platform }}${arch}.${ext}"
           done
 
+      - name: Verify packaged ONNX Runtime (Linux)
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          temp=$(mktemp -d)
+          trap 'rm -rf "$temp"' EXIT
+          appimage=$(realpath release-artifacts/PlainApp-*.AppImage)
+          dpkg-deb -x release-artifacts/PlainApp-*.deb "$temp/deb"
+          rpm -qlp release-artifacts/PlainApp-*.rpm | grep -Fx '/usr/lib/PlainApp/libonnxruntime.so'
+          (cd "$temp"; "$appimage" --appimage-extract >/dev/null)
+          for root in "$temp/deb" "$temp/squashfs-root"; do
+            python3 -c 'import ctypes, sys; ctypes.CDLL(sys.argv[1]).OrtGetApiBase' \
+              "$root/usr/lib/PlainApp/libonnxruntime.so"
+            readelf -d "$root/usr/bin/plainapp-desktop" | grep -F '$ORIGIN/../lib/PlainApp'
+          done
+
+      - name: Verify packaged ONNX Runtime (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $setup = (Get-ChildItem release-artifacts/PlainApp-*.exe).FullName
+          $listing = & 7z l -ba $setup
+          if ($LASTEXITCODE -ne 0 -or -not ($listing -match '[\s\\/]onnxruntime\.dll$')) {
+            throw 'ONNX Runtime is missing from the NSIS installer'
+          }
+          $msi = (Get-ChildItem release-artifacts/PlainApp-*.msi).FullName
+          $installer = New-Object -ComObject WindowsInstaller.Installer
+          $db = $installer.OpenDatabase($msi, 0)
+          $view = $db.OpenView('SELECT `FileName` FROM `File`')
+          $view.Execute()
+          $found = $false
+          while ($record = $view.Fetch()) {
+            if (($record.StringData(1) -split '\|') -contains 'onnxruntime.dll') { $found = $true; break }
+          }
+          if (-not $found) { throw 'ONNX Runtime is missing from the MSI installer' }
+
       - name: Upload platform artifacts
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -262,6 +304,13 @@ jobs:
               echo "::error::No .app bundle found inside $file"
               exit 1
             fi
+            runtime_dylib="$app_path/Contents/Frameworks/libonnxruntime.dylib"
+            case "$file" in
+              *aarch64-apple-darwin*) arch=arm64 ;;
+              *x86_64-apple-darwin*) arch=x86_64 ;;
+            esac
+            xcrun lipo -verify_arch "$arch" "$runtime_dylib"
+            codesign --verify --strict "$runtime_dylib"
             codesign --verify --deep --strict --verbose=2 "$app_path"
             ents_xml="$(codesign -d --entitlements :- "$app_path" 2>&1 || true)"
             if grep -q 'com\.apple\.developer\.' <<<"$ents_xml"; then
