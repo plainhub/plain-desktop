@@ -25,6 +25,9 @@ jobs:
   build:
     name: Build desktop app (${{ matrix.platform }})
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: plain-desktop
     permissions:
       contents: read
     strategy:
@@ -41,11 +44,15 @@ jobs:
       version_name: ${{ steps.meta.outputs.version_name }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: plain-desktop
 
       - name: Setup Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
+
+      - uses: ./plain-desktop/.github/actions/locked-core-assets
 
       - name: Set version name
         id: meta
@@ -229,7 +236,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-artifacts-${{ matrix.platform }}
-          path: release-artifacts/*
+          path: plain-desktop/release-artifacts/*
           if-no-files-found: error
           retention-days: 1
 

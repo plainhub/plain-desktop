@@ -29,23 +29,7 @@ jobs:
         with:
           node-version: 22
 
-      - name: Resolve locked Core revision
-        id: core
-        run: |
-          node --input-type=module <<'JS'
-          import { appendFileSync, readFileSync } from 'node:fs'
-          const lock = readFileSync('Cargo.lock', 'utf8')
-          const revisions = new Set([...lock.matchAll(/source = "git\+https:\/\/github\.com\/plainhub\/plain-core\.git\?branch=main#([a-f0-9]{40})"/g)].map((match) => match[1]))
-          if (revisions.size !== 1) throw new Error('Expected one locked Core revision')
-          appendFileSync(process.env.GITHUB_OUTPUT, `revision=${[...revisions][0]}\n`)
-          JS
-
-      - name: Checkout shared Core assets
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: plainhub/plain-core
-          ref: ${{ steps.core.outputs.revision }}
-          path: plain-core
+      - uses: ./plain-desktop/.github/actions/locked-core-assets
 
       - name: Enable Corepack
         run: corepack enable
