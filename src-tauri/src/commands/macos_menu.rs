@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use std::sync::Mutex;
 use tauri::menu::{Menu, MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
-use tauri::{App, AppHandle, Manager, Wry};
+use tauri::{AppHandle, Manager, Wry};
 
 #[derive(Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -129,7 +129,7 @@ pub fn set_menu_locale(app: AppHandle, labels: MenuLabels) -> tauri::Result<()> 
     apply_menu(&app, &labels)
 }
 
-pub fn setup(app: &mut App) -> tauri::Result<()> {
+pub fn setup(app: &AppHandle) -> tauri::Result<()> {
     let labels = MenuLabels {
         about: "About PlainApp".to_string(),
         quit: "Quit PlainApp".to_string(),
@@ -155,10 +155,10 @@ pub fn setup(app: &mut App) -> tauri::Result<()> {
         close_window: "Close Window".to_string(),
     };
     app.manage(MenuState(Mutex::new(labels.clone())));
-    apply_menu(app.handle(), &labels)?;
+    apply_menu(app, &labels)?;
 
     // ── Dock right-click menu ─────────────────────────────────────────────
-    crate::commands::macos_dock::setup(app.handle().clone());
+    crate::commands::macos_dock::setup(app.clone());
 
     // ── Menu event handler ────────────────────────────────────────────────
     app.on_menu_event(|app, event| {

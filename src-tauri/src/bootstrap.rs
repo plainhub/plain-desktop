@@ -25,6 +25,9 @@ pub fn run() {
     let builder = tauri::Builder::default();
     #[cfg(any(target_os = "windows", target_os = "linux"))]
     let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        if crate::desktop_migration::focus(app) {
+            return;
+        }
         let windows = app.webview_windows();
         let candidate = crate::select_reopen_window_label(
             windows
@@ -74,109 +77,17 @@ pub fn run() {
                 Some(directories) => (directories.data.clone(), directories.cache.clone()),
                 None => (app.path().app_data_dir()?, app.path().app_cache_dir()?),
             };
-            let core = Arc::new(
-                tauri::async_runtime::block_on(async {
-                    open_desktop_core(&data_dir, &cache_dir)
+            let migration = crate::desktop_migration::Startup { data_dir, cache_dir, log_file };
+            if crate::desktop_migration::pending(&migration.data_dir) {
+                crate::desktop_migration::show(app.handle(), migration)?;
+            } else {
+                let core = tauri::async_runtime::block_on(async {
+                    open_desktop_core(&migration.data_dir, &migration.cache_dir)
                 })
-                .expect("open the shared core"),
-            );
-            if let Some(path) = log_file {
-                core.set_log_file(&path)?;
+                .map_err(std::io::Error::other)?;
+                finish_startup(app.handle(), Arc::new(core), migration.log_file)?;
+                open_main_window(app.handle())?;
             }
-            app.handle().manage(core.clone());
-            let prefs = core.shared_preferences()?;
-            app.handle().manage(prefs.clone());
-
-            #[cfg(target_os = "macos")]
-            crate::commands::macos_menu::setup(app)?;
-
-            #[cfg(target_os = "linux")]
-            match crate::commands::screen_capture::shortcut::current_linux_shortcut_backend() {
-                crate::commands::screen_capture::shortcut::LinuxShortcutBackend::OrdinaryPlugin => {
-                    if let Err(error) =
-                        crate::commands::screen_capture::shortcut::register_ordinary_capture_shortcut(
-                            app.handle(),
-                        )
-                    {
-                        log::warn!("screen capture shortcut registration failed: {error}");
-                    }
-                }
-                crate::commands::screen_capture::shortcut::LinuxShortcutBackend::WaylandPortalRequired => {
-                    let handle = app.handle().clone();
-                    tauri::async_runtime::spawn(async move {
-                        match crate::commands::screen_capture::shortcut::register_wayland_portal_capture_shortcut(
-                            handle.clone(),
-                        )
-                        .await
-                        {
-                            Ok(guard) => {
-                                if !handle.manage(guard) {
-                                    log::warn!("Wayland capture shortcut guard was already installed");
-                                }
-                            }
-                            Err(error) => {
-                                log::warn!("Wayland capture shortcut registration failed: {error}");
-                            }
-                        }
-                    });
-                }
-            }
-
-            #[cfg(not(target_os = "linux"))]
-            if let Err(error) =
-                crate::commands::screen_capture::shortcut::register_ordinary_capture_shortcut(app.handle())
-            {
-                log::warn!("screen capture shortcut registration failed: {error}");
-            }
-
-            // Windows and macOS use per-capture ephemeral overlays created at
-            // their final geometry, so there is nothing to prewarm.
-            #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-            {
-                let runtime = app
-                    .handle()
-                    .state::<crate::commands::screen_capture::runtime::ScreenCaptureRuntime>();
-                let windows = crate::commands::screen_capture::window::TauriCaptureWindowPort::new(
-                    app.handle().clone(),
-                );
-                log::info!("screen capture overlay prewarm started");
-                match runtime.ensure_overlay_native(&windows) {
-                    Ok(init) => log::info!(
-                        "screen capture overlay prewarm completed generation={}",
-                        init.overlay_generation
-                    ),
-                    Err(error) => {
-                        log::warn!("screen capture overlay prewarm failed: {error}");
-                    }
-                }
-            }
-
-            #[cfg(all(debug_assertions, target_os = "macos"))]
-            if crate::commands::screen_capture::selftest::armed() {
-                crate::commands::screen_capture::selftest::schedule_trigger(app.handle().clone());
-            }
-
-            let capabilities = crate::host::device::desktop_capabilities();
-            let host_bridge = std::sync::Arc::new(crate::host::runtime::Runtime::new(
-                core.clone(),
-                app.handle().clone(),
-                capabilities,
-            ));
-            let host_task = tauri::async_runtime::block_on(async { host_bridge.start() })?;
-            tauri::async_runtime::spawn(async move {
-                match host_task.await {
-                    Ok(Ok(())) => {},
-                    Ok(Err(error)) => log::error!("host bridge stopped: {error}"),
-                    Err(error) => log::error!("host bridge task failed: {error}"),
-                }
-            });
-
-            if let Err(error) = tauri::async_runtime::block_on(async {
-                core.start_configured_public().await
-            }) {
-                panic!("start the public listener failed: {error}");
-            }
-
             Ok(())
         })
         .on_page_load(|webview, payload| {
@@ -383,7 +294,118 @@ pub fn run() {
     app.run(crate::handle_run_event);
 }
 
-fn open_desktop_core(data: &Path, cache: &Path) -> Result<ContentServer, String> {
+pub(crate) fn finish_startup(
+    app: &tauri::AppHandle,
+    core: Arc<ContentServer>,
+    log_file: Option<std::path::PathBuf>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some(path) = log_file {
+        core.set_log_file(&path)?;
+    }
+    app.manage(core.clone());
+    let prefs = core.shared_preferences()?;
+    app.manage(prefs.clone());
+
+    #[cfg(target_os = "macos")]
+    crate::commands::macos_menu::setup(app)?;
+
+    #[cfg(target_os = "linux")]
+    match crate::commands::screen_capture::shortcut::current_linux_shortcut_backend() {
+        crate::commands::screen_capture::shortcut::LinuxShortcutBackend::OrdinaryPlugin => {
+            if let Err(error) =
+                crate::commands::screen_capture::shortcut::register_ordinary_capture_shortcut(
+                    app,
+                )
+            {
+                log::warn!("screen capture shortcut registration failed: {error}");
+            }
+        }
+        crate::commands::screen_capture::shortcut::LinuxShortcutBackend::WaylandPortalRequired => {
+            let handle = app.clone();
+            tauri::async_runtime::spawn(async move {
+                match crate::commands::screen_capture::shortcut::register_wayland_portal_capture_shortcut(
+                    handle.clone(),
+                )
+                .await
+                {
+                    Ok(guard) => {
+                        if !handle.manage(guard) {
+                            log::warn!("Wayland capture shortcut guard was already installed");
+                        }
+                    }
+                    Err(error) => {
+                        log::warn!("Wayland capture shortcut registration failed: {error}");
+                    }
+                }
+            });
+        }
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    if let Err(error) =
+        crate::commands::screen_capture::shortcut::register_ordinary_capture_shortcut(app)
+    {
+        log::warn!("screen capture shortcut registration failed: {error}");
+    }
+
+    // Windows and macOS use per-capture ephemeral overlays created at
+    // their final geometry, so there is nothing to prewarm.
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        let runtime = app
+            .state::<crate::commands::screen_capture::runtime::ScreenCaptureRuntime>();
+        let windows = crate::commands::screen_capture::window::TauriCaptureWindowPort::new(
+            app.clone(),
+        );
+        log::info!("screen capture overlay prewarm started");
+        match runtime.ensure_overlay_native(&windows) {
+            Ok(init) => log::info!(
+                "screen capture overlay prewarm completed generation={}",
+                init.overlay_generation
+            ),
+            Err(error) => {
+                log::warn!("screen capture overlay prewarm failed: {error}");
+            }
+        }
+    }
+
+    #[cfg(all(debug_assertions, target_os = "macos"))]
+    if crate::commands::screen_capture::selftest::armed() {
+        crate::commands::screen_capture::selftest::schedule_trigger(app.clone());
+    }
+
+    let capabilities = crate::host::device::desktop_capabilities();
+    let host_bridge = std::sync::Arc::new(crate::host::runtime::Runtime::new(
+        core.clone(),
+        app.clone(),
+        capabilities,
+    ));
+    let host_task = tauri::async_runtime::block_on(async { host_bridge.start() })?;
+    tauri::async_runtime::spawn(async move {
+        match host_task.await {
+            Ok(Ok(())) => {},
+            Ok(Err(error)) => log::error!("host bridge stopped: {error}"),
+            Err(error) => log::error!("host bridge task failed: {error}"),
+        }
+    });
+
+    if let Err(error) = tauri::async_runtime::block_on(async {
+        core.start_configured_public().await
+    }) {
+        panic!("start the public listener failed: {error}");
+    }
+
+    Ok(())
+}
+
+pub(crate) fn open_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
+    let main = app.config().app.windows.iter().find(|window| window.label == "main")
+        .ok_or_else(|| std::io::Error::other("Missing main window configuration"))?;
+    tauri::WebviewWindowBuilder::from_config(app, main)?.build()?;
+    Ok(())
+}
+
+pub(crate) fn open_desktop_core(data: &Path, cache: &Path) -> Result<ContentServer, String> {
     let _directory = DataDirectory::open(data, cache)?;
     let paths = DataPaths::new(data);
     let exists = |path: std::path::PathBuf| path.try_exists().map_err(|error| error.to_string());

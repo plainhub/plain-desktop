@@ -3,6 +3,7 @@
 mod bootstrap;
 mod capture;
 mod commands;
+mod desktop_migration;
 mod host;
 #[cfg(all(test, target_os = "linux"))]
 #[path = "../tests/unit/native_media_gui.rs"]
@@ -28,7 +29,9 @@ fn handle_run_event(app: &tauri::AppHandle, event: tauri::RunEvent) {
         ..
     } = event
     {
-        crate::commands::window::reopen_main_window(app);
+        if !crate::desktop_migration::focus(app) {
+            crate::commands::window::reopen_main_window(app);
+        }
     }
 }
 
