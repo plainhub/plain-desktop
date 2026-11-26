@@ -2169,10 +2169,34 @@
       "description": "Permission identifier",
       "oneOf": [
         {
+          "description": "Allows existing commands used by the full desktop application.",
+          "type": "string",
+          "const": "allow-desktop-commands",
+          "markdownDescription": "Allows existing commands used by the full desktop application."
+        },
+        {
           "description": "Enables the install_desktop_update command without any pre-configured scope.",
           "type": "string",
           "const": "allow-install-desktop-update",
           "markdownDescription": "Enables the install_desktop_update command without any pre-configured scope."
+        },
+        {
+          "description": "Allows loading and reloading trusted local webviews.",
+          "type": "string",
+          "const": "allow-native-view-lifecycle",
+          "markdownDescription": "Allows loading and reloading trusted local webviews."
+        },
+        {
+          "description": "Allows regular windows to request captures and receive their results.",
+          "type": "string",
+          "const": "allow-screen-capture-client",
+          "markdownDescription": "Allows regular windows to request captures and receive their results."
+        },
+        {
+          "description": "Allows the isolated capture overlay to complete the capture it owns.",
+          "type": "string",
+          "const": "allow-screen-capture-overlay",
+          "markdownDescription": "Allows the isolated capture overlay to complete the capture it owns."
         },
         {
           "description": "Denies the install_desktop_update command without any pre-configured scope.",

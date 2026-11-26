@@ -386,7 +386,11 @@ fn native_media_child() {
     let result = Arc::new(Mutex::new(None::<Value>));
     let final_result = result.clone();
     let output_root = root.clone();
-    let mut context = tauri::generate_context!();
+    let mut context = crate::bootstrap::application_context();
+    context.runtime_authority_mut().__allow_command(
+        "native_media_report".into(),
+        tauri::utils::acl::ExecutionContext::Local,
+    );
     context.config_mut().app.windows.clear();
     context.config_mut().build.dev_url = None;
     drop(context.set_assets(Box::new(HarnessAssets)));

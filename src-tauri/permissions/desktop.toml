@@ -1,0 +1,113 @@
+[[permission]]
+identifier = "allow-native-view-lifecycle"
+description = "Allows loading and reloading trusted local webviews."
+commands.allow = [
+  "native_view_scope",
+  "native_reload_ready",
+]
+
+[[permission]]
+identifier = "allow-desktop-commands"
+description = "Allows existing commands used by the full desktop application."
+commands.allow = [
+  "nearby_bluetooth_enable",
+  "nearby_bluetooth_stop",
+  "nearby_bluetooth_open_settings",
+  "mdns_firewall_status",
+  "fix_mdns_firewall",
+  "send_macos_notification",
+  "set_menu_locale",
+  "open_window",
+  "open_about_window",
+  "set_window_device_name",
+  "media_preview_init",
+  "media_preview_activate",
+  "reveal_file",
+  "save_file_as",
+  "copy_file_to_clipboard",
+  "native_graphql",
+  "native_subscription_open",
+  "native_subscription_send",
+  "native_subscription_read",
+  "native_subscription_close",
+  "native_socket_open",
+  "native_socket_read",
+  "native_socket_send",
+  "native_socket_close",
+  "native_password_configured",
+  "native_restart_http_server",
+  "native_lan_ipv4_addresses",
+  "native_confirm_web_login",
+  "native_web_login_requests",
+  "native_peer_notifications",
+  "native_register_login_callbacks",
+  "native_unregister_login_callbacks",
+  "native_register_peer_notifications",
+  "native_unregister_peer_notifications",
+  "native_register_peer_clipboard",
+  "native_unregister_peer_clipboard",
+  "native_register_network_changes",
+  "native_unregister_network_changes",
+  "native_register_online_clients",
+  "native_unregister_online_clients",
+  "native_register_http_status",
+  "native_unregister_http_status",
+  "native_device_identity",
+  "native_file_paths",
+  "native_pairing_code",
+  "native_logout_peer",
+  "native_dlna_receiver",
+  "native_acquire_mdns_debug_session",
+  "native_release_mdns_debug_session",
+  "native_resource_open",
+  "native_resource_read",
+  "native_resource_download",
+  "native_resource_save_as",
+  "native_file_preview",
+  "native_resource_close",
+  "native_resource_close_owner",
+  "native_upload_chunk_open",
+  "native_upload_chunk_write",
+  "native_upload_chunk_finish",
+  "native_upload_chunk_abort",
+  "native_upload_chunks_abort_owner",
+]
+
+[[permission]]
+identifier = "allow-screen-capture-client"
+description = "Allows regular windows to request captures and receive their results."
+commands.allow = [
+  "screen_capture_register_target",
+  "screen_capture_unregister_target",
+  "screen_capture_start",
+  "screen_capture_take_result",
+  "screen_capture_release_result",
+  "screen_capture_ack_result",
+  "screen_capture_request_permission",
+  "screen_capture_open_permission_settings",
+  "screen_capture_shortcut_status",
+  "screen_capture_set_shortcut",
+  "screen_capture_report_client_error",
+  "screen_capture_invalidate_target",
+  "screen_capture_cancel",
+]
+
+[[permission]]
+identifier = "allow-screen-capture-overlay"
+description = "Allows the isolated capture overlay to complete the capture it owns."
+commands.allow = [
+  "screen_capture_ready",
+  "screen_capture_pending_frame",
+  "screen_capture_take_frame",
+  "screen_capture_frame_presented",
+  "screen_capture_overlay_work_area",
+  "screen_capture_submit_result",
+  "screen_capture_send_result",
+  "screen_capture_save_result",
+  "screen_capture_copy_result",
+  "screen_capture_discard_result",
+  "screen_capture_report_bootstrap_error",
+  "screen_capture_fail",
+  "screen_capture_cancel",
+  "screen_capture_unavailable",
+]

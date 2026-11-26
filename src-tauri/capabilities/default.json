@@ -3,6 +3,8 @@
   "identifier": "com.ismartcoding.plain.desktop",
   "windows": ["main", "about", "window-*", "media-preview-warm", "media-preview-*"],
   "permissions": [
+    "allow-native-view-lifecycle",
+    "allow-desktop-commands",
     "core:default",
     "opener:default",
     "notification:default",

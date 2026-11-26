@@ -171,3 +171,7 @@ mod tests {
     }
 }
 mod startup_options;
+
+#[cfg(test)]
+#[path = "../tests/unit/desktop_ipc_permissions.rs"]
+mod desktop_ipc_permissions;

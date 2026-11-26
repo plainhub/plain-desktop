@@ -10,13 +10,17 @@ use plain_server::server::ContentServer;
 use std::{path::Path, sync::Arc};
 use tauri::Manager;
 
+pub(crate) fn application_context() -> tauri::Context<tauri::Wry> {
+    tauri::generate_context!()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(target_os = "linux")]
     crate::host::webview::configure_media_backend();
     let startup = crate::startup_options::Options::read().expect("invalid startup options");
     app_log::init("trace").expect("initialize the shared logger");
-    let mut context = tauri::generate_context!();
+    let mut context = application_context();
     if startup.private_webview {
         for window in &mut context.config_mut().app.windows {
             window.incognito = true;
