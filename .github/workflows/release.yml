@@ -25,7 +25,7 @@ jobs:
     outputs:
       version_name: ${{ steps.meta.outputs.version_name }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -227,7 +227,7 @@ jobs:
           done
 
       - name: Upload platform artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-artifacts-${{ matrix.platform }}
           path: release-artifacts/*
@@ -293,7 +293,7 @@ jobs:
       artifact_names: ${{ steps.artifacts.outputs.artifact_names }}
       release_body_files: ${{ steps.artifacts.outputs.release_body_files }}
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: release-artifacts-*
           path: release-artifacts
@@ -319,7 +319,7 @@ jobs:
           } >> $GITHUB_OUTPUT
 
       - name: Upload release artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-artifacts
           path: release-artifacts/*
@@ -344,7 +344,7 @@ jobs:
     outputs:
       markdown: ${{ steps.scan.outputs.markdown }}
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: release-artifacts
           path: release-artifacts
@@ -435,7 +435,7 @@ jobs:
       AWS_ENDPOINT_URL_S3: ${{ vars.R2_ENDPOINT_URL }}
       AWS_DEFAULT_REGION: auto
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: release-artifacts
           path: release-artifacts
@@ -474,11 +474,11 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: release-artifacts
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: ${{ needs.provenance.outputs.provenance-name }}
 
