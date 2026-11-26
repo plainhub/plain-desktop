@@ -1,4 +1,6 @@
 export default {
+  install_update: 'புதுப்பிக்கவும்',
+  installing_update: 'புதுப்பிக்கிறது…',
   checking_update: 'சரிபார்க்கிறது…',
   update_available: 'v{version} கிடைக்கிறது',
   view_release: 'வெளியீட்டைப் பார்க்க',

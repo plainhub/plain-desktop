@@ -1,3 +1,4 @@
+pub mod desktop_update;
 #[path = "discover/mod.rs"]
 pub mod discover;
 #[cfg(target_os = "macos")]

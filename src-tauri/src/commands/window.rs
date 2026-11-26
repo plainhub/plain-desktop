@@ -230,6 +230,11 @@ pub fn open_about(app: &AppHandle) {
     #[cfg(not(target_os = "macos"))]
     let title = "About PlainApp".to_string();
     let win = tauri::WebviewWindowBuilder::new(app, label, tauri::WebviewUrl::App("/about".into()))
+        .initialization_script(if super::desktop_update::supported() {
+            "window.__PLAIN_DESKTOP_UPDATE__ = true;"
+        } else {
+            "window.__PLAIN_DESKTOP_UPDATE__ = false;"
+        })
         .incognito(crate::startup_options::private_webview(app))
         .title(title)
         .inner_size(400.0, 560.0)

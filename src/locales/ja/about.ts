@@ -1,4 +1,6 @@
 export default {
+  install_update: '更新する',
+  installing_update: '更新中…',
   checking_update: '確認中…',
   update_available: 'v{version} が利用可能です',
   view_release: 'リリースを見る',

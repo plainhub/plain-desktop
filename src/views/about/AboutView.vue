@@ -15,7 +15,10 @@
           </template>
           <template v-else-if="status === 'success' && hasUpdate()">
             <span class="ok">🎉</span> {{ $t('update_available', { version: result!.latestVersion }) }}
-            <button class="link" @click="goToRelease">{{ $t('view_release') }}</button>
+            <button v-if="supportsDirectUpdate" class="link" :disabled="installing" @click="installUpdate">
+              {{ $t(installing ? 'installing_update' : 'install_update') }}
+            </button>
+            <button v-else class="link" @click="goToRelease">{{ $t('view_release') }}</button>
           </template>
           <template v-else-if="status === 'success'">
             <span class="ok">✓</span> {{ $t('up_to_date') }}
@@ -25,6 +28,7 @@
           </template>
         </div>
       </transition>
+      <p v-if="installError" class="status is-error" role="alert">{{ installError }}</p>
     </div>
 
     <div class="about-debug surface-card">
@@ -50,6 +54,7 @@ import { hasFeature } from '@/lib/feature'
 import { gqlFetchOp } from '@/lib/api/gql-client'
 import type { GqlResultType } from '@/lib/api/graphql/operations'
 import { appUpdateGQL } from '@/lib/api/query'
+import { invoke } from '@/lib/api/native-invoke'
 import { openUrl } from '@/lib/browser'
 import { copyTextToClipboard } from '@/lib/clipboard'
 
@@ -62,6 +67,10 @@ const result = ref<UpdateCheck | null>(null)
 const error = ref('')
 const debugInfo = ref('')
 const copied = ref(false)
+const installing = ref(false)
+const installError = ref('')
+const supportsDirectUpdate = (window as Window & { __PLAIN_DESKTOP_UPDATE__?: boolean }).__PLAIN_DESKTOP_UPDATE__ === true
+
 
 const hasUpdate = () => result.value?.hasUpdate ?? false
 
@@ -98,6 +107,18 @@ async function runCheck() {
   } catch (e) {
     status.value = 'error'
     error.value = String(e)
+  }
+}
+
+async function installUpdate() {
+  if (installing.value) return
+  installing.value = true
+  installError.value = ''
+  try {
+    await invoke('install_desktop_update')
+  } catch (error) {
+    installError.value = String(error)
+    installing.value = false
   }
 }
 

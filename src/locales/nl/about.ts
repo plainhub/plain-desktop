@@ -1,4 +1,6 @@
 export default {
+  install_update: 'Bijwerken',
+  installing_update: 'Bezig met bijwerken…',
   checking_update: 'Controleren…',
   update_available: 'v{version} is beschikbaar',
   view_release: 'Release bekijken',

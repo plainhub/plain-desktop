@@ -44,10 +44,12 @@ fn main() {
 }
 
 fn build_tauri() {
+    let attributes = tauri_build::Attributes::new()
+        .app_manifest(tauri_build::AppManifest::new().commands(&["install_desktop_update"]));
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows")
         || std::env::var("CARGO_CFG_TARGET_ENV").as_deref() != Ok("msvc")
     {
-        tauri_build::build();
+        tauri_build::try_build(attributes).expect("Run Tauri build");
         return;
     }
 
@@ -61,6 +63,5 @@ fn build_tauri() {
     println!("cargo:rustc-link-arg=/MANIFESTINPUT:{}", manifest.display());
 
     let windows = tauri_build::WindowsAttributes::new_without_app_manifest();
-    tauri_build::try_build(tauri_build::Attributes::new().windows_attributes(windows))
-        .expect("Run Tauri build");
+    tauri_build::try_build(attributes.windows_attributes(windows)).expect("Run Tauri build");
 }

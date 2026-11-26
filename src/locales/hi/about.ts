@@ -1,4 +1,6 @@
 export default {
+  install_update: 'अपडेट करें',
+  installing_update: 'अपडेट हो रहा है…',
   checking_update: 'जाँच हो रही है…',
   update_available: 'v{version} उपलब्ध है',
   view_release: 'रिलीज़ देखें',

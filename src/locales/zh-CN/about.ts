@@ -1,4 +1,6 @@
 export default {
+  install_update: '升级',
+  installing_update: '正在升级…',
   checking_update: '正在检查…',
   update_available: 'v{version} 已可用',
   view_release: '查看发布',

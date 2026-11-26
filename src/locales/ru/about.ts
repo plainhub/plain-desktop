@@ -1,4 +1,6 @@
 export default {
+  install_update: 'Обновить',
+  installing_update: 'Идёт обновление…',
   checking_update: 'Проверка…',
   update_available: 'v{version} доступна',
   view_release: 'Посмотреть релиз',

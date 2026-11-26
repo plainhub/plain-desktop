@@ -1,4 +1,6 @@
 export default {
+  install_update: 'Atualizar',
+  installing_update: 'Atualizando…',
   checking_update: 'Verificando…',
   update_available: 'v{version} está disponível',
   view_release: 'Ver versão',

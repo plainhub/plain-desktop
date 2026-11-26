@@ -296,6 +296,7 @@ pub fn run() {
             crate::commands::macos_menu::set_menu_locale,
             crate::commands::window::open_window,
             crate::commands::window::open_about_window,
+            crate::commands::desktop_update::install_desktop_update,
             crate::commands::window::set_window_device_name,
             crate::commands::media_preview_pool::media_preview_init,
             crate::commands::media_preview_pool::media_preview_activate,
