@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
 
@@ -43,16 +43,6 @@ jobs:
         shell: bash
         run: corepack enable
 
-      - name: Cache Yarn dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            .yarn/cache
-            .yarn/install-state.gz
-          key: ${{ runner.os }}-yarn-${{ hashFiles('yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-
-
       - name: Install frontend dependencies
         shell: bash
         run: yarn install --immutable
@@ -62,7 +52,7 @@ jobs:
         run: yarn typecheck
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@1.99.0
+        run: rustup toolchain install 1.99.0 --profile minimal && rustup default 1.99.0
 
       - name: Select Xcode with macOS 15 SDK
         if: matrix.platform == 'macos'
@@ -87,12 +77,6 @@ jobs:
       - name: Add macOS Rust targets
         if: matrix.platform == 'macos'
         run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: . -> target
-          key: ${{ matrix.platform }}
 
       - name: Install Linux dependencies
         if: matrix.platform == 'linux'
@@ -482,24 +466,44 @@ jobs:
         with:
           name: ${{ needs.provenance.outputs.provenance-name }}
 
-      - name: Create GitHub Release
-        uses: ncipollo/release-action@v1
-        with:
-          tag: v${{ needs.package.outputs.version_name }}
-          name: Desktop Release ${{ needs.package.outputs.version_name }}
-          body: |
-            ## What's Changed
+      - name: Create GitHub Release draft
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.package.outputs.version_name }}
+          PROVENANCE: ${{ needs.provenance.outputs.provenance-name }}
+          SCAN_MARKDOWN: ${{ needs.virustotal.outputs.markdown }}
+        run: |
+          tag="v$VERSION"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $tag already exists." >&2
+            exit 1
+          fi
+          refs=$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" "refs/tags/$tag" "refs/tags/$tag^{}")
+          if [[ -n "$refs" && "$(printf '%s\n' "$refs" | sort -k2 | tail -n1 | cut -f1)" != "$GITHUB_SHA" ]]; then
+            echo "Tag $tag points to a different commit." >&2
+            exit 1
+          fi
+          {
+            cat <<'NOTES'
+          ## What's Changed
 
-            ## Security
+          ## Security
 
-            ### VirusTotal Scan
-            | File | Status | Scan Report |
-            |------|--------|-------------|
-            ${{ needs.virustotal.outputs.markdown }}
+          ### VirusTotal Scan
+          | File | Status | Scan Report |
+          |------|--------|-------------|
+          NOTES
+            printf '%s\n' "$SCAN_MARKDOWN"
+            cat <<'NOTES'
 
-            ### SLSA Provenance (Level 3)
-            The `.intoto.jsonl` file is a signed SLSA provenance document covering all desktop release artifacts.
-            Verify with [slsa-verifier](https://github.com/slsa-framework/slsa-verifier).
-          draft: true
-          prerelease: false
-          artifacts: 'PlainApp-*,${{ needs.provenance.outputs.provenance-name }}'
+          ### SLSA Provenance (Level 3)
+          The `.intoto.jsonl` file is a signed SLSA provenance document covering all desktop release artifacts.
+          Verify with [slsa-verifier](https://github.com/slsa-framework/slsa-verifier).
+          NOTES
+          } > release-notes.md
+          shopt -s nullglob
+          assets=(PlainApp-*)
+          test "${#assets[@]}" -gt 0
+          gh release create "$tag" --repo "$GITHUB_REPOSITORY" --draft --target "$GITHUB_SHA" \
+            --title "Desktop Release $VERSION" --notes-file release-notes.md -- "${assets[@]}" "$PROVENANCE"
