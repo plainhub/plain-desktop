@@ -7,7 +7,7 @@
     <div v-if="status.errorMessage" class="setup-error">{{ status.errorMessage }}</div>
 
     <v-filled-button class="btn-block" :loading="enableLoading" @click="enable">
-      {{ $t('ai.activate_download') }}
+      {{ $t('ai.activate_download') }} · {{ BUILT_IN_IMAGE_MODEL.name }}
     </v-filled-button>
 
     <div class="setup-divider">
@@ -15,28 +15,34 @@
     </div>
     <AISearchModelImport :model-dir="status.modelDir" />
 
-    <p class="setup-source" v-html="modelSourceHtml" />
+    <i18n-t keypath="ai.model_source_hint" scope="global" tag="p" class="setup-source">
+      <template #link>
+        <a :href="BUILT_IN_IMAGE_MODEL.sourceUrl" target="_blank" rel="noopener noreferrer" @click="openModelSource">
+          {{ $t('ai.model_source_link') }}
+        </a>
+      </template>
+    </i18n-t>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
 import type { IImageSearchStatus } from '@/lib/interfaces'
 import AISearchModelImport from './AISearchModelImport.vue'
 import { useImageSearchActions } from '@/hooks/ai/use-image-search-actions'
 
-const MODEL_URL = 'https://huggingface.co/google/siglip2-base-patch16-256'
+import { showActionError } from '@/hooks/show-action-error'
+import { openUrl } from '@/lib/browser'
+import { BUILT_IN_IMAGE_MODEL } from './built-in-image-model'
 
 defineProps<{ status: IImageSearchStatus }>()
-const { t } = useI18n()
 
 const { enable, enableLoading } = useImageSearchActions()
 
-const modelSourceHtml = computed(() => {
-  const link = `<a href="${MODEL_URL}" target="_blank" rel="noopener">${t('ai.model_source_link')}</a>`
-  return t('ai.model_source_hint', { link })
-})
+function openModelSource(event: MouseEvent) {
+  if (!__IS_TAURI__) return
+  event.preventDefault()
+  void openUrl(BUILT_IN_IMAGE_MODEL.sourceUrl).catch(showActionError)
+}
 
 function formatSize(bytes: number): string {
   if (bytes >= 1e9) return (bytes / 1e9).toFixed(1) + ' GB'
@@ -51,9 +57,6 @@ function formatSize(bytes: number): string {
   font-size: 0.875rem;
   line-height: 1.6;
   margin: 0 0 20px;
-}
-.setup-cancel {
-  margin-top: 12px;
 }
 .setup-error {
   color: var(--md-sys-color-error);
@@ -88,23 +91,12 @@ function formatSize(bytes: number): string {
   font-size: 0.8rem;
   color: var(--md-sys-color-on-surface-variant);
   margin: 20px 0 0;
-  :deep(a) {
+  a {
     color: var(--md-sys-color-primary);
     text-decoration: none;
     &:hover {
       text-decoration: underline;
     }
   }
-}
-.setup-label {
-  font-size: 0.8rem;
-  color: var(--md-sys-color-on-surface);
-  margin: 0 0 8px;
-}
-.setup-pct {
-  text-align: right;
-  font-size: 0.8rem;
-  color: var(--md-sys-color-on-surface-variant);
-  margin: 4px 0 0;
 }
 </style>
