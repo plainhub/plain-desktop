@@ -29,3 +29,23 @@ it('uses live volume names in sidebar links and favorite paths instead of USB nu
     expect(sidebar.favoriteLinks.value[0].title).toBe('Archive/Trips')
   } finally { scope.stop() }
 })
+
+it('shows a mounted Linux volume once with filesystem space, not its disk partition capacity', () => {
+  state.mounts = ref([
+    { id: 'part:root-id', path: '/dev/mmcblk1p1', mountPoint: '/', label: 'armbi_root', driveType: 'SDCARD', totalBytes: 63_199_772_672, freeBytes: 0 },
+    { id: 'fsuuid:root-id', mountPoint: '/', label: 'armbi_root', driveType: 'SDCARD', totalBytes: 62_230_941_696, freeBytes: 56_115_666_944 },
+    { id: 'part:offline-id', path: '/dev/sdb1', mountPoint: '/dev/sdb1', label: 'offline', driveType: 'USB_STORAGE', totalBytes: 100 },
+    { id: 'fsuuid:usb-id', mountPoint: '/mnt/usb1', label: 'USB', driveType: 'USB_STORAGE', totalBytes: 100, freeBytes: 0 },
+    { id: 'app', mountPoint: 'app://', driveType: 'APP', totalBytes: 0 },
+  ] as IStorageMount[])
+  state.favorites = ref([])
+  const scope = effectScope()
+  const sidebar = scope.run(() => useFilesSidebar())!
+  try {
+    const links = sidebar.volumeLinks.value
+    expect(links.map(({ fullPath }) => fullPath)).toEqual(['/', '/mnt/usb1', 'app://'])
+    expect(Math.round(links[0].usedPercent!)).toBe(10)
+    expect(links[1].usedPercent).toBe(100)
+    expect(state.mounts.value).toHaveLength(5)
+  } finally { scope.stop() }
+})
