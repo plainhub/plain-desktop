@@ -24,7 +24,7 @@ vi.mock('@/lib/api/gql-client', () => ({ gqlFetch: state.fetch, GqlError: class 
 vi.mock('@/components/toaster', () => ({ default: state.toast }))
 vi.mock('@/components/modal', () => ({ openModal: state.modal }))
 vi.mock('@/components/EditValueModal.vue', () => ({ default: {} }))
-vi.mock('@/components/BucketThumb.vue', () => ({ default: { render: () => null } }))
+vi.mock('@/components/BucketThumb.vue', () => ({ default: { render: () => h('img') } }))
 import BucketFilter from '@/components/BucketFilter.vue'
 import VDropdown from '@/components/base/VDropdown.vue'
 import VIconButton from '@/components/base/VIconButton.vue'
@@ -49,6 +49,11 @@ function mountBuckets(type: string, selected: string) {
   unmount = view.unmount
   return view
 }
+
+it.each(['IMAGE', 'VIDEO'])('uses XS covers for %s sidebar folders', type => {
+  const view = mountBuckets(type, '')
+  expect(nodes(view.root).find(node => node.tag === 'img')?.props.size).toBe('XS')
+})
 
 async function openRename(type = 'IMAGE', selected = '431') {
   const view = mountBuckets(type, selected)

@@ -49,7 +49,7 @@ it.each([
       app.component('ListItemPhone', (_, { slots }) => h('div', slots.image?.()))
       app.directive('tooltip', {})
       const html = await renderToString(app)
-      const url = new URL(html.match(/<img[^>]+src="([^"]+)"/)![1]!.replaceAll('&amp;', '&'))
+      const url = new URL(html.match(/<img[^>]+data-src="([^"]+)"/)![1]!.replaceAll('&amp;', '&'))
       expect(url.pathname).toBe('/fs')
       expect(url.searchParams.get('size')).toBe('SM')
       expect(url.searchParams.get('v')).toBe(item.updatedAt)

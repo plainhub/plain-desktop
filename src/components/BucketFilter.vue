@@ -14,12 +14,12 @@
         <v-dropdown v-if="props.type === DataType.IMAGE" :model-value="rawBucketId === item.id" borderless @update:model-value="rawBucketId = $event ? item.id : null">
           <template #trigger>
             <button type="button" class="bucket-thumb-trigger" :aria-label="`${$t('session_management.view_raw')}: ${item.name}`" :aria-expanded="rawBucketId === item.id">
-              <BucketThumb :items="item.coverItems" />
+              <BucketThumb size="XS" :items="item.coverItems" />
             </button>
           </template>
           <pre class="view-raw">{{ item }}</pre>
         </v-dropdown>
-        <BucketThumb v-else :items="item.coverItems" />
+        <BucketThumb v-else size="XS" :items="item.coverItems" />
       </template>
       <template #end>
         <span class="count">{{ item.itemCount.toLocaleString() }}</span>

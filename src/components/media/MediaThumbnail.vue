@@ -1,9 +1,31 @@
 <template>
   <span class="media-thumbnail" :class="{ loaded, 'scale-down': scaleDown }">
     <canvas v-if="thumbHash && !loaded" ref="preview" aria-hidden="true" />
-    <img :key="src" :src="src" loading="lazy" alt="" @load="loadedSrc = src" @error="loadedSrc = null" />
+    <img :key="src" v-visible-thumbnail :data-src="src" alt="" @load="loadedSrc = src" @error="loadedSrc = null" />
   </span>
 </template>
+
+<script lang="ts">
+import type { ObjectDirective } from 'vue'
+
+let observer: IntersectionObserver | undefined
+const vVisibleThumbnail: ObjectDirective<HTMLImageElement> = {
+  mounted(image) {
+    observer ??= new IntersectionObserver((entries, currentObserver) => {
+      for (const { isIntersecting, target } of entries) {
+        if (!isIntersecting) continue
+        currentObserver.unobserve(target)
+        const thumbnail = target as HTMLImageElement
+        thumbnail.src = thumbnail.dataset.src!
+      }
+    })
+    observer.observe(image)
+  },
+  beforeUnmount(image) {
+    observer?.unobserve(image)
+  },
+}
+</script>
 
 <script setup lang="ts">
 import { computed, ref, useTemplateRef, watchEffect } from 'vue'

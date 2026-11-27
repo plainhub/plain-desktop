@@ -15,7 +15,7 @@ import { getFileId, getFileUrl } from '@/lib/api/file'
 import type { IMediaBucketCover } from '@/lib/interfaces'
 import MediaThumbnail from '@/components/media/MediaThumbnail.vue'
 
-const props = defineProps<{ items: IMediaBucketCover[] }>()
+const props = defineProps<{ items: IMediaBucketCover[]; size: 'XS' | 'SM' }>()
 
 const tempStore = useTempStore()
 const { urlTokenKey } = storeToRefs(tempStore)
@@ -23,7 +23,7 @@ const { urlTokenKey } = storeToRefs(tempStore)
 const thumbs = computed(() => props.items.slice(0, 4))
 
 function thumbUrl(cover: IMediaBucketCover): string {
-  return getFileUrl(getFileId(urlTokenKey.value, cover.path), '&size=SM&v=' + encodeURIComponent(cover.updatedAt))
+  return getFileUrl(getFileId(urlTokenKey.value, cover.path), `&size=${props.size}&v=` + encodeURIComponent(cover.updatedAt))
 }
 </script>
 
