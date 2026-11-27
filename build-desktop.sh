@@ -5,7 +5,7 @@ SCRIPT_ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_ROOT"
 
 build() {
-  VITE_APP_MODE=tauri yarn tauri build --features ai-image-search "$@" -- --locked
+  VITE_APP_MODE=tauri yarn tauri build "$@" -- --locked
 }
 
 if [ "$(uname)" = "Darwin" ]; then
