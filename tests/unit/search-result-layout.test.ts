@@ -30,9 +30,10 @@ it('spaces visible search groups consistently and reuses the document and sideba
     domain, item: { id: domain, title: domain, path: '/' + domain, size: 0, updatedAt: '2026-11-21T00:00:00Z', durationMs: 0, feedId: 'feed', author: 'Author', publishedAt: '2026-11-21T00:00:00Z' },
   }))
   const otherDevice = { ...device, id: 'other' }
-  const pages = ref(hits.map(hit => ({ domain: hit.domain, hits: [hit], total: hit.domain === 'videos' ? 2 : 1 })))
+  const pages = ref(hits.map(hit => ({ domain: hit.domain, hits: [hit], total: hit.domain === 'videos' ? 2 : 1, loading: hit.domain === 'videos' })))
+  const groups = ref([{ device, status: 'ready', pages }, { device: otherDevice, status: 'loading', pages: [] }])
   const search = {
-    groups: ref([{ device, status: 'ready', pages }, { device: otherDevice, status: 'offline', pages: [] }]),
+    groups,
     targets: ref([device, otherDevice]), total: ref(hits.length), request: ref({}),
   } as unknown as GlobalSearch
   const view = renderView(defineComponent({
@@ -40,33 +41,43 @@ it('spaces visible search groups consistently and reuses the document and sideba
       provide(globalSearchKey, { search, sidebarCollapsed: ref(false) })
       return () => h(GlobalSearchView)
     },
-  }), {}, { VCircularProgress: () => null, VTextButton: () => h('button'), VCheckbox: () => h('input'), FieldId: () => null, ItemTags: () => null })
+  }), {}, { VCircularProgress: () => h('span', { role: 'progressbar' }), VTextButton: () => h('button'), VCheckbox: () => h('input'), FieldId: () => null, ItemTags: () => null })
   try {
     const all = nodes(view.root)
     const deviceGroups = all.find(node => node.props.class === 'scroll-content')!.children.filter(node => node.tag === 'section')
-    const [ready, offline] = deviceGroups
+    const [ready, loading] = deviceGroups
     const childGroups = (parent: typeof view.root) => parent.children.filter(node => node.props.class === 'search-group')
     const groupedDevices = childGroups(ready!.parent!)
     expect(groupedDevices).toHaveLength(2)
     expect(groupedDevices[0]).toBe(ready)
-    expect(groupedDevices[1]).toBe(offline)
+    expect(groupedDevices[1]).toBe(loading)
     const resultGroups = childGroups(ready!)
     expect(resultGroups).toHaveLength(5)
     expect(resultGroups.slice(0, 3).map(group => group.children.find(node => node.tag === 'div')?.props.class)).toEqual(['media-grid', 'media-grid', 'main-list'])
-    expect(nodes(resultGroups[1]!).some(node => node.props.class === 'secondary-actions')).toBe(true)
+    const pageSpinner = nodes(resultGroups[1]!).find(node => node.props.role === 'progressbar')
+    expect(pageSpinner?.parent?.props.class).toBe('secondary-actions search-page-loading')
+    const deviceSpinner = nodes(loading!).find(node => node.props.role === 'progressbar')
+    expect(deviceSpinner?.parent?.props.class).toBe('top-app-bar search-device-loading')
+    expect(deviceSpinner?.parent?.children[0]?.props.class).toBe('title')
     expect(resultGroups.slice(3).every(group => nodes(group).some(node => String(node.props.class).includes('sidebar2-item')))).toBe(true)
     const { descriptor } = parse(readFileSync(new URL(`../../${filename}`, import.meta.url), 'utf8'))
     const spacing = descriptor.styles[0]?.content ?? ''
     const { code } = compileStyle({ filename, id: 'data-v-search', source: spacing, scoped: true })
     expect(code).toMatch(/\.search-group\s*\+\s*\.search-group\[data-v-search\]\s*\{\s*margin-block-start:\s*16px/)
+    expect(code).toMatch(/\.search-page-loading\[data-v-search\]\s*\{\s*justify-content:\s*center/)
+    expect(code).toMatch(/\.search-device-loading\s+\.title\[data-v-search\]\s*\{\s*flex:\s*0 1 auto/)
     expect(all.filter(node => String(node.props.class).includes('doc-item') && String(node.props.class).includes('read-only'))).toHaveLength(1)
     expect(all.filter(node => String(node.props.class).includes('sidebar2-item'))).toHaveLength(2)
     expect(all.filter(node => node.tag === 'a').map(node => node.props.href)).toEqual(['/feeds/feed/entries/feeds', '/notes/notes'])
     expect(all.some(node => node.tag === 'input' || node.props['data-doc-actions'])).toBe(false)
 
-    pages.value[2] = { domain: 'docs', hits: [], total: 0 }
+    pages.value[1]!.loading = false
+    groups.value[1]!.status = 'offline'
+    pages.value[2] = { domain: 'docs', hits: [], total: 0, loading: false }
     await nextTick()
     expect(childGroups(ready!)).toHaveLength(4)
+    expect(nodes(ready!).find(node => node.props.class === 'secondary-actions')?.children.some(node => node.tag === 'button')).toBe(true)
+    expect(nodes(loading!).some(node => node.props.role === 'progressbar')).toBe(false)
   } finally {
     view.unmount()
     vi.unstubAllGlobals()

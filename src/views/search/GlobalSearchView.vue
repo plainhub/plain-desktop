@@ -6,7 +6,7 @@
     <NoDataPlaceholder v-if="!request" :loading="false" placeholder-key="global_search_enter_query" />
     <NoDataPlaceholder v-else-if="!targets.length" :loading="false" placeholder-key="global_search_select_devices" />
     <section v-for="group in groups" :key="group.device.id" class="search-group">
-      <div v-if="targets.length > 1 || group.status !== 'ready'" class="top-app-bar">
+      <div v-if="targets.length > 1 || group.status !== 'ready'" class="top-app-bar" :class="{ 'search-device-loading': group.status === 'loading' }">
         <span v-if="targets.length > 1" class="title" role="heading" aria-level="2">{{ group.client?.name || group.device.name }}</span>
         <v-circular-progress v-if="group.status === 'loading'" indeterminate class="sm" />
         <span v-else-if="group.status === 'offline'" class="subtle">{{ $t('offline') }}</span>
@@ -54,7 +54,7 @@
                 </Sidebar2ListItem>
               </template>
             </template>
-            <div v-if="page.loading || page.failed || page.hits.length < page.total" class="secondary-actions">
+            <div v-if="page.loading || page.failed || page.hits.length < page.total" class="secondary-actions" :class="{ 'search-page-loading': page.loading }">
               <v-circular-progress v-if="page.loading" indeterminate class="sm" />
               <template v-else-if="page.failed">
                 <span class="subtle">{{ $t(`page_title.${page.domain}`) }} · {{ $t('global_search_failed') }}</span>
@@ -154,5 +154,22 @@ function open(group: SearchGroup, hit: SearchHit) {
 <style scoped>
 .search-group + .search-group {
   margin-block-start: 16px;
+}
+
+.search-device-loading {
+  flex-wrap: nowrap;
+}
+
+.search-device-loading .title {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.search-device-loading > .sm {
+  flex-shrink: 0;
+}
+
+.search-page-loading {
+  justify-content: center;
 }
 </style>
