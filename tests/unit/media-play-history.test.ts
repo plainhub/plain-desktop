@@ -154,6 +154,7 @@ it.each(['AUDIO', 'VIDEO'] as const)('does not save remote %s progress on sampli
   const onEnded = vi.fn()
   const release = useMediaPlayHistory().bind(media, { mediaId: 'owned', type }, () => true, onEnded)
   await media.play()
+  expect(vi.getTimerCount()).toBe(0)
   await vi.advanceTimersByTimeAsync(1000)
   media.currentTime = 5
   media.dispatchEvent(new Event('pause'))
@@ -200,4 +201,31 @@ it('starts history while metadata is pending and only starts the latest A after 
   expect(b.video.play).not.toHaveBeenCalled()
   expect(latest.video.play).toHaveBeenCalledOnce()
   release?.()
+})
+
+it('starts another video while the previous play is still being recorded', async () => {
+  const history = useMediaPlayHistory()
+  let finish!: () => void
+  io.fetch.mockImplementationOnce(() => new Promise(resolve => { finish = () => resolve({ data: { recordMediaPlay: true } }) }))
+  const first = element()
+  const stopFirst = history.bind(first, { mediaId: 'previous', type: 'VIDEO' }, () => true)
+  await first.play()
+  await vi.advanceTimersByTimeAsync(0)
+  stopFirst()
+  const next = element()
+  const started = history.restoreAndPlay(next, { mediaId: 'next', type: 'VIDEO' }, () => true)
+  await vi.advanceTimersByTimeAsync(0)
+  try { expect(next.play).toHaveBeenCalledOnce() }
+  finally { finish(); (await started)?.() }
+})
+
+it('starts an unplayed video without seeking back to its current position', async () => {
+  io.fetch.mockResolvedValueOnce({ data: { mediaPlayHistory: [] } })
+  const player = element()
+  const seek = vi.fn()
+  Object.defineProperty(player, 'currentTime', { get: () => 0, set: seek })
+  const stop = await useMediaPlayHistory().restoreAndPlay(player, { mediaId: 'new', type: 'VIDEO' }, () => true)
+  expect(player.play).toHaveBeenCalledOnce()
+  expect(seek).not.toHaveBeenCalled()
+  stop?.()
 })

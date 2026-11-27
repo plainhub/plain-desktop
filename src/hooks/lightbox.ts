@@ -1,11 +1,11 @@
 import { showActionError } from '@/hooks/show-action-error'
 import { HttpErrorCode } from '@/lib/api/http-error-code'
-import { computed, ref, reactive, watch, onMounted, onBeforeUnmount, type Ref } from 'vue'
+import { computed, ref, reactive, watch, onMounted, onBeforeUnmount, type Ref, type VNode } from 'vue'
 import { on, off, isArray } from '@/components/lightbox/utils/index'
 import { useImage, useMouse, useTouch } from '@/components/lightbox/utils/hooks'
 import type { ISource, IImgWrapperState, IndexChangeActions } from '@/components/lightbox/types'
 import { isVideo, isImage, isAudio, isSvg, isHeic, fileNameError } from '@/lib/file'
-import { browserSupportsHevc, ensurePlayableVideoUrl } from '@/lib/video-codec'
+import { ensurePlayableVideoUrl } from '@/lib/video-codec'
 import { resolveFileUrlByPath } from '@/lib/api/file'
 import { createNativeResourceOwner, isNativeResourceUrl, type NativeResourceOwner } from '@/hooks/native-resource-url'
 import { useTempStore } from '@/stores/temp'
@@ -223,7 +223,12 @@ export function useLightboxNavigation(
   }
 
   const history = useMediaPlayHistory()
-  const videoLoad = ref<{ key: number; loaded: (event: Event) => void }>()
+  function unloadVideo({ el }: VNode) {
+    const player = el as HTMLVideoElement
+    player.removeAttribute('src')
+    player.load()
+  }
+  const videoLoad = ref<{ key: number; onLoadedmetadata: (event: Event) => void; onVnodeUnmounted: typeof unloadVideo }>()
   let retireVideo: (() => void) | undefined
   function stopVideo() {
     retireVideo?.()
@@ -234,7 +239,6 @@ export function useLightboxNavigation(
   let stopPreloadWatch: (() => void) | undefined
   const bindings = new Map<ISource, { owner: NativeResourceOwner; promise: Promise<string>; assigned?: string; preview?: string }>()
   const decodedUrls = new Set<string>()
-  const readyVideoUrls = new Set<string>()
   const preloads = new Map<string, () => void>()
 
   const release = (source: ISource) => {
@@ -272,7 +276,6 @@ export function useLightboxNavigation(
       if (retained.has(url)) continue
       preloads.delete(url)
       decodedUrls.delete(url)
-      readyVideoUrls.delete(url)
       dispose()
     }
   }
@@ -325,7 +328,7 @@ export function useLightboxNavigation(
     return binding.promise
   }
 
-  const preloadSource = async (source: ISource) => {
+  const preloadImage = async (source: ISource) => {
     const pending = resolveSource(source)
     try {
       await pending
@@ -333,30 +336,15 @@ export function useLightboxNavigation(
       const url = await resolveDisplayUrl(source)
       if (bindings.get(source)?.promise !== pending || url !== displayUrl(source)) return
       if (preloads.has(url)) return
-      if (isImage(source.name)) {
-        const img = new Image()
-        const dispose = () => { img.onload = null; img.onerror = null; img.removeAttribute('src') }
-        preloads.set(url, dispose)
-        img.onload = () => {
-          const markDecoded = () => { if (preloads.get(url) === dispose) decodedUrls.add(url) }
-          if (img.decode) img.decode().then(markDecoded).catch(markDecoded)
-          else markDecoded()
-        }
-        img.src = url
-      } else if (isVideo(source.name)) {
-        const videoEl = document.createElement('video')
-        const ready = () => { if (preloads.has(url)) readyVideoUrls.add(url) }
-        preloads.set(url, () => {
-          videoEl.removeEventListener('canplay', ready)
-          videoEl.removeAttribute('src')
-          videoEl.load()
-        })
-        videoEl.preload = 'auto'
-        videoEl.muted = true
-        videoEl.addEventListener('canplay', ready)
-        videoEl.src = url
-        videoEl.load()
+      const img = new Image()
+      const dispose = () => { img.onload = null; img.onerror = null; img.removeAttribute('src') }
+      preloads.set(url, dispose)
+      img.onload = () => {
+        const markDecoded = () => { if (preloads.get(url) === dispose) decodedUrls.add(url) }
+        if (img.decode) img.decode().then(markDecoded).catch(markDecoded)
+        else markDecoded()
       }
+      img.src = url
     } catch (error) {
       if (bindings.get(source)?.promise === pending && tempStore.lightbox.visible) console.warn('Lightbox preload failed', error)
     }
@@ -370,7 +358,7 @@ export function useLightboxNavigation(
       if (loop.value) next = ((next % sources.length) + sources.length) % sources.length
       const source = sources[next]
       if (!source || next === index) continue
-      if (isImage(source.name) || (isVideo(source.name) && browserSupportsHevc())) selected.add(source)
+      if (isImage(source.name)) selected.add(source)
     }
     return selected
   }
@@ -426,11 +414,9 @@ export function useLightboxNavigation(
         source.playbackUrl = url
         source.transcoded = transcoded
       }
-      const alreadyDecoded = (isImage(source.name) && decodedUrls.has(displayUrl(source) ?? '')) ||
-        (isVideo(source.name) && readyVideoUrls.has(source.src))
-      reset(alreadyDecoded)
+      reset(isImage(source.name) && decodedUrls.has(displayUrl(source) ?? ''))
       current.value = source
-      if (metadata) videoLoad.value = { key: change, loaded: metadata }
+      if (metadata) videoLoad.value = { key: change, onLoadedmetadata: metadata, onVnodeUnmounted: unloadVideo }
       setTimeout(() => {
         if (!active()) return
         const type = source.type ?? ''
@@ -440,7 +426,7 @@ export function useLightboxNavigation(
       const preload = () => {
         if (!active()) return
         retainSources(new Set([source, ...adjacent]))
-        for (const neighbour of adjacent) void preloadSource(neighbour)
+        for (const neighbour of adjacent) void preloadImage(neighbour)
       }
       if (isVideo(source.name) && status.loading) {
         retainSources(new Set([source]))
@@ -477,7 +463,7 @@ export function useLightboxNavigation(
     if (!source || !isImage(source.name)) return
     if (source === previous[0]) {
       trimPreloads()
-      for (const neighbour of neighbours(tempStore.lightbox.sources, imgIndex.value)) void preloadSource(neighbour)
+      for (const neighbour of neighbours(tempStore.lightbox.sources, imgIndex.value)) void preloadImage(neighbour)
     }
     try {
       const url = await resolveDisplayUrl(source)

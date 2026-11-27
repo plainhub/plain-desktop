@@ -35,8 +35,8 @@
             {{ $t('load_failed', { name: current?.name }) }}
           </div>
           <div v-if="current && isVideo(current.name)" v-show="!status.loading && !status.loadError" class="v-video-wrapper" @click.self="onBackdropClick">
-            <video v-if="videoLoad" :key="videoLoad.key" ref="video" controls :src="current.playbackUrl || current.src"
-              @loadedmetadata="videoLoad.loaded" @error="videoLoad && $event.currentTarget === video && onError($event)"
+            <video v-if="videoLoad" v-bind="videoLoad" ref="video" controls :src="current.playbackUrl || current.src"
+              @error="videoLoad && $event.currentTarget === video && onError($event)"
               @playing="videoLoad && $event.currentTarget === video && onPlaying()" @pause="videoLoad && $event.currentTarget === video && onPause()"
               @volumechange="onVolumeChange" />
           </div>

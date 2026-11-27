@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { createRenderer, defineComponent, nextTick, reactive, ref } from 'vue'
+import { createRenderer, defineComponent, h, nextTick, reactive, ref } from 'vue'
 import type { ISource } from '@/components/lightbox/types'
 
 const fixture = vi.hoisted(() => ({ invoke: vi.fn(), startVideo: vi.fn(async (_ready: Promise<HTMLVideoElement | undefined>, _media: unknown, _active: () => boolean) => undefined), store: undefined as any }))
@@ -30,8 +30,14 @@ vi.mock('@/lib/video-codec', () => ({ browserSupportsHevc: () => true, ensurePla
 import { createNativeResourceOwner } from '@/hooks/native-resource-url'
 import { useLightboxNavigation } from '@/hooks/lightbox'
 
+const players: Array<{ removeAttribute: ReturnType<typeof vi.fn>; load: ReturnType<typeof vi.fn> }> = []
 const renderer = createRenderer<object, object>({
-  insert: vi.fn(), remove: vi.fn(), createElement: () => ({}), createText: () => ({}), createComment: () => ({}),
+  insert: vi.fn(), remove: vi.fn(), createElement: tag => {
+    if (tag !== 'video') return {}
+    const player = { removeAttribute: vi.fn(), load: vi.fn() }
+    players.push(player)
+    return player
+  }, createText: () => ({}), createComment: () => ({}),
   setText: vi.fn(), setElementText: vi.fn(), parentNode: () => null, nextSibling: () => null, patchProp: vi.fn(),
 })
 let unmount: (() => void) | undefined
@@ -53,7 +59,7 @@ function mount(count = 100) {
       loop = ref(false)
       nav = useLightboxNavigation(fixture.store, ref(0), ref(), reactive({}) as any,
         status, new Map(), vi.fn(), vi.fn(), vi.fn(), loop, vi.fn(), quality)
-      return () => null
+      return () => nav.videoLoad.value ? h('video', nav.videoLoad.value) : null
     },
   }))
   app.mount({}); unmount = () => app.unmount()
@@ -65,7 +71,7 @@ beforeEach(() => {
   caseId++; id = 0; live.clear(); vi.clearAllMocks()
   vi.stubGlobal('__IS_TAURI__', true)
   vi.stubGlobal('window', { fileIdMap: new Map() })
-  images.length = 0; videos.length = 0
+  players.length = 0; images.length = 0; videos.length = 0
   vi.stubGlobal('Image', class { src = ''; onload = null; onerror = null; constructor() { images.push(this) }; removeAttribute() { this.src = '' } })
   vi.stubGlobal('document', { createElement: () => {
     const listeners = new Map<string, () => void>()
@@ -178,23 +184,18 @@ it('deduplicates looping neighbours and does not open audio solely for preloadin
   expect(live.size).toBe(2)
 })
 
-it('detaches ready video preload elements and deferred preload watchers when closing', async () => {
+it('preloads adjacent images after playback starts without opening another video stream', async () => {
   mount(3)
   fixture.store.lightbox.sources[0] = { ...source(0), path: '/current.mp4', name: 'current.mp4' }
   fixture.store.lightbox.sources[1] = { ...source(1), path: '/next.mp4', name: 'next.mp4' }
   await nav.changeIndex(0); await flush()
   expect(live.size).toBe(0)
-  expect(fixture.store.lightbox.sources[0].src).toMatch(/^http:/)
   status.loading = false; await flush()
-  expect(live.size).toBe(1)
-  expect(videos).toHaveLength(1)
-  expect(videos[0].src).toMatch(/^http:/)
-  videos[0].listeners.get('canplay')()
+  expect(images).toHaveLength(1)
+  expect(videos).toHaveLength(0)
+  expect(fixture.store.lightbox.sources[1].src).toBe('')
   nav.closeDialog(); await flush()
   expect(live.size).toBe(0)
-  expect(videos[0].src).toBe('')
-  expect(videos[0].listeners.size).toBe(0)
-  expect(videos[0].load).toHaveBeenCalledTimes(2)
   expect(images.every(image => image.src === '' && image.onload === null)).toBe(true)
 })
 
@@ -295,7 +296,7 @@ it('advances through pending video opens and retires obsolete metadata on close 
   await nav.changeIndex(0)
   const first = nav.videoLoad.value!
   const oldVideo = { pause: vi.fn() }
-  first.loaded({ currentTarget: oldVideo } as unknown as Event)
+  first.onLoadedmetadata({ currentTarget: oldVideo } as unknown as Event)
   nav.onNext()
   nav.onNext()
   await flush()
@@ -306,9 +307,22 @@ it('advances through pending video opens and retires obsolete metadata on close 
   expect(selected.playbackUrl).toBeTruthy()
   const third = nav.videoLoad.value!
   await nav.changeIndex(0)
-  first.loaded({ currentTarget: oldVideo } as unknown as Event)
-  third.loaded({ currentTarget: oldVideo } as unknown as Event)
+  first.onLoadedmetadata({ currentTarget: oldVideo } as unknown as Event)
+  third.onLoadedmetadata({ currentTarget: oldVideo } as unknown as Event)
   nav.closeDialog()
   await expect(fixture.startVideo.mock.calls[3]![0]).resolves.toBeUndefined()
   expect(fixture.startVideo.mock.calls.every(call => !call[2]())).toBe(true)
+})
+
+it('cancels each mounted video request on navigation and close, even before metadata arrives', async () => {
+  mount(2)
+  for (const [i, item] of fixture.store.lightbox.sources.entries()) Object.assign(item, { path: `/movie/${i}.mp4`, name: `${i}.mp4` })
+  await nav.changeIndex(0); await flush()
+  await nav.changeIndex(1); await flush()
+  nav.closeDialog(); await flush()
+  expect(players).toHaveLength(2)
+  for (const player of players) {
+    expect(player.removeAttribute).toHaveBeenCalledWith('src')
+    expect(player.load).toHaveBeenCalledOnce()
+  }
 })
