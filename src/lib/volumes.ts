@@ -18,7 +18,6 @@ export function getStorageVolumeTitle(v: IStorageMount, t: TranslateFn): string 
   const size = Number(v?.totalBytes ?? 0)
   if (fs === 'vfat' && size > 0 && size < 2 * 1000 * 1000 * 1000) return t('efi_partition')
 
-  if (typeof v?.partitionNum === 'number') return t('partition_x', { n: v.partitionNum })
   const model = String(v.diskModel ?? '').trim()
   if (model) return model
   if (name) return name

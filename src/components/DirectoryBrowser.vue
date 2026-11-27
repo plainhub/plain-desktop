@@ -6,7 +6,7 @@
       </div>
       <ul v-else-if="!volume" class="browser-volumes" :aria-label="t('volumes')">
         <v-list-item
-          v-for="v in sortedVolumes"
+          v-for="v in volumes"
           :key="v.id"
           class="volume-item"
           role="button"
@@ -96,7 +96,6 @@ import type { IStorageMount } from '@/lib/interfaces'
 import { getDirectoryBreadcrumbs, type IFile } from '@/lib/file'
 import VBreadcrumb from '@/components/base/VBreadcrumb.vue'
 import { getStorageVolumeTitle } from '@/lib/volumes'
-import { sortMounts } from '@/lib/storage'
 import { formatFileSize } from '@/lib/format'
 import { directoryPathKey, directoryWithinRoot, findDirectoryVolume, normalizeDirectoryPath } from '@/lib/directory-picker-path'
 import type { DirectoryPickerVolume } from '@/hooks/directory-picker'
@@ -124,7 +123,6 @@ const emit = defineEmits<{
 }>()
 
 const selectableDirs = computed(() => props.dirItems.filter((directory) => !directory.isSystem))
-const sortedVolumes = computed(() => sortMounts(props.volumes))
 const recentItems = computed(() => props.recentDirs.flatMap(path => {
   const normalized = normalizeDirectoryPath(path)
   if (props.volume && !directoryWithinRoot(normalized, props.volume.mountPoint)) return []

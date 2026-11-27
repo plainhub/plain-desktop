@@ -33,7 +33,6 @@ export function useFilesSidebar() {
   const mainStore = useMainStore()
   const { t } = useI18n()
   const { mounts, refetch: refetchMounts } = useMounts()
-  const browsableMounts = computed(() => mounts.value.filter((mount) => mount.mountPoint && !mount.id?.startsWith('part:')))
   const { favoriteFolders } = useFavoriteFolders()
   const { parseQ } = useSearch()
 
@@ -95,7 +94,7 @@ export function useFilesSidebar() {
   function openSetVolumeAlias() {
     const item = selectedVolume.value
     if (!item) return
-    const mount = browsableMounts.value.find((entry) => entry.mountPoint === item.fullPath)
+    const mount = mounts.value.find((entry) => entry.mountPoint === item.fullPath)
     if (!mount || mount.driveType === DriveType.APP) return
     openModal(EditValueModal, {
       title: t('name'), placeholder: item.title,
@@ -113,7 +112,7 @@ export function useFilesSidebar() {
   function generateFavoriteDisplayTitle(favoriteFolder: IFavoriteFolder): string {
     const alias = (favoriteFolder.alias || '').trim()
     if (alias) return alias
-    const m = browsableMounts.value.find((it) => it.mountPoint === favoriteFolder.rootPath)
+    const m = mounts.value.find((it) => it.mountPoint === favoriteFolder.rootPath)
     const rootName = m ? getStorageVolumeTitle(m, t) : favoriteFolder.rootPath
     const relativePath = favoriteFolder.fullPath.startsWith(favoriteFolder.rootPath)
       ? favoriteFolder.fullPath.substring(favoriteFolder.rootPath.length).replace(/^\//, '')
@@ -124,7 +123,7 @@ export function useFilesSidebar() {
   const links = computed(() => {
     const findLongestMatch = (currentPath: string): string => {
       const allPaths = [
-        ...browsableMounts.value.map((m) => m.mountPoint),
+        ...mounts.value.map((m) => m.mountPoint),
         ...favoriteFolders.value.map((f) => f.fullPath),
       ]
       let longestMatch = ''
@@ -136,7 +135,7 @@ export function useFilesSidebar() {
     const result: LinkItem[] = [{ rootPath: '', fullPath: '', type: 'RECENTS', title: t('recents'), isChecked: quickRoute.value === '/files/recent', isFavoriteFolder: false },
       { rootPath: '', fullPath: '', type: 'TRASH', title: t('trash'), isChecked: quickRoute.value === '/files/trash', isFavoriteFolder: false }]
 
-    sortMounts(browsableMounts.value).forEach((m) => {
+    sortMounts(mounts.value).forEach((m) => {
       const mp = m.mountPoint
       const total = Number(m.totalBytes || 0)
       const free = Number(m.freeBytes || 0)
@@ -153,7 +152,7 @@ export function useFilesSidebar() {
     favoriteFolders.value.forEach((folder: IFavoriteFolder) => {
       result.push({
         rootPath: folder.rootPath, fullPath: folder.fullPath,
-        type: browsableMounts.value.find((m) => m.mountPoint === folder.rootPath)?.driveType ?? '',
+        type: mounts.value.find((m) => m.mountPoint === folder.rootPath)?.driveType ?? '',
         title: generateFavoriteDisplayTitle(folder),
         isChecked: longestMatchPath === folder.fullPath, isFavoriteFolder: true,
       })

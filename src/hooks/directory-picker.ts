@@ -5,7 +5,7 @@ import { directoryEntriesGQL, initLazyQuery, initQuery, mountsGQL } from '@/lib/
 import type { IStorageMount } from '@/lib/interfaces'
 import type { IFile } from '@/lib/file'
 import { getFileName } from '@/lib/api/file'
-import { compareLocale } from '@/lib/array'
+import { sortMounts } from '@/lib/storage'
 import { directoryWithinRoot, findDirectoryVolume, normalizeDirectoryPath } from '@/lib/directory-picker-path'
 
 export type DirectoryPickerVolume = Pick<IStorageMount, 'mountPoint' | 'name'>
@@ -53,13 +53,7 @@ export function useDirectoryPicker(initialPath: string, volume?: DirectoryPicker
       loadingMounts.value = false
       listingError.value = error
       if (error) return
-      volumes.value = (data?.mounts ?? []).map((item) => ({
-        ...item, mountPoint: normalizeDirectoryPath(item.mountPoint || ''),
-      })).sort((a, b) => {
-        const am = String(a?.mountPoint ?? ''), bm = String(b?.mountPoint ?? '')
-        if (am === '/') return -1; if (bm === '/') return 1
-        return compareLocale(am, bm, { numeric: true })
-      })
+      volumes.value = sortMounts(data?.mounts ?? [])
       if (!rootPath.value) {
         selectRoot(volumes.value[0]?.mountPoint || '/')
         if (firstPath) selectDirectory(firstPath)

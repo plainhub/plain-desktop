@@ -14,6 +14,8 @@ export function driveRank(m: IStorageMount): number {
 
 export function sortMounts(mounts: IStorageMount[]): IStorageMount[] {
   return [...mounts].sort((a, b) => {
+    const rootOrder = Number(b.mountPoint === '/') - Number(a.mountPoint === '/')
+    if (rootOrder) return rootOrder
     const da = driveRank(a)
     const db = driveRank(b)
     if (da !== db) return da - db

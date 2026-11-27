@@ -159,3 +159,16 @@ it('keeps the current folder when a constrained Windows picker receives another 
   picker.enterDir('E:\\Projects\\Photos')
   expect(picker.currentDir.value).toBe('D:/Projects/Photos')
 })
+
+
+it('uses the same mounted volume order for selection as the other storage views', async () => {
+  const picker = create()
+  query.mounts.handle({ mounts: [
+    { id: 'usb', mountPoint: '/aaa', name: 'USB', driveType: 'USB_STORAGE' },
+    { id: 'root', mountPoint: '/', name: 'System disk', driveType: 'SDCARD' },
+    { id: 'internal', mountPoint: '/zzz', name: 'Internal', driveType: 'INTERNAL_STORAGE' },
+  ] }, '')
+  await nextTick()
+  expect(picker.volumes.value.map((mount) => mount.id)).toEqual(['root', 'internal', 'usb'])
+  expect(picker.rootPath.value).toBe('/')
+})
