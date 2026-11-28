@@ -29,5 +29,7 @@ export async function httpRequest(url: string, options: HttpRequestOptions = {})
  *  from the peers table right before dialing; loopback sockets (the
  *  desktop's own local server) connect directly. */
 export function openSocket(url: string, clientId = ''): WebSocket {
+  const host = window.frameElement as (Element & { openUsbSocket?: (url: string) => WebSocket }) | null
+  if (host?.openUsbSocket) return host.openUsbSocket(url)
   return new WebSocket(proxyWsUrlFor(url, clientId))
 }
