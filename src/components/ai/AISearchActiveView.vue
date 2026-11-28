@@ -33,8 +33,6 @@
         <v-outlined-button :loading="startIndexLoading" @click="startIndex(true)">{{ $t('ai.rescan') }}</v-outlined-button>
       </div>
       <div v-if="status.errorMessage" class="help-text">{{ status.errorMessage }}</div>
-      <v-outlined-button class="btn-block active-action" :loading="enableLoading" @click="enable">{{ $t('ai.activate_download') }} · {{ BUILT_IN_IMAGE_MODEL.name }}</v-outlined-button>
-      <AISearchModelImport :model-dir="status.modelDir" />
       <danger-action class="active-danger-card" :label="$t('ai.unload_model')" :confirm-text="$t('ai.confirm_delete')" :loading="disableLoading" @confirm="disable" />
     </template>
   </div>
@@ -42,8 +40,6 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import AISearchModelImport from './AISearchModelImport.vue'
-import { BUILT_IN_IMAGE_MODEL } from './built-in-image-model'
 import { useI18n } from 'vue-i18n'
 import type { IImageSearchStatus } from '@/lib/interfaces'
 import { ImageSearchStatusType } from '@/lib/status'
@@ -51,7 +47,7 @@ import { useImageSearchActions } from '@/hooks/ai/use-image-search-actions'
 
 const props = defineProps<{ status: IImageSearchStatus }>()
 const { t } = useI18n()
-const { enable, enableLoading, startIndex, cancelIndex, disable, cancelDownload, startIndexLoading, cancelIndexLoading, disableLoading, cancelDownloadLoading } = useImageSearchActions()
+const { startIndex, cancelIndex, disable, cancelDownload, startIndexLoading, cancelIndexLoading, disableLoading, cancelDownloadLoading } = useImageSearchActions()
 
 const isDownloading = computed(() => props.status.status === ImageSearchStatusType.DOWNLOADING)
 const isLoading = computed(() => props.status.status === ImageSearchStatusType.LOADING)
