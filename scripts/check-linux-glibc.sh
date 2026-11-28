@@ -11,7 +11,16 @@ for binary in "$@"; do
         found = 1
         version = $(i + 1)
         split(substr(version, 7), parts, ".")
-        if (parts[1] > 2 || (parts[1] == 2 && (parts[2] > 39 || (parts[2] == 39 && parts[3] > 0)))) {
+        major = parts[1] + 0
+        minor = parts[2] + 0
+        patch = parts[3] + 0
+        if (!foundMax || major > maxMajor || (major == maxMajor && (minor > maxMinor || (minor == maxMinor && patch > maxPatch)))) {
+          foundMax = version
+          maxMajor = major
+          maxMinor = minor
+          maxPatch = patch
+        }
+        if (major > 2 || (major == 2 && (minor > 39 || (minor == 39 && patch > 0)))) {
           printf "%s requires %s (Ubuntu 24.04 baseline is GLIBC_2.39)\n", binary, version > "/dev/stderr"
           failed = 1
         }
@@ -20,6 +29,7 @@ for binary in "$@"; do
     END {
       if (!found) printf "%s: no glibc version requirements found\n", binary > "/dev/stderr"
       if (!found || failed) exit 1
+      printf "%s requires at most %s\n", binary, foundMax
     }
   '
 done

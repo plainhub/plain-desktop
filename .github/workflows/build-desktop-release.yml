@@ -108,7 +108,7 @@ jobs:
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf \
             pkg-config libclang-dev libxcb1-dev libxrandr-dev libdbus-1-dev \
-            libpipewire-0.3-dev libwayland-dev libegl-dev libgbm-dev gcc-14 g++-14 rpm2cpio cpio
+            libpipewire-0.3-dev libwayland-dev libegl-dev libgbm-dev gcc-14 g++-14
           gcc-14 --version
           g++-14 --version
           echo 'CC=gcc-14' >> "$GITHUB_ENV"
@@ -244,16 +244,28 @@ jobs:
           temp=$(mktemp -d)
           trap 'rm -rf "$temp"' EXIT
           appimage=$(realpath release-artifacts/PlainApp-*.AppImage)
-          dpkg-deb -x release-artifacts/PlainApp-*.deb "$temp/deb"
-          mkdir "$temp/rpm"
           rpm=$(realpath release-artifacts/PlainApp-*.rpm)
-          (cd "$temp/rpm"; rpm2cpio "$rpm" | cpio -id --quiet --no-absolute-filenames)
-          (cd "$temp"; "$appimage" --appimage-extract >/dev/null)
+          echo "Extracting the DEB"
+          dpkg-deb -x release-artifacts/PlainApp-*.deb "$temp/deb"
+          echo "Extracting the executable from the RPM"
+          mkdir "$temp/rpm"
+          (cd "$temp/rpm"; cmake -E tar xf "$rpm" -- ./usr/bin/plainapp-desktop)
+          echo "Extracting the AppImage"
+          if ! (cd "$temp"; "$appimage" --appimage-extract) > "$temp/appimage.log" 2>&1; then
+            cat "$temp/appimage.log" >&2
+            echo "::error::Failed to extract the AppImage" >&2
+            exit 1
+          fi
           for root in "$temp/deb" "$temp/rpm" "$temp/squashfs-root"; do
             binary="$root/usr/bin/plainapp-desktop"
-            test -x "$binary"
-            bash scripts/check-linux-glibc.sh "$binary"
+            if [[ ! -x "$binary" ]]; then
+              echo "::error::Expected an executable at $binary" >&2
+              exit 1
+            fi
           done
+          bash scripts/check-linux-glibc.sh \
+            "$temp/deb/usr/bin/plainapp-desktop" "$temp/rpm/usr/bin/plainapp-desktop" \
+            "$temp/squashfs-root/usr/bin/plainapp-desktop"
 
       - name: Verify Windows installers
         if: matrix.platform == 'windows'
