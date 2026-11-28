@@ -38,7 +38,7 @@ export function batchStatsFromProgress(agg: BatchProgress): IBatchStats {
   else if (agg.saving > 0) status = 'saving'
   else if (agg.pending > 0) status = 'pending'
   else if (agg.error > 0) status = 'error'
-  else if (agg.totalFiles > 0 && agg.paused === agg.totalFiles) status = 'paused'
+  else if (agg.paused > 0 && agg.paused + agg.done + agg.canceled === agg.totalFiles) status = 'paused'
   else if (agg.totalFiles > 0 && agg.done + agg.canceled === agg.totalFiles) status = 'done'
   return {
     status,
