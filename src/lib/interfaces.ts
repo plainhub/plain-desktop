@@ -420,13 +420,14 @@ export interface IPackageItem extends IPackage {
   isUninstalling: boolean
 }
 
-// deleted, trashed, restored
 export interface IMediaItemsActionedEvent {
   type: string
-  action: string
+  action: 'DELETE' | 'trash' | 'restore' | 'move' | 'undo' | 'upload'
   query: string
   id?: string
 }
+export const mediaRemovalActions: ReadonlySet<IMediaItemsActionedEvent['action']> = new Set(['DELETE', 'trash', 'restore'])
+
 // deleted, trashed, restored, saved
 export interface INotesActionedEvent {
   action: string

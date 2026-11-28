@@ -14,14 +14,13 @@ import { useMainStore } from '@/stores/main'
 import { fileInfoGQL, initLazyQuery, tagRelationsGQL, tagsGQL } from '@/lib/api/query'
 import { openModal } from '@/components/modal'
 import { useI18n } from 'vue-i18n'
-import type { IItemTagsUpdatedEvent, IFileDeletedEvent, IFileRenamedEvent, ITag, IMediaItemsActionedEvent } from '@/lib/interfaces'
+import { mediaRemovalActions, type IItemTagsUpdatedEvent, type IFileDeletedEvent, type IFileRenamedEvent, type ITag, type IMediaItemsActionedEvent } from '@/lib/interfaces'
 import emitter from '@/plugins/eventbus'
 import { useMediaPlayHistory } from './media-play-history'
 import { useRename } from '@/hooks/files'
 import { download, getFileName } from '@/lib/api/file'
 import { useDeleteMediaItem } from '@/hooks/media'
 import { DataType } from '@/lib/data'
-import { arrayRemove } from '@/lib/array'
 import { deleteFilesGQL, initMutation } from '@/lib/api/mutation'
 import EditValueModal from '@/components/EditValueModal.vue'
 
@@ -542,9 +541,10 @@ export function useLightboxFileActions(
     if (!source?.data) return false
     const { type, data: item, path } = source
     if (type === DataType.VIDEO || type === DataType.AUDIO || type === DataType.IMAGE) {
-      return !!await deleteItem(type, item)
+      return deleteItem(type, item)
     }
-    if (!await deleteFiles({ paths: [path] })) return false
+    const result = await deleteFiles({ paths: [path] })
+    if (!result?.data?.deleteFiles?.affectedCount) return false
     emitter.emit('file_deleted', { item })
     return true
   }
@@ -601,7 +601,6 @@ export function useLightboxEvents(
   video: Ref<HTMLVideoElement | undefined>,
   status: { loading: boolean; loadError: boolean },
   imgState: { maxScale: number },
-  imgIndex: Ref<number>,
   setImgSize: () => void,
   refetchInfo: () => void,
   closeDialog: () => void,
@@ -660,27 +659,30 @@ export function useLightboxEvents(
     if (event.item.key === current.value?.data?.id) refetchInfo()
   }
 
-  const navigateAfterRemove = () => {
-    if (tempStore.lightbox.sources.length === 0) {
+  const removeCurrentSource = (source: ISource, closeAtEnd: boolean) => {
+    const { sources } = tempStore.lightbox
+    const index = sources.indexOf(source)
+    if (index === -1) return
+    sources.splice(index, 1)
+    if (sources.length === 0 || (closeAtEnd && index === sources.length)) {
       closeDialog()
     } else {
-      const newIndex = Math.min(imgIndex.value, tempStore.lightbox.sources.length - 1)
-      changeIndex(newIndex)
+      changeIndex(Math.min(index, sources.length - 1))
     }
   }
 
   const mediaItemsActionedHandler = (event: IMediaItemsActionedEvent) => {
-    const query = `ids:${current.value?.data?.id}`
-    if (['delete', 'trash', 'restore'].includes(event.action) && event.query === query) {
-      arrayRemove(tempStore.lightbox.sources, (it: ISource) => `ids:${it.data?.id}` === event.query)
-      navigateAfterRemove()
+    const source = current.value
+    if (!source?.data || source.type !== event.type || event.query !== `ids:${source.data.id}`) return
+    if (mediaRemovalActions.has(event.action)) {
+      removeCurrentSource(source, event.action === 'DELETE')
     }
   }
 
   const fileDeletedHandler = (event: IFileDeletedEvent) => {
-    if (event.item.path === current.value?.data?.path) {
-      arrayRemove(tempStore.lightbox.sources, (it: ISource) => it.path === event.item.path)
-      navigateAfterRemove()
+    const source = current.value
+    if (source && event.item.path === source.path) {
+      removeCurrentSource(source, true)
     }
   }
 

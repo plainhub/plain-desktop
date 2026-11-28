@@ -210,7 +210,7 @@ const { downloadFile, deleteFile, renameFile, handleActionSuccess } =
   useLightboxFileActions(current, refetchInfo, isPhone, lightboxInfoVisible)
 
 const { onLoad, onError, onPlaying, onPause, onVolumeChange } =
-  useLightboxEvents(tempStore, current, video, status, imgState, imgIndex, setImgSize, refetchInfo, onCloseDialog, onNext, onPrev, changeIndex, emit as (event: string, ...args: any[]) => void, toRef(props, 'popup'))
+  useLightboxEvents(tempStore, current, video, status, imgState, setImgSize, refetchInfo, onCloseDialog, onNext, onPrev, changeIndex, emit as (event: string, ...args: any[]) => void, toRef(props, 'popup'))
 
 function onBackdropClick() {
   if (props.popup) return

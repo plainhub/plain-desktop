@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/main'
 import { useTempStore } from '@/stores/temp'
-import type { IBucket, IFilter, IItemTagsUpdatedEvent, IItemsTagsUpdatedEvent, IMediaItemsActionedEvent } from '@/lib/interfaces'
+import { mediaRemovalActions, type IBucket, type IFilter, type IItemTagsUpdatedEvent, type IItemsTagsUpdatedEvent, type IMediaItemsActionedEvent } from '@/lib/interfaces'
 import type { IUploadItem } from '@/stores/temp'
 import { decodeBase64 } from '@/lib/strutil'
 import { noDataKey } from '@/lib/list'
@@ -167,8 +167,6 @@ export function useMediaPage(options: MediaPageOptions) {
     return null
   }
 
-  const REMOVE_ACTIONS = new Set(['DELETE', 'trash', 'restore'])
-
   function invalidateQuerySelection() {
     if (!sel.realAllChecked.value) return
     sel.realAllChecked.value = false
@@ -185,7 +183,7 @@ export function useMediaPage(options: MediaPageOptions) {
       refreshItems()
       return
     }
-    if (REMOVE_ACTIONS.has(e.action)) {
+    if (mediaRemovalActions.has(e.action)) {
       const idsToRemove = getActionedItemIds(e)
       if (idsToRemove) {
         invalidateQuerySelection()

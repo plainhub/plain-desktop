@@ -21,8 +21,9 @@ export function useDeleteMediaItem() {
   return async (type: string, item: IImageItem | IVideoItem | IAudio) => {
     const query = `ids:${item.id}`
     const result = await mutate({ type, query })
-    if (result) emitter.emit('media_items_actioned', { type, action: 'DELETE', id: item.id, query })
-    return result
+    if (!result?.data?.deleteMediaItems?.affectedCount) return false
+    emitter.emit('media_items_actioned', { type, action: 'DELETE', id: item.id, query })
+    return true
   }
 }
 
