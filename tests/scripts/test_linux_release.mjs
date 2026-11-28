@@ -12,7 +12,7 @@ test('Linux release artifacts are built and smoke-tested on the Ubuntu 24.04 bas
   assert.match(workflow, /provenance:\n[\s\S]*?needs: \[build, linux-smoke\]/)
 })
 
-test('the Linux installer check streams the RPM executable and reports each package', () => {
+test('the Linux installer check extracts the RPM executable with the runner archive tool', () => {
   const workflow = readFileSync(new URL('.github/workflows/build-desktop-release.yml', root), 'utf8')
   const step = workflow.split('      - name: Verify Linux installers\n')[1].split('      - name:')[0]
   const script = step.split('        run: |\n')[1].trimEnd()
@@ -21,11 +21,12 @@ test('the Linux installer check streams the RPM executable and reports each pack
       mkdir -p "$3/usr/bin"
       cp /bin/sh "$3/usr/bin/plainapp-desktop"
     }
-    rpm2cpio() { printf 'archive'; }
-    cpio() {
-      [[ "$*" == *--to-stdout* && "$*" == *./usr/bin/plainapp-desktop* ]] || return 1
-      cat >/dev/null
-      cat /bin/sh
+    rpm2cpio() { return 1; }
+    cpio() { cat >/dev/null; return 1; }
+    cmake() {
+      [[ "$*" == '-E tar xf test.rpm -- ./usr/bin/plainapp-desktop' ]] || return 1
+      mkdir -p usr/bin
+      cp /bin/sh usr/bin/plainapp-desktop
     }
     appimage() {
       mkdir -p squashfs-root/usr/bin
