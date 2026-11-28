@@ -244,16 +244,31 @@ jobs:
           temp=$(mktemp -d)
           trap 'rm -rf "$temp"' EXIT
           appimage=$(realpath release-artifacts/PlainApp-*.AppImage)
-          dpkg-deb -x release-artifacts/PlainApp-*.deb "$temp/deb"
-          mkdir "$temp/rpm"
           rpm=$(realpath release-artifacts/PlainApp-*.rpm)
-          (cd "$temp/rpm"; rpm2cpio "$rpm" | cpio -id --quiet --no-absolute-filenames)
-          (cd "$temp"; "$appimage" --appimage-extract >/dev/null)
-          for root in "$temp/deb" "$temp/rpm" "$temp/squashfs-root"; do
+          echo "Extracting the DEB"
+          dpkg-deb -x release-artifacts/PlainApp-*.deb "$temp/deb"
+          echo "Extracting the executable from the RPM"
+          rpm2cpio "$rpm" | cpio --extract --quiet --to-stdout ./usr/bin/plainapp-desktop > "$temp/plainapp-desktop.rpm"
+          if [[ ! -s "$temp/plainapp-desktop.rpm" ]]; then
+            echo "::error::RPM does not contain ./usr/bin/plainapp-desktop" >&2
+            exit 1
+          fi
+          echo "Extracting the AppImage"
+          if ! (cd "$temp"; "$appimage" --appimage-extract) > "$temp/appimage.log" 2>&1; then
+            cat "$temp/appimage.log" >&2
+            echo "::error::Failed to extract the AppImage" >&2
+            exit 1
+          fi
+          for root in "$temp/deb" "$temp/squashfs-root"; do
             binary="$root/usr/bin/plainapp-desktop"
-            test -x "$binary"
-            bash scripts/check-linux-glibc.sh "$binary"
+            if [[ ! -x "$binary" ]]; then
+              echo "::error::Expected an executable at $binary" >&2
+              exit 1
+            fi
           done
+          bash scripts/check-linux-glibc.sh \
+            "$temp/deb/usr/bin/plainapp-desktop" "$temp/plainapp-desktop.rpm" \
+            "$temp/squashfs-root/usr/bin/plainapp-desktop"
 
       - name: Verify Windows installers
         if: matrix.platform == 'windows'
