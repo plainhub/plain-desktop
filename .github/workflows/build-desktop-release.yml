@@ -39,7 +39,7 @@ jobs:
           - platform: windows
             os: windows-latest
           - platform: linux
-            os: ubuntu-26.04
+            os: ubuntu-24.04
     outputs:
       version_name: ${{ steps.meta.outputs.version_name }}
     steps:
@@ -108,7 +108,7 @@ jobs:
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf \
             pkg-config libclang-dev libxcb1-dev libxrandr-dev libdbus-1-dev \
-            libpipewire-0.3-dev libwayland-dev libegl-dev libgbm-dev gcc-14 g++-14
+            libpipewire-0.3-dev libwayland-dev libegl-dev libgbm-dev gcc-14 g++-14 rpm2cpio cpio
           gcc-14 --version
           g++-14 --version
           echo 'CC=gcc-14' >> "$GITHUB_ENV"
@@ -245,10 +245,14 @@ jobs:
           trap 'rm -rf "$temp"' EXIT
           appimage=$(realpath release-artifacts/PlainApp-*.AppImage)
           dpkg-deb -x release-artifacts/PlainApp-*.deb "$temp/deb"
-          rpm -qlp release-artifacts/PlainApp-*.rpm >/dev/null
+          mkdir "$temp/rpm"
+          rpm=$(realpath release-artifacts/PlainApp-*.rpm)
+          (cd "$temp/rpm"; rpm2cpio "$rpm" | cpio -id --quiet --no-absolute-filenames)
           (cd "$temp"; "$appimage" --appimage-extract >/dev/null)
-          for root in "$temp/deb" "$temp/squashfs-root"; do
-            test -x "$root/usr/bin/plainapp-desktop"
+          for root in "$temp/deb" "$temp/rpm" "$temp/squashfs-root"; do
+            binary="$root/usr/bin/plainapp-desktop"
+            test -x "$binary"
+            bash scripts/check-linux-glibc.sh "$binary"
           done
 
       - name: Verify Windows installers
@@ -319,9 +323,45 @@ jobs:
           security delete-keychain "$RUNNER_TEMP/app-signing.keychain-db" || true
           rm -f "$RUNNER_TEMP/build_certificate.p12"
 
+  linux-smoke:
+    name: Launch Linux release on Ubuntu 24.04
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-artifacts-linux
+          path: release-artifacts
+
+      - name: Install the DEB and wait for the desktop window
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y ./release-artifacts/PlainApp-*.deb xvfb xauth xdotool
+          profile=$(mktemp -d)
+          trap 'rm -rf "$profile"' EXIT
+          export XDG_DATA_HOME="$profile/data" XDG_CONFIG_HOME="$profile/config" XDG_CACHE_HOME="$profile/cache"
+          export GDK_BACKEND=x11
+          timeout 60s dbus-run-session -- xvfb-run -a bash -euo pipefail -c '
+            plainapp-desktop >"$1" 2>&1 &
+            pid=$!
+            trap "kill $pid 2>/dev/null || true" EXIT
+            for ((i=0; i<45; i++)); do
+              if ! kill -0 "$pid" 2>/dev/null; then break; fi
+              if xdotool search --onlyvisible --pid "$pid" >/dev/null; then exit 0; fi
+              sleep 1
+            done
+            cat "$1" >&2
+            echo "PlainApp did not open a window" >&2
+            exit 1
+          ' bash "$profile/startup.log"
+
   provenance:
     name: Verify release installer provenance
-    needs: build
+    needs: [build, linux-smoke]
     runs-on: ubuntu-latest
     permissions:
       contents: read
